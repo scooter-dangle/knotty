@@ -9,7 +9,6 @@ VerboseDiagram(
                 OpenedAbove,
                 CrossUpUnder,
                 ClosedAbove,
-                Empty,
             ],
         ),
         VerboseLine(
@@ -17,7 +16,6 @@ VerboseDiagram(
                 OpenedBelow,
                 CrossDownOver,
                 ClosedBelow,
-                Empty,
             ],
         ),
     ],

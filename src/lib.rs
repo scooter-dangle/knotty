@@ -94,18 +94,18 @@ impl Horiz {
                 r#"/   "#,
             ],
             TransferUpFinish => [
-                r#"  __"#,
-                r#" /  "#,
-                r#"/   "#,
+                r#"   _"#,
+                r#"  / "#,
+                r#"_/  "#,
             ],
             TransferDownStart => [
                 r#"_   "#,
-                r#" \_ "#,
-                r#"   \"#,
+                r#" \  "#,
+                r#"  \_"#,
             ],
             TransferDown => [
-                r#"\_  "#,
-                r#"  \ "#,
+                r#"\   "#,
+                r#" \_ "#,
                 r#"   \"#,
             ],
             TransferDownFinish => [
@@ -274,7 +274,8 @@ fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
         .iter_mut()
         .enumerate()
         .map(|(idx, line)| {
-            let is_empty = line.last().cloned().unwrap_or_default().is_empty();
+            let is_empty =
+                (0..2).contains(&idx) || line.last().cloned().unwrap_or_default().is_empty();
 
             line.push(if is_empty {
                 Horiz::Empty
@@ -321,22 +322,16 @@ fn raw_lines_append(lines: &mut [Vec<Horiz>], idx: usize, element: u8) {
             }
 
             raw_lines_continue(lines);
-            // TODO shift everything above upward if there's anything above
-            // TODO shift lines below downward if there's any space below
-            // HMMM! Or maybe that's wrong! We should _only_ shift upward!
             *lines[idx].last_mut().unwrap() = Horiz::OpenedAbove;
             *lines[idx + 1].last_mut().unwrap() = Horiz::OpenedBelow;
         }
         b'V' => {
             raw_lines_continue(lines);
-            // TODO shift everything above downward if there's anything above
-            // TODO shift lines below upward if there's any space below
+
             *lines[idx].last_mut().unwrap() = Horiz::ClosedAbove;
             *lines[idx + 1].last_mut().unwrap() = Horiz::ClosedBelow;
 
-            raw_lines_continue(lines);
-
-            if !raw_lines_is_empty_above(&*lines, idx) {
+            if !raw_lines_is_empty_above(&*lines, idx + 2) {
                 raw_lines_contract_above(lines, idx);
             }
         }
