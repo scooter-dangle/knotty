@@ -181,11 +181,13 @@ impl Horiz {
 }
 
 fn raw_lines_is_empty_above(lines: &[Vec<Horiz>], idx: usize) -> bool {
-    lines
-        .get(idx..)
-        .unwrap_or_default()
-        .iter()
-        .all(|line| line.last().cloned().unwrap_or_default().is_empty())
+    lines.get(idx..).unwrap_or_default().iter().all(|line| {
+        line.last()
+            .cloned()
+            .unwrap_or_default()
+            .subsequent()
+            .is_empty()
+    })
 }
 
 fn raw_lines_continue(lines: &mut [Vec<Horiz>]) {
@@ -278,7 +280,13 @@ fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
                 (0..2).contains(&idx) || line.last().cloned().unwrap_or_default().is_empty();
 
             line.push(if is_empty {
-                Horiz::Empty
+                if idx == 0 {
+                    Horiz::ClosedAbove
+                } else if idx == 1 {
+                    Horiz::ClosedBelow
+                } else {
+                    Horiz::Empty
+                }
             } else {
                 Horiz::TransferDownStart
             });
@@ -317,21 +325,21 @@ fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
 fn raw_lines_append(lines: &mut [Vec<Horiz>], idx: usize, element: u8) {
     match element {
         b'A' => {
-            if !raw_lines_is_empty_above(&*lines, idx) {
+            if raw_lines_is_empty_above(&*lines, idx) {
+                raw_lines_continue(lines);
+            } else {
                 raw_lines_expand_above(lines, idx);
             }
-
-            raw_lines_continue(lines);
             *lines[idx].last_mut().unwrap() = Horiz::OpenedAbove;
             *lines[idx + 1].last_mut().unwrap() = Horiz::OpenedBelow;
         }
         b'V' => {
-            raw_lines_continue(lines);
-
-            *lines[idx].last_mut().unwrap() = Horiz::ClosedAbove;
-            *lines[idx + 1].last_mut().unwrap() = Horiz::ClosedBelow;
-
-            if !raw_lines_is_empty_above(&*lines, idx + 2) {
+            let is_empty_above = raw_lines_is_empty_above(&*lines, idx + 2);
+            if is_empty_above {
+                raw_lines_continue(lines);
+                *lines[idx].last_mut().unwrap() = Horiz::ClosedAbove;
+                *lines[idx + 1].last_mut().unwrap() = Horiz::ClosedBelow;
+            } else {
                 raw_lines_contract_above(lines, idx);
             }
         }

@@ -8,12 +8,10 @@ expression: lines
         Line,
         Line,
         Line,
-        Line,
     ],
     [
         OpenedBelow,
         TransferUpStart,
-        Empty,
         Empty,
         OpenedAbove,
     ],
@@ -21,7 +19,6 @@ expression: lines
         Empty,
         Empty,
         TransferUp,
-        Empty,
         OpenedBelow,
     ],
     [
@@ -29,6 +26,5 @@ expression: lines
         Empty,
         Empty,
         TransferUpFinish,
-        Line,
     ],
 ]
