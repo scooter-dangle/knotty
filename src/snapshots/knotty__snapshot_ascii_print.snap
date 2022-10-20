@@ -2,10 +2,10 @@
 source: src/lib.rs
 expression: ascii_print(unknot)
 ---
-   _    
-  / \   
- <   >  
-  \_/   
-        
-        
+      
+  /\  
+ <  > 
+  \/  
+      
+      
 
