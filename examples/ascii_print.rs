@@ -7,9 +7,9 @@ fn main() {
     // <   >
     //  \_/
     //
-    let unknot = [(0, b'A'), (0, b'V')];
+    let unknot = vec![(0, b'A'), (0, b'V')];
 
-    println!("{}", knotty::ascii_print(&unknot));
+    println!("{}", knotty::ascii_print(unknot));
 
     // Trefoil:
     //     ,______________
@@ -23,7 +23,7 @@ fn main() {
     // <         /           >
     //  \_______/ \_________/
     //
-    let trefoil = [
+    let trefoil = vec![
         (0, b'A'),
         (2, b'A'),
         (1, b'/'),
@@ -33,17 +33,5 @@ fn main() {
         (0, b'V'),
     ];
 
-    // Square knot:
-    //
-    //        ___________
-    //       /         | \
-    //     _/      _   |  \_
-    //    /       / \  |
-    //   <       <   > |
-    //    \_      \_/  |   _
-    //      \          |  /
-    //       \         | /
-    //        \_________/
-
-    println!("{}", knotty::ascii_print(&trefoil));
+    println!("{}", knotty::ascii_print(trefoil));
 }

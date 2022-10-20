@@ -375,7 +375,10 @@ fn snapshot_raw_lines_append() {
 
 impl VerboseDiagram {
     pub fn display<'a>(&'a self) -> impl 'a + Iterator<Item = String> {
-        self.0.iter().flat_map(|line| line.display())
+        self.0
+            .iter()
+            .rev()
+            .flat_map(|line| line.display().into_iter())
     }
 
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
@@ -423,6 +426,49 @@ impl AbbreviatedDiagram {
     }
 }
 
-pub fn ascii_print(knot: &[(usize, u8)]) -> String {
-    todo!()
+pub fn ascii_print(knot: Vec<(usize, u8)>) -> String {
+    VerboseDiagram::from_abbreviated(&AbbreviatedDiagram(knot))
+        .unwrap()
+        .display()
+        .collect::<String>()
+}
+
+#[test]
+fn snapshot_ascii_print() {
+    // Unknot:
+    //   _
+    //  / \
+    // <   >
+    //  \_/
+    //
+    let unknot = vec![(0, b'A'), (0, b'V')];
+    insta::assert_snapshot!(ascii_print(unknot));
+
+    // Trefoil:
+    //       _____________
+    //      /             \
+    //     <               >
+    //      \__   _____   /
+    //         \ /     \ /
+    //          \       \
+    //   ______/ \_   _/ \________
+    //  /          \ /            \
+    // <            /              >
+    //  \__________/ \____________/
+    //
+    //
+    let trefoil = vec![
+        (0, b'A'),
+        (2, b'A'),
+        (1, b'/'),
+        (0, b'\\'),
+        (1, b'/'),
+        (2, b'V'),
+        (0, b'V'),
+    ];
+    insta::assert_snapshot!(ascii_print(trefoil));
+
+    // donut:
+    let donut = vec![(0, b'A'), (1, b'A'), (1, b'V'), (0, b'V')];
+    insta::assert_snapshot!(ascii_print(donut));
 }
