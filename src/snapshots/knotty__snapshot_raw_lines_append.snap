@@ -1,0 +1,18 @@
+---
+source: src/lib.rs
+expression: lines
+---
+[
+    [
+        OpenedAbove,
+    ],
+    [
+        OpenedBelow,
+    ],
+    [
+        Empty,
+    ],
+    [
+        Empty,
+    ],
+]

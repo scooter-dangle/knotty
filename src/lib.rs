@@ -1,7 +1,13 @@
 // struct Diagram(
 
-#[derive(Debug, Clone, Copy)]
+#[cfg(test)]
+use pretty_assertions::assert_eq;
+
+use std::collections::VecDeque;
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
+    #[default]
     Empty,
     Line,
     CrossDownOver,
@@ -13,8 +19,10 @@ pub enum Horiz {
     ClosedBelow,
     ClosedAbove,
     TransferUpStart,
+    TransferUp,
     TransferUpFinish,
     TransferDownStart,
+    TransferDown,
     TransferDownFinish,
 }
 
@@ -78,13 +86,23 @@ impl Horiz {
                 r#"    "#,
                 r#"    "#,
             ],
+            TransferUp => [
+                r#"   /"#,
+                r#" _/ "#,
+                r#"/   "#,
+            ],
             TransferUpFinish => [
                 r#"  __"#,
                 r#" /  "#,
                 r#"/   "#,
             ],
             TransferDownStart => [
-                r#"__  "#,
+                r#"_   "#,
+                r#" \_ "#,
+                r#"   \"#,
+            ],
+            TransferDown => [
+                r#"\_  "#,
                 r#"  \ "#,
                 r#"   \"#,
             ],
@@ -120,7 +138,7 @@ impl VerboseLine {
 
 impl Horiz {
     #[rustfmt::skip]
-    pub fn subsequent(&self) -> Self {
+    pub const fn subsequent(&self) -> Self {
         use Horiz::*;
 
         match self {
@@ -128,7 +146,9 @@ impl Horiz {
             | ClosedBelow
             | ClosedAbove
             | TransferUpStart
+            | TransferUp
             | TransferDownStart
+            | TransferDown
             => Empty,
 
             | Line
@@ -144,6 +164,10 @@ impl Horiz {
         }
     }
 
+    pub const fn is_empty(&self) -> bool {
+        matches!(self, Horiz::Empty)
+    }
+
     ///// # Panics
     /////
     ///// If element is not a raw diagram element.
@@ -154,18 +178,183 @@ impl Horiz {
     //}
 }
 
-fn raw_lines_continue(lines: &mut Vec<Vec<Horiz>>) {
+fn raw_lines_is_empty_above(lines: &[Vec<Horiz>], idx: usize) -> bool {
+    lines
+        .get(idx..)
+        .unwrap_or_default()
+        .iter()
+        .all(|line| line.last().cloned().unwrap_or_default().is_empty())
+}
+
+fn raw_lines_continue(lines: &mut [Vec<Horiz>]) {
     lines
         .iter_mut()
         .for_each(|line| line.push(line.last().unwrap_or(&Horiz::Empty).subsequent()));
 }
 
-fn raw_lines_append(lines: &mut Vec<Vec<Horiz>>, idx: usize, element: u8) {
-    raw_lines_continue(lines);
-
-    match element {
-        b'A' => {}
+fn raw_lines_expand_above(lines: &mut [Vec<Horiz>], idx: usize) {
+    let (lower, upper) = lines.split_at_mut(idx);
+    for _ in 0..3 {
+        raw_lines_continue(lower);
     }
+
+    let mut indexes: VecDeque<_> = upper
+        .iter_mut()
+        .enumerate()
+        .map(|(idx, line)| {
+            let is_empty = line.last().cloned().unwrap_or_default().is_empty();
+
+            line.push(if is_empty {
+                Horiz::Empty
+            } else {
+                Horiz::TransferUpStart
+            });
+
+            is_empty
+        })
+        .collect();
+
+    indexes.rotate_right(1);
+
+    upper
+        .iter_mut()
+        .zip(indexes.iter())
+        .for_each(|(line, is_empty)| {
+            line.push(if *is_empty {
+                Horiz::Empty
+            } else {
+                Horiz::TransferUp
+            });
+        });
+
+    indexes.rotate_right(1);
+
+    upper
+        .iter_mut()
+        .zip(indexes.iter())
+        .for_each(|(line, is_empty)| {
+            line.push(if *is_empty {
+                Horiz::Empty
+            } else {
+                Horiz::TransferUpFinish
+            });
+        });
+}
+
+#[test]
+fn snapshot_raw_lines_expand_contract() {
+    use Horiz::*;
+
+    let mut lines = vec![vec![Line], vec![Line], vec![Line], vec![Empty], vec![Empty]];
+    let original_lines = lines.clone();
+
+    raw_lines_expand_above(&mut lines, 1);
+    insta::assert_debug_snapshot!(lines);
+
+    raw_lines_contract_above(&mut lines, 1);
+    insta::assert_debug_snapshot!(lines);
+
+    raw_lines_continue(&mut lines);
+    let final_column = lines
+        .iter()
+        .map(|line| vec![line.last().cloned().unwrap()])
+        .collect::<Vec<_>>();
+    assert_eq!(final_column, original_lines);
+}
+
+fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
+    let (lower, upper) = lines.split_at_mut(idx);
+    for _ in 0..3 {
+        raw_lines_continue(lower);
+    }
+
+    let mut indexes: VecDeque<_> = upper
+        .iter_mut()
+        .enumerate()
+        .map(|(idx, line)| {
+            let is_empty = line.last().cloned().unwrap_or_default().is_empty();
+
+            line.push(if is_empty {
+                Horiz::Empty
+            } else {
+                Horiz::TransferDownStart
+            });
+
+            is_empty
+        })
+        .collect();
+
+    indexes.rotate_left(1);
+
+    upper
+        .iter_mut()
+        .zip(indexes.iter())
+        .for_each(|(line, is_empty)| {
+            line.push(if *is_empty {
+                Horiz::Empty
+            } else {
+                Horiz::TransferDown
+            });
+        });
+
+    indexes.rotate_left(1);
+
+    upper
+        .iter_mut()
+        .zip(indexes.iter())
+        .for_each(|(line, is_empty)| {
+            line.push(if *is_empty {
+                Horiz::Empty
+            } else {
+                Horiz::TransferDownFinish
+            });
+        });
+}
+
+fn raw_lines_append(lines: &mut [Vec<Horiz>], idx: usize, element: u8) {
+    match element {
+        b'A' => {
+            if !raw_lines_is_empty_above(&*lines, idx) {
+                raw_lines_expand_above(lines, idx);
+            }
+
+            raw_lines_continue(lines);
+            // TODO shift everything above upward if there's anything above
+            // TODO shift lines below downward if there's any space below
+            // HMMM! Or maybe that's wrong! We should _only_ shift upward!
+            *lines[idx].last_mut().unwrap() = Horiz::OpenedAbove;
+            *lines[idx + 1].last_mut().unwrap() = Horiz::OpenedBelow;
+        }
+        b'V' => {
+            if !raw_lines_is_empty_above(&*lines, idx) {
+                raw_lines_contract_above(lines, idx);
+            }
+
+            raw_lines_continue(lines);
+            // TODO shift everything above downward if there's anything above
+            // TODO shift lines below upward if there's any space below
+            *lines[idx].last_mut().unwrap() = Horiz::ClosedAbove;
+            *lines[idx + 1].last_mut().unwrap() = Horiz::ClosedBelow;
+        }
+        _ => unimplemented!(),
+    }
+}
+
+#[test]
+fn snapshot_raw_lines_append() {
+    let mut lines = vec![vec![]; 4];
+
+    raw_lines_append(&mut lines, 0, b'A');
+    insta::assert_debug_snapshot!(lines);
+
+    raw_lines_append(&mut lines, 1, b'A');
+    insta::assert_debug_snapshot!(lines);
+
+    raw_lines_append(&mut lines, 0, b'V');
+    insta::assert_debug_snapshot!(lines);
+
+    raw_lines_append(&mut lines, 0, b'V');
+    insta::assert_debug_snapshot!(lines);
 }
 
 impl VerboseDiagram {

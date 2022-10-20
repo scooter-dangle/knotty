@@ -1,0 +1,50 @@
+---
+source: src/lib.rs
+expression: lines
+---
+[
+    [
+        OpenedAbove,
+        Line,
+        Line,
+        Line,
+        Line,
+        TransferDownStart,
+        TransferDown,
+        TransferDownFinish,
+        ClosedAbove,
+    ],
+    [
+        OpenedBelow,
+        TransferUpStart,
+        Empty,
+        Empty,
+        OpenedAbove,
+        TransferDownStart,
+        TransferDown,
+        TransferDownFinish,
+        ClosedBelow,
+    ],
+    [
+        Empty,
+        Empty,
+        TransferUp,
+        Empty,
+        OpenedBelow,
+        TransferDownStart,
+        TransferDown,
+        TransferDownFinish,
+        Line,
+    ],
+    [
+        Empty,
+        Empty,
+        Empty,
+        TransferUpFinish,
+        Line,
+        TransferDownStart,
+        TransferDown,
+        TransferDownFinish,
+        Line,
+    ],
+]
