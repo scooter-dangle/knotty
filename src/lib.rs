@@ -442,6 +442,34 @@ pub fn ascii_print(knot: Vec<(usize, u8)>) -> String {
         .collect::<String>()
 }
 
+pub fn ascii_print_compact(knot: Vec<(usize, u8)>) -> String {
+    let inner = VerboseDiagram::from_abbreviated(&AbbreviatedDiagram(knot))
+        .unwrap()
+        .display()
+        .collect::<Vec<_>>();
+
+    let string_len = inner.first().unwrap().len();
+
+    let mut out = (0..inner.len())
+        .map(|_| String::with_capacity(string_len))
+        .collect::<Vec<_>>();
+
+    for idx in 0..string_len {
+        if inner
+            .iter()
+            .all(|line| matches!(&line[idx..idx + 1], " " | "_"))
+        {
+            continue;
+        }
+
+        out.iter_mut().zip(inner.iter()).for_each(|(out, inner)| {
+            out.push_str(&inner[idx..idx + 1]);
+        });
+    }
+
+    out.into_iter().collect()
+}
+
 #[test]
 fn snapshot_ascii_print() {
     // Unknot:
@@ -451,7 +479,7 @@ fn snapshot_ascii_print() {
     //  \/
     //
     let unknot = vec![(0, b'A'), (0, b'V')];
-    insta::assert_snapshot!(ascii_print(unknot));
+    insta::assert_snapshot!(ascii_print_compact(unknot));
 
     // Trefoil:
     //       _____________
@@ -475,15 +503,15 @@ fn snapshot_ascii_print() {
         (2, b'V'),
         (0, b'V'),
     ];
-    insta::assert_snapshot!(ascii_print(trefoil));
+    insta::assert_snapshot!(ascii_print_compact(trefoil));
 
     // donut:
     let donut = vec![(0, b'A'), (1, b'A'), (1, b'V'), (0, b'V')];
-    insta::assert_snapshot!(ascii_print(donut));
+    insta::assert_snapshot!(ascii_print_compact(donut));
 
     // C:
     let donut = vec![(0, b'A'), (1, b'A'), (2, b'V'), (0, b'V')];
-    insta::assert_snapshot!(ascii_print(donut));
+    insta::assert_snapshot!(ascii_print_compact(donut));
 
     // weird terrace thing:
     let terrace = vec![
@@ -502,7 +530,7 @@ fn snapshot_ascii_print() {
         (2, b'V'),
         (0, b'V'),
     ];
-    insta::assert_snapshot!(ascii_print(terrace));
+    insta::assert_snapshot!(ascii_print_compact(terrace));
 
     // basket:
     let basket = vec![
@@ -517,7 +545,7 @@ fn snapshot_ascii_print() {
         (1, b'V'),
         (0, b'V'),
     ];
-    insta::assert_snapshot!(ascii_print(basket));
+    insta::assert_snapshot!(ascii_print_compact(basket));
 
     // ugly trefoil:
     let ugly_trefoil = vec![
@@ -529,5 +557,5 @@ fn snapshot_ascii_print() {
         (0, b'V'),
         (0, b'V'),
     ];
-    insta::assert_snapshot!(ascii_print(ugly_trefoil));
+    insta::assert_snapshot!(ascii_print_compact(ugly_trefoil));
 }

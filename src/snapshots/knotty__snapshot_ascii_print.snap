@@ -1,11 +1,9 @@
 ---
 source: src/lib.rs
-expression: ascii_print(unknot)
+expression: ascii_print_compact(unknot)
 ---
-      
-  /\  
- <  > 
-  \/  
-      
-      
+    
+ /\ 
+<  >
+ \/ 
 

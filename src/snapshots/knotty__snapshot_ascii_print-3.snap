@@ -1,17 +1,15 @@
 ---
 source: src/lib.rs
-expression: ascii_print(donut)
+expression: ascii_print_compact(donut)
 ---
-           __           
-          /  \          
-         /    \         
-        /      \        
-       /   /\   \       
-      /   <  >   \      
-   __/     \/     \__   
-  /                  \  
- <                    > 
-  \__________________/  
-                        
-                        
+        __        
+       /  \       
+      /    \      
+     /      \     
+    /   /\   \    
+   /   <  >   \   
+  /     \/     \  
+ /              \ 
+<                >
+ \______________/ 
 

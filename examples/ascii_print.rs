@@ -8,7 +8,7 @@ fn main() {
     //  \_/
     //
     let unknot = vec![(0, b'A'), (0, b'V')];
-    println!("{}", knotty::ascii_print(unknot));
+    println!("{}", knotty::ascii_print_compact(unknot));
 
     // Trefoil:
     //     ,______________
@@ -31,15 +31,15 @@ fn main() {
         (2, b'V'),
         (0, b'V'),
     ];
-    println!("{}", knotty::ascii_print(trefoil));
+    println!("{}", knotty::ascii_print_compact(trefoil));
 
     // donut:
     let donut = vec![(0, b'A'), (1, b'A'), (1, b'V'), (0, b'V')];
-    println!("{}", knotty::ascii_print(donut));
+    println!("{}", knotty::ascii_print_compact(donut));
 
     // C:
     let donut = vec![(0, b'A'), (1, b'A'), (2, b'V'), (0, b'V')];
-    println!("{}", knotty::ascii_print(donut));
+    println!("{}", knotty::ascii_print_compact(donut));
 
     // weird terrace thing:
     let terrace = vec![
@@ -61,7 +61,7 @@ fn main() {
         (2, b'V'),
         (0, b'V'),
     ];
-    println!("{}", knotty::ascii_print(terrace));
+    println!("{}", knotty::ascii_print_compact(terrace));
 
     // basket:
     let basket = vec![
@@ -76,7 +76,7 @@ fn main() {
         (1, b'V'),
         (0, b'V'),
     ];
-    println!("{}", knotty::ascii_print(basket));
+    println!("{}", knotty::ascii_print_compact(basket));
 
     // ugly trefoil:
     let ugly_trefoil = vec![
@@ -88,5 +88,5 @@ fn main() {
         (0, b'V'),
         (0, b'V'),
     ];
-    println!("{}", knotty::ascii_print(ugly_trefoil));
+    println!("{}", knotty::ascii_print_compact(ugly_trefoil));
 }
