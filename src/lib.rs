@@ -26,8 +26,10 @@ pub enum Horiz {
     TransferDownFinish,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct VerboseLine(Vec<Horiz>);
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct VerboseDiagram(Vec<VerboseLine>);
 
 impl Horiz {
@@ -326,15 +328,29 @@ fn raw_lines_append(lines: &mut [Vec<Horiz>], idx: usize, element: u8) {
             *lines[idx + 1].last_mut().unwrap() = Horiz::OpenedBelow;
         }
         b'V' => {
-            if !raw_lines_is_empty_above(&*lines, idx) {
-                raw_lines_contract_above(lines, idx);
-            }
-
             raw_lines_continue(lines);
             // TODO shift everything above downward if there's anything above
             // TODO shift lines below upward if there's any space below
             *lines[idx].last_mut().unwrap() = Horiz::ClosedAbove;
             *lines[idx + 1].last_mut().unwrap() = Horiz::ClosedBelow;
+
+            raw_lines_continue(lines);
+
+            if !raw_lines_is_empty_above(&*lines, idx) {
+                raw_lines_contract_above(lines, idx);
+            }
+        }
+        b'/' => {
+            raw_lines_continue(lines);
+
+            *lines[idx].last_mut().unwrap() = Horiz::CrossUpUnder;
+            *lines[idx + 1].last_mut().unwrap() = Horiz::CrossDownOver;
+        }
+        b'\\' => {
+            raw_lines_continue(lines);
+
+            *lines[idx].last_mut().unwrap() = Horiz::CrossUpOver;
+            *lines[idx + 1].last_mut().unwrap() = Horiz::CrossDownUnder;
         }
         _ => unimplemented!(),
     }
@@ -365,10 +381,22 @@ impl VerboseDiagram {
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
         let height = knot.height();
 
-        let mut lines: Vec<Vec<u8>> = vec![Vec::with_capacity(knot.len()); height];
+        let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
-        todo!()
+        for (idx, element) in knot.0.iter() {
+            raw_lines_append(&mut lines, *idx, *element);
+        }
+
+        Ok(Self(lines.into_iter().map(VerboseLine).collect()))
     }
+}
+
+#[test]
+fn snapshot_from_abbreviated() {
+    let knot = AbbreviatedDiagram(vec![(0, b'A'), (0, b'/'), (0, b'V')]);
+
+    let verbose = VerboseDiagram::from_abbreviated(&knot).unwrap();
+    insta::assert_debug_snapshot!(verbose);
 }
 
 pub struct AbbreviatedDiagram(Vec<(usize, u8)>);

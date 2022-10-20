@@ -14,6 +14,8 @@ expression: lines
         Empty,
         Empty,
         TransferDownFinish,
+        ClosedAbove,
+        Empty,
     ],
     [
         OpenedBelow,
@@ -26,6 +28,8 @@ expression: lines
         Empty,
         TransferDown,
         TransferDownFinish,
+        ClosedBelow,
+        Empty,
     ],
     [
         Empty,
@@ -38,6 +42,8 @@ expression: lines
         TransferDownStart,
         TransferDown,
         Empty,
+        Empty,
+        Empty,
     ],
     [
         Empty,
@@ -48,6 +54,8 @@ expression: lines
         Line,
         Line,
         TransferDownStart,
+        Empty,
+        Empty,
         Empty,
         Empty,
     ],

@@ -1,0 +1,24 @@
+---
+source: src/lib.rs
+expression: verbose
+---
+VerboseDiagram(
+    [
+        VerboseLine(
+            [
+                OpenedAbove,
+                CrossUpUnder,
+                ClosedAbove,
+                Empty,
+            ],
+        ),
+        VerboseLine(
+            [
+                OpenedBelow,
+                CrossDownOver,
+                ClosedBelow,
+                Empty,
+            ],
+        ),
+    ],
+)
