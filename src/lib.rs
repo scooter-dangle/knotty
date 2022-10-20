@@ -204,8 +204,7 @@ fn raw_lines_expand_above(lines: &mut [Vec<Horiz>], idx: usize) {
 
     let mut indexes: VecDeque<_> = upper
         .iter_mut()
-        .enumerate()
-        .map(|(idx, line)| {
+        .map(|line| {
             let is_empty = line.last().cloned().unwrap_or_default().is_empty();
 
             line.push(if is_empty {
@@ -378,10 +377,17 @@ fn snapshot_raw_lines_append() {
 
 impl VerboseDiagram {
     pub fn display<'a>(&'a self) -> impl 'a + Iterator<Item = String> {
+        let last_idx = self.0.len() - 1;
+
         self.0
             .iter()
             .rev()
-            .flat_map(|line| line.display().into_iter())
+            .enumerate()
+            .flat_map(move |(idx, line)| {
+                line.display()
+                    .into_iter()
+                    .take(if idx == last_idx { 1 } else { 3 })
+            })
     }
 
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
@@ -439,10 +445,10 @@ pub fn ascii_print(knot: Vec<(usize, u8)>) -> String {
 #[test]
 fn snapshot_ascii_print() {
     // Unknot:
-    //   _
-    //  / \
-    // <   >
-    //  \_/
+    //
+    //  /\
+    // <  >
+    //  \/
     //
     let unknot = vec![(0, b'A'), (0, b'V')];
     insta::assert_snapshot!(ascii_print(unknot));
@@ -474,4 +480,54 @@ fn snapshot_ascii_print() {
     // donut:
     let donut = vec![(0, b'A'), (1, b'A'), (1, b'V'), (0, b'V')];
     insta::assert_snapshot!(ascii_print(donut));
+
+    // C:
+    let donut = vec![(0, b'A'), (1, b'A'), (2, b'V'), (0, b'V')];
+    insta::assert_snapshot!(ascii_print(donut));
+
+    // weird terrace thing:
+    let terrace = vec![
+        (0, b'A'),
+        (2, b'A'),
+        (4, b'A'),
+        (6, b'A'),
+        (5, b'V'),
+        (3, b'V'),
+        (1, b'V'),
+        (1, b'A'),
+        (3, b'A'),
+        (5, b'A'),
+        (6, b'V'),
+        (4, b'V'),
+        (2, b'V'),
+        (0, b'V'),
+    ];
+    insta::assert_snapshot!(ascii_print(terrace));
+
+    // basket:
+    let basket = vec![
+        (0, b'A'),
+        (1, b'A'),
+        (1, b'A'),
+        (3, b'/'),
+        (2, b'/'),
+        (4, b'/'),
+        (3, b'/'),
+        (1, b'V'),
+        (1, b'V'),
+        (0, b'V'),
+    ];
+    insta::assert_snapshot!(ascii_print(basket));
+
+    // ugly trefoil:
+    let ugly_trefoil = vec![
+        (0, b'A'),
+        (0, b'A'),
+        (1, b'/'),
+        (0, b'\\'),
+        (1, b'/'),
+        (0, b'V'),
+        (0, b'V'),
+    ];
+    insta::assert_snapshot!(ascii_print(ugly_trefoil));
 }
