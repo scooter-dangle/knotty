@@ -66,7 +66,7 @@ impl Horiz {
             OpenedBelow => [
                 r#"   "#,
                 r#"  /"#,
-                r#" < "#,
+                r#" | "#,
             ],
             OpenedAbove => [
                 r#"  \"#,
@@ -76,7 +76,7 @@ impl Horiz {
             ClosedBelow => [
                 r#"   "#,
                 r#"\  "#,
-                r#" > "#,
+                r#" | "#,
             ],
             ClosedAbove => [
                 r#"/  "#,
@@ -205,7 +205,12 @@ fn raw_lines_expand_above(lines: &mut [Vec<Horiz>], idx: usize) {
     let mut indexes: VecDeque<_> = upper
         .iter_mut()
         .map(|line| {
-            let is_empty = line.last().cloned().unwrap_or_default().is_empty();
+            let is_empty = line
+                .last()
+                .cloned()
+                .unwrap_or_default()
+                .subsequent()
+                .is_empty();
 
             line.push(if is_empty {
                 Horiz::Empty
@@ -275,8 +280,13 @@ fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
         .iter_mut()
         .enumerate()
         .map(|(idx, line)| {
-            let is_empty =
-                (0..2).contains(&idx) || line.last().cloned().unwrap_or_default().is_empty();
+            let is_empty = (0..2).contains(&idx)
+                || line
+                    .last()
+                    .cloned()
+                    .unwrap_or_default()
+                    .subsequent()
+                    .is_empty();
 
             line.push(if is_empty {
                 if idx == 0 {
@@ -510,8 +520,8 @@ fn snapshot_ascii_print() {
     insta::assert_snapshot!(ascii_print_compact(donut));
 
     // C:
-    let donut = vec![(0, b'A'), (1, b'A'), (2, b'V'), (0, b'V')];
-    insta::assert_snapshot!(ascii_print_compact(donut));
+    let c_thingy = vec![(0, b'A'), (1, b'A'), (2, b'V'), (0, b'V')];
+    insta::assert_snapshot!(ascii_print_compact(c_thingy));
 
     // weird terrace thing:
     let terrace = vec![
@@ -558,4 +568,17 @@ fn snapshot_ascii_print() {
         (0, b'V'),
     ];
     insta::assert_snapshot!(ascii_print_compact(ugly_trefoil));
+
+    // weird_thing_that_broke_once:
+    let weird_thing_that_broke_once = vec![
+        (0, b'A'),
+        (2, b'A'),
+        (0, b'V'),
+        (2, b'A'),
+        (2, b'V'),
+        (0, b'A'),
+        (1, b'V'),
+        (0, b'V'),
+    ];
+    insta::assert_snapshot!(ascii_print_compact(weird_thing_that_broke_once));
 }

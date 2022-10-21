@@ -1,0 +1,15 @@
+---
+source: src/lib.rs
+expression: ascii_print_compact(weird_thing_that_broke_once)
+---
+    _                __        
+   / \      /\      /  \       
+  |   \    |  |    /    \      
+   \_  \    \/    /  _   \     
+     \  \        /  / \   \    
+      \  \      /  /   |   \   
+  __   \  \____/  /   /     \  
+ /  \   \        /   /       \ 
+|    |   \      /   |         |
+ \__/     \____/     \_______/ 
+

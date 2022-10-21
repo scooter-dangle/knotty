@@ -1,0 +1,10 @@
+# Now correctly rendered, this one originally exposed a bug.
+
+A0
+A2
+V0
+A2
+V2
+A0
+V1
+V0

@@ -1,0 +1,16 @@
+# This example shows a vertical Reidemeister II opportunity
+A0
+A1
+
+# The following two lines can be removed.
+# Technically, we also end up swapping the first two lines, but with the
+# index adjustments, they end up being exactly the same.
+/0
+\2
+
+# A(N) followed immediately by V(N + 1) or V(N - 1) can be dropped
+A2
+V3
+
+V1
+V0

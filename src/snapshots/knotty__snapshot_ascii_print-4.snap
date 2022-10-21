@@ -4,12 +4,12 @@ expression: ascii_print_compact(donut)
 ---
         _    
        / \   
-      /   >  
+      /   |  
      /   /   
     /   /    
-   /   <     
+   /   |     
   /     \__  
  /         \ 
-<           >
+|           |
  \_________/ 
 
