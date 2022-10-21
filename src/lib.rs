@@ -331,7 +331,7 @@ fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
         });
 }
 
-fn raw_lines_append(lines: &mut [Vec<Horiz>], idx: usize, element: u8) {
+fn raw_lines_append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
     match element {
         b'A' => {
             if raw_lines_is_empty_above(&*lines, idx) {
@@ -372,16 +372,16 @@ fn raw_lines_append(lines: &mut [Vec<Horiz>], idx: usize, element: u8) {
 fn snapshot_raw_lines_append() {
     let mut lines = vec![vec![]; 4];
 
-    raw_lines_append(&mut lines, 0, b'A');
+    raw_lines_append(&mut lines, b'A', 0);
     insta::assert_debug_snapshot!(lines);
 
-    raw_lines_append(&mut lines, 1, b'A');
+    raw_lines_append(&mut lines, b'A', 1);
     insta::assert_debug_snapshot!(lines);
 
-    raw_lines_append(&mut lines, 0, b'V');
+    raw_lines_append(&mut lines, b'V', 0);
     insta::assert_debug_snapshot!(lines);
 
-    raw_lines_append(&mut lines, 0, b'V');
+    raw_lines_append(&mut lines, b'V', 0);
     insta::assert_debug_snapshot!(lines);
 }
 
@@ -405,8 +405,8 @@ impl VerboseDiagram {
 
         let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
-        for (idx, element) in knot.0.iter() {
-            raw_lines_append(&mut lines, *idx, *element);
+        for (element, idx) in knot.0.iter() {
+            raw_lines_append(&mut lines, *element, *idx);
         }
 
         Ok(Self(lines.into_iter().map(VerboseLine).collect()))
@@ -421,7 +421,7 @@ fn snapshot_from_abbreviated() {
     insta::assert_debug_snapshot!(verbose);
 }
 
-pub struct AbbreviatedDiagram(Vec<(usize, u8)>);
+pub struct AbbreviatedDiagram(Vec<(u8, usize)>);
 
 impl AbbreviatedDiagram {
     pub fn len(&self) -> usize {
@@ -431,7 +431,7 @@ impl AbbreviatedDiagram {
     fn height(&self) -> usize {
         self.0
             .iter()
-            .fold((0isize, 0usize), |(mut num_open, max_open), (_, horiz)| {
+            .fold((0isize, 0usize), |(mut num_open, max_open), (horiz, _)| {
                 num_open += match horiz {
                     b'A' => 1,
                     b'V' => -1,
@@ -445,14 +445,14 @@ impl AbbreviatedDiagram {
     }
 }
 
-pub fn ascii_print(knot: Vec<(usize, u8)>) -> String {
+pub fn ascii_print(knot: Vec<(u8, usize)>) -> String {
     VerboseDiagram::from_abbreviated(&AbbreviatedDiagram(knot))
         .unwrap()
         .display()
         .collect::<String>()
 }
 
-pub fn ascii_print_compact(knot: Vec<(usize, u8)>) -> String {
+pub fn ascii_print_compact(knot: Vec<(u8, usize)>) -> String {
     let inner = VerboseDiagram::from_abbreviated(&AbbreviatedDiagram(knot))
         .unwrap()
         .display()

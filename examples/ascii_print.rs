@@ -90,7 +90,7 @@
 
 use std::io::{BufRead, BufReader};
 
-fn read_input(file: Option<String>) -> Result<Vec<(usize, u8)>, String> {
+fn read_input(file: Option<String>) -> Result<Vec<(u8, usize)>, String> {
     let lines = match file.as_deref() {
         None | Some("-") => std::io::stdin()
             .lock()
@@ -111,7 +111,7 @@ fn read_input(file: Option<String>) -> Result<Vec<(usize, u8)>, String> {
     })
 }
 
-fn parse(line: &str) -> Result<Option<(usize, u8)>, String> {
+fn parse(line: &str) -> Result<Option<(u8, usize)>, String> {
     let element = match line.as_bytes().first().copied() {
         Some(b'\n' | b'#') | None => return Ok(None),
         Some(element @ (b'A' | b'V' | b'\\' | b'/')) => element,
@@ -128,7 +128,7 @@ fn parse(line: &str) -> Result<Option<(usize, u8)>, String> {
         .parse()
         .map_err(|e| format!("invalid index: {e}"))?;
 
-    Ok(Some((index, element)))
+    Ok(Some((element, index)))
 }
 
 fn main() -> Result<(), String> {
