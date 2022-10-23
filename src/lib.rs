@@ -1,9 +1,7 @@
-// struct Diagram(
-
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, str::FromStr};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
@@ -66,7 +64,7 @@ impl Horiz {
             OpenedBelow => [
                 r#"   "#,
                 r#"  /"#,
-                r#" | "#,
+                r#" ( "#,
             ],
             OpenedAbove => [
                 r#"  \"#,
@@ -76,7 +74,7 @@ impl Horiz {
             ClosedBelow => [
                 r#"   "#,
                 r#"\  "#,
-                r#" | "#,
+                r#" ) "#,
             ],
             ClosedAbove => [
                 r#"/  "#,
@@ -405,8 +403,8 @@ impl VerboseDiagram {
 
         let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
-        for (element, idx) in knot.0.iter() {
-            raw_lines_append(&mut lines, *element, *idx);
+        for AbbreviatedItem { element, index } in knot.0.iter() {
+            raw_lines_append(&mut lines, *element, *index);
         }
 
         Ok(Self(lines.into_iter().map(VerboseLine).collect()))
@@ -415,15 +413,96 @@ impl VerboseDiagram {
 
 #[test]
 fn snapshot_from_abbreviated() {
-    let knot = AbbreviatedDiagram(vec![(0, b'A'), (0, b'/'), (0, b'V')]);
+    let knot = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'/', 0), (b'V', 0)]).unwrap();
 
     let verbose = VerboseDiagram::from_abbreviated(&knot).unwrap();
     insta::assert_debug_snapshot!(verbose);
 }
 
-pub struct AbbreviatedDiagram(Vec<(u8, usize)>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AbbreviatedItem {
+    element: u8,
+    index: usize,
+}
+
+impl FromStr for AbbreviatedItem {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let element = match string.as_bytes().first().copied() {
+            None => return Err("empty string".to_string()),
+            Some(element) => element,
+        };
+
+        let index = string
+            .get(1..)
+            .ok_or_else(|| format!("Could not extract trailing index from {string:?}"))?
+            .parse()
+            .map_err(|e| format!("invalid index: {e}"))?;
+
+        Self::new(element, index).map_err(|element| {
+            let formatted_element = String::from_utf8(vec![element])
+                .map(|element| format!("{element:?}"))
+                .unwrap_or_else(|_| format!("0x{element:x}"));
+
+            format!(
+                "invalid element. Expected one of \
+                'A', 'V', '\\', or '/'; got {formatted_element}"
+            )
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbbreviatedDiagram(Vec<AbbreviatedItem>);
+
+impl FromStr for AbbreviatedDiagram {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        string
+            .split('\n')
+            .filter(|line| !line.starts_with('#') && !line.is_empty())
+            .map(|line| line.parse())
+            .collect::<Result<Vec<_>, _>>()
+            .map(Self)
+    }
+}
+
+impl AbbreviatedItem {
+    pub const fn new(element: u8, index: usize) -> Result<Self, u8> {
+        if matches!(element, b'A' | b'V' | b'/' | b'\\') {
+            Ok(Self { element, index })
+        } else {
+            Err(element)
+        }
+    }
+}
 
 impl AbbreviatedDiagram {
+    pub fn new_from_tuples(tuples: Vec<(u8, usize)>) -> Result<Self, String> {
+        Ok({
+            Self(
+                tuples
+                    .into_iter()
+                    .enumerate()
+                    .map(|(position, (element, index))| {
+                        AbbreviatedItem::new(element, index).map_err(|element| {
+                            let formatted_element = String::from_utf8(vec![element])
+                                .map(|element| format!("{element:?}"))
+                                .unwrap_or_else(|_| format!("0x{element:x}"));
+
+                            format!(
+                                "invalid element at position {position}. Expected one of \
+                                'A', 'V', '\\', '/', got {formatted_element}"
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+        })
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -431,8 +510,8 @@ impl AbbreviatedDiagram {
     fn height(&self) -> usize {
         self.0
             .iter()
-            .fold((0isize, 0usize), |(mut num_open, max_open), (horiz, _)| {
-                num_open += match horiz {
+            .fold((0isize, 0usize), |(mut num_open, max_open), item| {
+                num_open += match item.element {
                     b'A' => 1,
                     b'V' => -1,
                     _ => 0,
@@ -443,41 +522,53 @@ impl AbbreviatedDiagram {
             .1
             * 2
     }
+
+    pub fn ascii_print(&self) -> String {
+        VerboseDiagram::from_abbreviated(self)
+            .unwrap()
+            .display()
+            .collect::<String>()
+    }
+
+    pub fn ascii_print_compact(&self) -> String {
+        let inner = VerboseDiagram::from_abbreviated(self)
+            .unwrap()
+            .display()
+            .collect::<Vec<_>>();
+
+        let string_len = inner.first().unwrap().len();
+
+        let mut out = (0..inner.len())
+            .map(|_| String::with_capacity(string_len))
+            .collect::<Vec<_>>();
+
+        for idx in 0..string_len {
+            if inner
+                .iter()
+                .all(|line| matches!(&line[idx..idx + 1], " " | "_"))
+            {
+                continue;
+            }
+
+            out.iter_mut().zip(inner.iter()).for_each(|(out, inner)| {
+                out.push_str(&inner[idx..idx + 1]);
+            });
+        }
+
+        out.into_iter().collect()
+    }
 }
 
 pub fn ascii_print(knot: Vec<(u8, usize)>) -> String {
-    VerboseDiagram::from_abbreviated(&AbbreviatedDiagram(knot))
+    AbbreviatedDiagram::new_from_tuples(knot)
         .unwrap()
-        .display()
-        .collect::<String>()
+        .ascii_print()
 }
 
 pub fn ascii_print_compact(knot: Vec<(u8, usize)>) -> String {
-    let inner = VerboseDiagram::from_abbreviated(&AbbreviatedDiagram(knot))
+    AbbreviatedDiagram::new_from_tuples(knot)
         .unwrap()
-        .display()
-        .collect::<Vec<_>>();
-
-    let string_len = inner.first().unwrap().len();
-
-    let mut out = (0..inner.len())
-        .map(|_| String::with_capacity(string_len))
-        .collect::<Vec<_>>();
-
-    for idx in 0..string_len {
-        if inner
-            .iter()
-            .all(|line| matches!(&line[idx..idx + 1], " " | "_"))
-        {
-            continue;
-        }
-
-        out.iter_mut().zip(inner.iter()).for_each(|(out, inner)| {
-            out.push_str(&inner[idx..idx + 1]);
-        });
-    }
-
-    out.into_iter().collect()
+        .ascii_print_compact()
 }
 
 #[test]
@@ -488,7 +579,7 @@ fn snapshot_ascii_print() {
     // <  >
     //  \/
     //
-    let unknot = vec![(0, b'A'), (0, b'V')];
+    let unknot = vec![(b'A', 0), (b'V', 0)];
     insta::assert_snapshot!(ascii_print_compact(unknot));
 
     // Trefoil:
@@ -505,80 +596,80 @@ fn snapshot_ascii_print() {
     //
     //
     let trefoil = vec![
-        (0, b'A'),
-        (2, b'A'),
-        (1, b'/'),
-        (0, b'\\'),
-        (1, b'/'),
-        (2, b'V'),
-        (0, b'V'),
+        (b'A', 0),
+        (b'A', 2),
+        (b'/', 1),
+        (b'\\', 0),
+        (b'/', 1),
+        (b'V', 2),
+        (b'V', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact(trefoil));
 
     // donut:
-    let donut = vec![(0, b'A'), (1, b'A'), (1, b'V'), (0, b'V')];
+    let donut = vec![(b'A', 0), (b'A', 1), (b'V', 1), (b'V', 0)];
     insta::assert_snapshot!(ascii_print_compact(donut));
 
     // C:
-    let c_thingy = vec![(0, b'A'), (1, b'A'), (2, b'V'), (0, b'V')];
+    let c_thingy = vec![(b'A', 0), (b'A', 1), (b'V', 2), (b'V', 0)];
     insta::assert_snapshot!(ascii_print_compact(c_thingy));
 
     // weird terrace thing:
     let terrace = vec![
-        (0, b'A'),
-        (2, b'A'),
-        (4, b'A'),
-        (6, b'A'),
-        (5, b'V'),
-        (3, b'V'),
-        (1, b'V'),
-        (1, b'A'),
-        (3, b'A'),
-        (5, b'A'),
-        (6, b'V'),
-        (4, b'V'),
-        (2, b'V'),
-        (0, b'V'),
+        (b'A', 0),
+        (b'A', 2),
+        (b'A', 4),
+        (b'A', 6),
+        (b'V', 5),
+        (b'V', 3),
+        (b'V', 1),
+        (b'A', 1),
+        (b'A', 3),
+        (b'A', 5),
+        (b'V', 6),
+        (b'V', 4),
+        (b'V', 2),
+        (b'V', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact(terrace));
 
     // basket:
     let basket = vec![
-        (0, b'A'),
-        (1, b'A'),
-        (1, b'A'),
-        (3, b'/'),
-        (2, b'/'),
-        (4, b'/'),
-        (3, b'/'),
-        (1, b'V'),
-        (1, b'V'),
-        (0, b'V'),
+        (b'A', 0),
+        (b'A', 1),
+        (b'A', 1),
+        (b'/', 3),
+        (b'/', 2),
+        (b'/', 4),
+        (b'/', 3),
+        (b'V', 1),
+        (b'V', 1),
+        (b'V', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact(basket));
 
     // ugly trefoil:
     let ugly_trefoil = vec![
-        (0, b'A'),
-        (0, b'A'),
-        (1, b'/'),
-        (0, b'\\'),
-        (1, b'/'),
-        (0, b'V'),
-        (0, b'V'),
+        (b'A', 0),
+        (b'A', 0),
+        (b'/', 1),
+        (b'\\', 0),
+        (b'/', 1),
+        (b'V', 0),
+        (b'V', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact(ugly_trefoil));
 
     // weird_thing_that_broke_once:
     let weird_thing_that_broke_once = vec![
-        (0, b'A'),
-        (2, b'A'),
-        (0, b'V'),
-        (2, b'A'),
-        (2, b'V'),
-        (0, b'A'),
-        (1, b'V'),
-        (0, b'V'),
+        (b'A', 0),
+        (b'A', 2),
+        (b'V', 0),
+        (b'A', 2),
+        (b'V', 2),
+        (b'A', 0),
+        (b'V', 1),
+        (b'V', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact(weird_thing_that_broke_once));
 }
