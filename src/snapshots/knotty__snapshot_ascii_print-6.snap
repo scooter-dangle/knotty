@@ -1,6 +1,6 @@
 ---
 source: src/lib.rs
-expression: ascii_print_compact(basket)
+expression: "ascii_print_compact::<false>(basket)"
 ---
                _______   ____               
               /       \ /    \              
@@ -13,9 +13,9 @@ expression: ascii_print_compact(basket)
       /   /  /      \         \  \   \      
      /   /  /   ___/ \______   \  \   \     
     /   /  /   /            \   \  \   \    
-   /   |  /   |              |   \  |   \   
+   /   (  /   (              )   \  )   \   
   /     \/     \____________/     \/     \  
  /                                        \ 
-|                                          |
+(                                          )
  \________________________________________/ 
 

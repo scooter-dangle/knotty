@@ -1,9 +1,9 @@
 ---
 source: src/lib.rs
-expression: ascii_print_compact(unknot)
+expression: "ascii_print_compact::<false>(unknot)"
 ---
     
  /\ 
-|  |
+(  )
  \/ 
 

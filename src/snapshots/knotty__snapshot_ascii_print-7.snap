@@ -1,6 +1,6 @@
 ---
 source: src/lib.rs
-expression: ascii_print_compact(ugly_trefoil)
+expression: "ascii_print_compact::<false>(ugly_trefoil)"
 ---
         ___________        
        /           \       
@@ -10,6 +10,6 @@ expression: ascii_print_compact(ugly_trefoil)
    /  /   \     \   \  \   
   /  /   / \   / \   \  \  
  /  /   /   \ /   \   \  \ 
-|  /   |     /     |   \  |
+(  /   (     /     )   \  )
  \/     \___/ \___/     \/ 
 
