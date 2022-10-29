@@ -666,10 +666,11 @@ mod test {
                         format!("{element}{index}\n")
                     })
                     .collect::<String>(),
-                "shift@{idx}\
+                "{}@{idx}\
                 \noriginal:\n{}\
                 \nexpected:\n{}\
                 \nactual:\n{}",
+                stringify!($operation),
                 ascii_print_compact::<true>(diagram),
                 ascii_print_compact::<true>(expected),
                 ascii_print_compact::<true>(actual),
