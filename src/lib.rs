@@ -559,14 +559,9 @@ enum UpDown {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LeftRight {
-    Left,
-    Right,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Move {
-    Shift(LeftRight),
+    SwapAt,
+    WrapAround,
     Bulge(UpDown),
     BulgeRemove,
 }
@@ -631,32 +626,28 @@ impl SmallDistance for AbbreviatedItem {
     }
 }
 
-#[test]
-fn test_try_apply_shift() {
-    use LeftRight::*;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions::assert_eq;
 
-    let mut diagram = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'V', 0)]).unwrap();
-    assert!(diagram.try_apply_shift(0, Right).is_err());
-    assert!(diagram.try_apply_shift(0, Left).is_err());
-
-    fn apply_shift(
+    fn apply(
+        manip: fn(&mut AbbreviatedDiagram, usize) -> Result<(), String>,
         idx: usize,
-        left_right: LeftRight,
         diagram: Vec<(u8, usize)>,
     ) -> Result<Vec<(u8, usize)>, String> {
         let mut diagram = AbbreviatedDiagram::new_from_tuples(diagram)?;
-        diagram.try_apply_shift(idx, left_right)?;
+        manip(&mut diagram, idx)?;
         Ok(diagram.to_tuples())
     }
 
-    macro_rules! assert_eq_after_shift {
-        ($idx:expr, $left_right:expr, [$($diagram:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
+    macro_rules! assert_eq_after_apply {
+        ($operation:ident, $idx:expr, [$($diagram:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
             let idx = $idx;
-            let left_right = $left_right;
 
             let diagram = vec![$($diagram,)*];
             let expected = vec![$($expected,)*];
-            let actual= apply_shift(idx, left_right, diagram.clone()).unwrap();
+            let actual = apply(AbbreviatedDiagram::$operation, idx, diagram.clone()).unwrap();
 
             assert_eq!(
                 actual
@@ -675,7 +666,7 @@ fn test_try_apply_shift() {
                         format!("{element}{index}\n")
                     })
                     .collect::<String>(),
-                "shift {left_right:?}@{idx}\
+                "shift@{idx}\
                 \noriginal:\n{}\
                 \nexpected:\n{}\
                 \nactual:\n{}",
@@ -686,96 +677,104 @@ fn test_try_apply_shift() {
         };
     }
 
-    assert_eq_after_shift!(
-        0,
-        Right,
-        [(b'A', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
-        [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
-    );
+    #[test]
+    fn test_try_shift() {
+        let mut diagram = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'V', 0)]).unwrap();
+        assert!(diagram.try_shift(0).is_err());
+        assert!(diagram.try_shift(0).is_err());
 
-    assert_eq_after_shift!(
-        1,
-        Right,
-        [(b'A', 0), (b'/', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
-        [(b'A', 0), (b'A', 2), (b'/', 0), (b'V', 2), (b'V', 0)],
-    );
+        assert_eq_after_apply!(
+            try_shift,
+            0,
+            [(b'A', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
+            [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+        );
 
-    assert_eq_after_shift!(
-        2,
-        Right,
-        [
-            (b'A', 0),
-            (b'A', 2),
-            (b'/', 2),
-            (b'/', 0),
-            (b'V', 2),
-            (b'V', 0),
-        ],
-        [
-            (b'A', 0),
-            (b'A', 2),
-            (b'/', 0),
-            (b'/', 2),
-            (b'V', 2),
-            (b'V', 0),
-        ],
-    );
+        assert_eq_after_apply!(
+            try_shift,
+            1,
+            [(b'A', 0), (b'/', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
+            [(b'A', 0), (b'A', 2), (b'/', 0), (b'V', 2), (b'V', 0)],
+        );
 
-    assert_eq_after_shift!(
-        0,
-        Right,
-        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
-        [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
-    );
+        assert_eq_after_apply!(
+            try_shift,
+            2,
+            [
+                (b'A', 0),
+                (b'A', 2),
+                (b'/', 2),
+                (b'/', 0),
+                (b'V', 2),
+                (b'V', 0),
+            ],
+            [
+                (b'A', 0),
+                (b'A', 2),
+                (b'/', 0),
+                (b'/', 2),
+                (b'V', 2),
+                (b'V', 0),
+            ],
+        );
 
-    assert_eq_after_shift!(
-        0,
-        Right,
-        [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
-        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
-    );
+        assert_eq_after_apply!(
+            try_shift,
+            0,
+            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+            [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
+        );
 
-    assert_eq_after_shift!(
-        2,
-        Right,
-        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
-        [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
-    );
+        assert_eq_after_apply!(
+            try_shift,
+            0,
+            [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
+            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+        );
 
-    assert_eq_after_shift!(
-        2,
-        Right,
-        [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
-        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
-    );
+        assert_eq_after_apply!(
+            try_shift,
+            2,
+            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+            [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+        );
+
+        assert_eq_after_apply!(
+            try_shift,
+            2,
+            [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+        );
+    }
+
+    #[test]
+    fn test_try_wrap_around() {
+        assert_eq_after_apply!(
+            try_wrap_around,
+            1,
+            [(b'A', 0), (b'A', 0), (b'/', 1), (b'V', 2), (b'V', 0)],
+            [(b'A', 0), (b'A', 1), (b'\\', 0), (b'V', 2), (b'V', 0)],
+        );
+    }
 }
 
 impl AbbreviatedDiagram {
     // TODO proper error
     fn try_apply(&mut self, diagram_move: DiagramMove) -> Result<(), String> {
-        use LeftRight::*;
         use Move::*;
         use UpDown::*;
 
         match diagram_move.r#move {
-            Shift(left_right) => self.try_apply_shift(diagram_move.idx, left_right),
+            SwapAt => self.try_shift(diagram_move.idx),
+            WrapAround => self.try_wrap_around(diagram_move.idx),
             r#move @ (Bulge(_) | BulgeRemove) => todo!("{move:?}"),
         }
     }
 
     // TODO: Maybe move all these guts into `try_swap` and just use this
     // function to do the dumb indexing and call that function.
-    fn try_apply_shift(&mut self, idx: usize, direction: LeftRight) -> Result<(), String> {
-        use LeftRight::*;
-
-        let range = match direction {
-            Left => {
-                idx.checked_sub(1)
-                    .ok_or("cannot shift left from start of diagram")?..=idx
-            }
-
-            Right => idx..=idx.checked_add(1).ok_or("cannot add to max integer")?,
-        };
+    fn try_shift(&mut self, idx: usize) -> Result<(), String> {
+        let range = idx..idx.checked_add(2).ok_or("cannot add to max integer")?;
 
         let items = self
             .0
@@ -793,9 +792,100 @@ impl AbbreviatedDiagram {
 
         Ok(())
     }
+
+    fn try_wrap_around(&mut self, idx: usize) -> Result<(), String> {
+        let range = idx..idx.checked_add(2).ok_or("cannot add to max integer")?;
+
+        let items = self
+            .0
+            .get_mut(range.clone())
+            .ok_or_else(|| format!("{range:?} is outside the range of the diagram"))?;
+
+        // Okay to unwrap because we know the range is exactly 2
+        let (item0, items) = items.split_first_mut().unwrap();
+        let (item1, items) = items.split_first_mut().unwrap();
+        debug_assert!(items.is_empty());
+
+        let (new_item0, new_item1) = item0.try_wrap_around(*item1)?;
+        *item0 = new_item0;
+        *item1 = new_item1;
+
+        Ok(())
+    }
+
+    fn available_swaps(&self) -> impl '_ + Iterator<Item = usize> {
+        self.0
+            .windows(2)
+            .enumerate()
+            .filter_map(|(idx, items)| items[0].can_swap(items[1]).then(|| idx))
+    }
+}
+
+// Only works for strictly increasing sequences
+fn non_adjacent(iter: impl Iterator<Item = usize>) -> impl Iterator<Item = usize> {
+    let mut iter = iter.peekable();
+    let mut last = iter.peek().copied();
+
+    iter.filter(move |&num| {
+        let non_adjacent = num.checked_sub(1) != last;
+
+        if non_adjacent {
+            last = Some(num);
+        }
+
+        non_adjacent
+    })
+}
+
+#[test]
+fn test_non_adjacent() {
+    assert_eq!(
+        non_adjacent(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9].into_iter()).collect::<Vec<_>>(),
+        vec![0, 2, 4, 6, 8]
+    );
+
+    assert_eq!(
+        non_adjacent(vec![0, 2, 3, 5, 6, 7, 8, 9].into_iter()).collect::<Vec<_>>(),
+        vec![0, 2, 5, 7, 9]
+    );
 }
 
 impl AbbreviatedItem {
+    fn can_wrap_around(self, other: Self) -> bool {
+        self.try_wrap_around(other).is_ok()
+    }
+
+    fn try_wrap_around(mut self, ref mut other: Self) -> Result<(Self, Self), String> {
+        let self_ = &mut self;
+
+        let (crossing, open_close) = match (self_.element, other.element) {
+            (b'/' | b'\\', b'V') => (&mut *self_, &mut *other),
+            (b'A', b'/' | b'\\') => (&mut *other, &mut *self_),
+            _ => {
+                return Err(format!(
+                    "can only wrap when a crossing follows an opening or precedes a closing"
+                ))
+            }
+        };
+
+        if crossing.small_distance_from(open_close) != 1 {
+            return Err(format!(
+                "can only wrap when the crossing vertical index is exactly one \
+                more or one less than the opening or closing",
+            ));
+        }
+
+        mem::swap(&mut crossing.index, &mut open_close.index);
+        crossing.element = match crossing.element {
+            b'/' => b'\\',
+            b'\\' => b'/',
+            // We checked above that crossing is, in fact, a crossing
+            _ => unreachable!(),
+        };
+
+        Ok((*self_, *other))
+    }
+
     fn can_swap(self, other: Self) -> bool {
         self.try_swap(other).is_ok()
     }
@@ -803,7 +893,9 @@ impl AbbreviatedItem {
     fn try_swap(mut self, ref mut item1: Self) -> Result<(Self, Self), String> {
         let ref mut item0 = self;
 
+        // Use enums instead of this giant if-else chain
         if item0.is_crossing() && item1.is_opening() {
+            // (b'/' | b'\\', b'A') => {
             let crossing = &mut *item0;
             let opening = &mut *item1;
 
@@ -818,6 +910,7 @@ impl AbbreviatedItem {
                 crossing.index += 2;
             }
         } else if item0.is_opening() && item1.is_crossing() {
+            // (b'A', b'/' | b'\\') => {
             let opening = &mut *item0;
             let crossing = &mut *item1;
             if !opening.is_at_least_2_away_from(&crossing) {
@@ -834,6 +927,7 @@ impl AbbreviatedItem {
                 crossing.index = crossing.index.checked_sub(2).unwrap();
             }
         } else if item0.is_crossing() && item1.is_closing() {
+            // (b'/' | b'\\', b'V') => {
             let crossing = &mut *item0;
             let closing = &mut *item1;
 
@@ -851,6 +945,7 @@ impl AbbreviatedItem {
                 crossing.index = crossing.index.checked_sub(2).unwrap();
             }
         } else if item0.is_closing() && item1.is_crossing() {
+            // (b'V', b'/' | b'\\') => {
             let closing = &mut *item0;
             let crossing = &mut *item1;
             if crossing.index < closing.index {
@@ -934,6 +1029,7 @@ impl AbbreviatedItem {
 
         // TODO: test these!
         if item0.is_opening() && item1.is_opening() {
+            // (b'A', b'A') => {
             let opening0 = &mut *item0;
             let opening1 = &mut *item1;
 
@@ -1002,6 +1098,7 @@ impl AbbreviatedItem {
         // ______/
         //
         if item0.is_closing() && item1.is_closing() {
+            // (b'V', b'V') => {
             let closing0 = &mut *item0;
             let closing1 = &mut *item1;
 
@@ -1074,6 +1171,7 @@ impl AbbreviatedItem {
         //
         // NOTE: missing diagram for where closing.index < opening.index
         if item0.is_closing() && item1.is_opening() {
+            // (b'V', b'A') => {
             let closing = &mut *item0;
             let opening = &mut *item1;
 
@@ -1151,6 +1249,7 @@ impl AbbreviatedItem {
         //
         // TODO: moar examples
         if item0.is_opening() && item1.is_closing() {
+            // (b'A', b'V') => {
             let opening = &mut *item0;
             let closing = &mut *item1;
 
@@ -1194,6 +1293,7 @@ impl AbbreviatedItem {
         //     return Ok(());
         // }
         if item0.is_crossing() && item1.is_crossing() {
+            // (b'/' | b'\\', b'/' | b'\\') => {
             let crossing0 = &mut *item0;
             let crossing1 = &mut *item1;
 
@@ -1205,6 +1305,7 @@ impl AbbreviatedItem {
         } else
         // No more cases!
         {
+            // _ => {
             unreachable!(
                 "BUG: We should have covered all cases, but we didn't. \
                 item0: {item0:?}, item1: {item1:?}",
