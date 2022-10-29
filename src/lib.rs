@@ -1,7 +1,17 @@
+macro_rules! try_opt {
+    ($expr:expr) => {
+        match $expr {
+            Some(expr) => expr,
+            None => return None,
+        }
+    };
+}
+
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
-use std::{collections::VecDeque, str::FromStr};
+use core::fmt;
+use std::{collections::VecDeque, mem, str::FromStr};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
@@ -543,6 +553,669 @@ fn snapshot_from_abbreviated() {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UpDown {
+    Up,
+    Down,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LeftRight {
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Move {
+    Shift(LeftRight),
+    Bulge(UpDown),
+    BulgeRemove,
+}
+
+struct DiagramMove {
+    idx: usize,
+    r#move: Move,
+}
+
+trait Item {
+    fn is_crossing(&self) -> bool;
+    fn is_opening(&self) -> bool;
+    fn is_closing(&self) -> bool;
+}
+
+impl Item for u8 {
+    fn is_crossing(&self) -> bool {
+        matches!(self, b'/' | b'\\')
+    }
+
+    fn is_opening(&self) -> bool {
+        matches!(self, b'A')
+    }
+
+    fn is_closing(&self) -> bool {
+        matches!(self, b'V')
+    }
+}
+
+impl Item for AbbreviatedItem {
+    fn is_crossing(&self) -> bool {
+        self.element.is_crossing()
+    }
+
+    fn is_opening(&self) -> bool {
+        self.element.is_opening()
+    }
+
+    fn is_closing(&self) -> bool {
+        self.element.is_closing()
+    }
+}
+
+trait SmallDistance {
+    fn small_distance_from(&self, other: &Self) -> u8;
+
+    fn is_at_least_2_away_from(&self, other: &Self) -> bool {
+        self.small_distance_from(other) >= 2
+    }
+}
+
+impl SmallDistance for usize {
+    fn small_distance_from(&self, other: &Self) -> u8 {
+        let (larger, smaller) = (self.max(other), self.min(other));
+        (larger - smaller).min(u8::MAX as usize) as u8
+    }
+}
+
+impl SmallDistance for AbbreviatedItem {
+    fn small_distance_from(&self, other: &Self) -> u8 {
+        self.index.small_distance_from(&other.index)
+    }
+}
+
+#[test]
+fn test_try_apply_shift() {
+    use LeftRight::*;
+
+    let mut diagram = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'V', 0)]).unwrap();
+    assert!(diagram.try_apply_shift(0, Right).is_err());
+    assert!(diagram.try_apply_shift(0, Left).is_err());
+
+    fn apply_shift(
+        idx: usize,
+        left_right: LeftRight,
+        diagram: Vec<(u8, usize)>,
+    ) -> Result<Vec<(u8, usize)>, String> {
+        let mut diagram = AbbreviatedDiagram::new_from_tuples(diagram)?;
+        diagram.try_apply_shift(idx, left_right)?;
+        Ok(diagram.to_tuples())
+    }
+
+    macro_rules! assert_eq_after_shift {
+        ($idx:expr, $left_right:expr, [$($diagram:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
+            let idx = $idx;
+            let left_right = $left_right;
+
+            let diagram = vec![$($diagram,)*];
+            let expected = vec![$($expected,)*];
+            let actual= apply_shift(idx, left_right, diagram.clone()).unwrap();
+
+            assert_eq!(
+                actual
+                    .clone()
+                    .into_iter()
+                    .map(|(element, index)| {
+                        let element = element as char;
+                        format!("{element}{index}\n")
+                    })
+                    .collect::<String>(),
+                expected
+                    .clone()
+                    .into_iter()
+                    .map(|(element, index)| {
+                        let element = element as char;
+                        format!("{element}{index}\n")
+                    })
+                    .collect::<String>(),
+                "shift {left_right:?}@{idx}\
+                \noriginal:\n{}\
+                \nexpected:\n{}\
+                \nactual:\n{}",
+                ascii_print_compact::<true>(diagram),
+                ascii_print_compact::<true>(expected),
+                ascii_print_compact::<true>(actual),
+            );
+        };
+    }
+
+    assert_eq_after_shift!(
+        0,
+        Right,
+        [(b'A', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
+        [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+    );
+
+    assert_eq_after_shift!(
+        1,
+        Right,
+        [(b'A', 0), (b'/', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
+        [(b'A', 0), (b'A', 2), (b'/', 0), (b'V', 2), (b'V', 0)],
+    );
+
+    assert_eq_after_shift!(
+        2,
+        Right,
+        [
+            (b'A', 0),
+            (b'A', 2),
+            (b'/', 2),
+            (b'/', 0),
+            (b'V', 2),
+            (b'V', 0),
+        ],
+        [
+            (b'A', 0),
+            (b'A', 2),
+            (b'/', 0),
+            (b'/', 2),
+            (b'V', 2),
+            (b'V', 0),
+        ],
+    );
+
+    assert_eq_after_shift!(
+        0,
+        Right,
+        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+        [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
+    );
+
+    assert_eq_after_shift!(
+        0,
+        Right,
+        [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
+        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+    );
+
+    assert_eq_after_shift!(
+        2,
+        Right,
+        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+        [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+    );
+
+    assert_eq_after_shift!(
+        2,
+        Right,
+        [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+        [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+    );
+}
+
+impl AbbreviatedDiagram {
+    // TODO proper error
+    fn try_apply(&mut self, diagram_move: DiagramMove) -> Result<(), String> {
+        use LeftRight::*;
+        use Move::*;
+        use UpDown::*;
+
+        match diagram_move.r#move {
+            Shift(left_right) => self.try_apply_shift(diagram_move.idx, left_right),
+            r#move @ (Bulge(_) | BulgeRemove) => todo!("{move:?}"),
+        }
+    }
+
+    // TODO: Maybe move all these guts into `try_swap` and just use this
+    // function to do the dumb indexing and call that function.
+    fn try_apply_shift(&mut self, idx: usize, direction: LeftRight) -> Result<(), String> {
+        use LeftRight::*;
+
+        let range = match direction {
+            Left => {
+                idx.checked_sub(1)
+                    .ok_or("cannot shift left from start of diagram")?..=idx
+            }
+
+            Right => idx..=idx.checked_add(1).ok_or("cannot add to max integer")?,
+        };
+
+        let items = self
+            .0
+            .get_mut(range.clone())
+            .ok_or_else(|| format!("{range:?} is outside the range of the diagram"))?;
+
+        // Okay to unwrap because we know the range is exactly 2
+        let (item0, items) = items.split_first_mut().unwrap();
+        let (item1, items) = items.split_first_mut().unwrap();
+        debug_assert!(items.is_empty());
+
+        let (new_item0, new_item1) = item0.try_swap(*item1)?;
+        *item0 = new_item0;
+        *item1 = new_item1;
+
+        Ok(())
+    }
+}
+
+impl AbbreviatedItem {
+    fn can_swap(self, other: Self) -> bool {
+        self.try_swap(other).is_ok()
+    }
+
+    fn try_swap(mut self, ref mut item1: Self) -> Result<(Self, Self), String> {
+        let ref mut item0 = self;
+
+        if item0.is_crossing() && item1.is_opening() {
+            let crossing = &mut *item0;
+            let opening = &mut *item1;
+
+            if crossing.index < opening.index {
+                if !crossing.is_at_least_2_away_from(&opening) {
+                    return Err(format!(
+                        "swapping crossing {crossing} and opening {opening} \
+                        would require splitting the crossing"
+                    ));
+                }
+            } else {
+                crossing.index += 2;
+            }
+        } else if item0.is_opening() && item1.is_crossing() {
+            let opening = &mut *item0;
+            let crossing = &mut *item1;
+            if !opening.is_at_least_2_away_from(&crossing) {
+                return Err(format!(
+                    "opening {opening} enables subsequent crossing {crossing} \
+                    and so can't be moved to the right of it"
+                ));
+            }
+
+            if opening.index < crossing.index {
+                // Isn't possible for crossing.index to be <= 2 if it's
+                // greater than opening.index and at least 2 away from
+                // it
+                crossing.index = crossing.index.checked_sub(2).unwrap();
+            }
+        } else if item0.is_crossing() && item1.is_closing() {
+            let crossing = &mut *item0;
+            let closing = &mut *item1;
+
+            if !closing.is_at_least_2_away_from(&crossing) {
+                return Err(format!(
+                    "crossing {crossing} requires subsequent closing {closing} \
+                    and so can't be moved to the right of it"
+                ));
+            }
+
+            if closing.index < crossing.index {
+                // Isn't possible for crossing.index to be <= 2 if it's
+                // greater than closing.index and at least 2 away from
+                // it
+                crossing.index = crossing.index.checked_sub(2).unwrap();
+            }
+        } else if item0.is_closing() && item1.is_crossing() {
+            let closing = &mut *item0;
+            let crossing = &mut *item1;
+            if crossing.index < closing.index {
+                if !crossing.is_at_least_2_away_from(&closing) {
+                    return Err(format!(
+                        "swapping closing {closing} and crossing {crossing} \
+                        would require splitting the crossing"
+                    ));
+                }
+            } else {
+                crossing.index += 2;
+            }
+        } else
+        // Open + Open
+        // ===========
+        //
+        //
+        //
+        //                      ___
+        //                     /
+        //                    /
+        //                   /  ___
+        //                  /  /
+        //                 /  /
+        //              __/  /  ___
+        //             /    /  /
+        //            /    /  /
+        //           /  __/  /  __
+        //          /  /    /  /
+        //         /  (    /  /
+        //       _/    \__/  /  ___
+        //      /           /  /
+        //     (           /  (
+        //      \_________/    \___
+        //
+        //
+        //
+        //
+        //
+        //           ___               ___
+        //          /                 /
+        //         /                 (
+        //        /  ___              \___
+        //       /  /
+        //      /  /         ⇒
+        //   __/  /  ___            ______
+        //  /    /  /              /
+        // (    /  (              (
+        //  \__/    \___           \______
+        //
+        //
+        //
+        //
+        // This one can't be swapped
+        //
+        //           ___
+        //          /
+        //         /
+        //        /  ___
+        //       /  /
+        //      /  (
+        //   __/    \___
+        //  /
+        // (
+        //  \___________
+        //
+        //
+        //
+        //
+        //      ___                    ___
+        //     /                      /
+        //    (                      /
+        //     \___                 /  ___
+        //                         /  /
+        //               ⇒        /  /
+        //   ______            __/  /  ___
+        //  /                 /    /  /
+        // (                 (    /  (
+        //  \______           \__/    \___
+        //
+
+        // TODO: test these!
+        if item0.is_opening() && item1.is_opening() {
+            let opening0 = &mut *item0;
+            let opening1 = &mut *item1;
+
+            if opening0.index >= opening1.index {
+                // This comment is obsolete.
+                //
+                // // This one is weird. We could technically just
+                // // increment opening1.index by 2 and skip the swap, but
+                // // that might make it harder to unify with all the other
+                // // swap cases.
+
+                opening0.index += 2;
+            } else {
+                if opening0.is_at_least_2_away_from(&opening1) {
+                    opening1.index = opening1.index.checked_sub(2).unwrap();
+                } else {
+                    return Err(format!(
+                        "swapping adjacent openings {opening0} and {opening1} \
+                        would require a reidemeister II move"
+                    ));
+                }
+            }
+        } else
+        // Close + Close
+        // =============
+        //
+        //
+        // __
+        //   \
+        //    \
+        // __  \
+        //   \  \
+        //    \  \
+        // __  \  \_
+        //   \  \   \
+        //    )  \   )
+        // __/    \_/
+        //
+        //
+        //
+        //
+        //
+        // __
+        //   \
+        //    \
+        // __  \
+        //   \  \
+        //    )  \
+        // __/    \_
+        //          \
+        //           )
+        // _________/
+        //
+        //
+        //
+        //
+        // ___
+        //    \
+        //     )
+        // ___/
+        //
+        //
+        // ______
+        //       \
+        //        )
+        // ______/
+        //
+        if item0.is_closing() && item1.is_closing() {
+            let closing0 = &mut *item0;
+            let closing1 = &mut *item1;
+
+            if closing0.index <= closing1.index {
+                // This comment is obsolete.
+                //
+                // // This one is weird. We could technically just
+                // // increment closing1.index by 2 and skip the swap, but
+                // // that might make it harder to unify with all the other
+                // // swap cases.
+
+                closing1.index += 2;
+            } else {
+                if closing0.is_at_least_2_away_from(&closing1) {
+                    closing0.index = closing0.index.checked_sub(2).unwrap();
+                } else {
+                    return Err(format!(
+                        "swapping adjacent closings {closing0} and {closing1} \
+                        would require a reidemeister II move"
+                    ));
+                }
+            }
+        } else
+        // Close + Open
+        // ============
+        //
+        //                         ___
+        //                        /   \
+        //                       /     )
+        //                      /  ___/
+        //                     /  /
+        //                    /  /
+        // ____     __      _/  /  ______
+        //     \   /           /  /
+        //      ) /           /  /
+        // ____/ /  __      _/  /  ______
+        //      /  /           /  /
+        //     /  (     ⇒     /  (
+        // ___/    \__      _/    \______
+        //
+        //
+        // This one is very weird since there are two possible outcomes.
+        // We'll default to the 2nd one, but we might need to revisit.
+        // It could invalidate some unexamined assumptions.
+        //
+        //              ___
+        //             /   \
+        //            (     \
+        //             \___  \
+        //                 \  \
+        //                  \  \
+        // _    _     _____  \  \_
+        //  \  /           \  \
+        //   )(    ⇒        )  \
+        // _/  \_     _____/    \_
+        //
+        //
+        // OR
+        //                   __
+        //                  /  \
+        //                 /    )
+        //                /  __/
+        //               /  /
+        //              /  /
+        // _    _     _/  /  ____
+        //  \  /         /  /
+        //   )(    ⇒    /  (
+        // _/  \_     _/    \____
+        //
+        //
+        // NOTE: missing diagram for where closing.index < opening.index
+        if item0.is_closing() && item1.is_opening() {
+            let closing = &mut *item0;
+            let opening = &mut *item1;
+
+            *(if closing.index >= opening.index {
+                &mut closing.index
+            } else {
+                &mut opening.index
+            }) += 2;
+        } else
+        // Open + Close
+        // ============
+        //
+        //   ___
+        //  /   \
+        // (     \
+        //  \___  \
+        //      \  \
+        //       \  \
+        // _____  \  \_     _    _
+        //      \  \         \  /
+        //       )  \    ⇒    )(
+        // _____/    \_     _/  \_
+        //
+        //        __
+        //       /  \
+        //      /    )
+        //     /  __/
+        //    /  /
+        //   /  /
+        // _/  /  ____     _    _
+        //    /  /          \  /
+        //   /  (       ⇒    )(
+        // _/    \____     _/  \_
+        //
+        //
+        // This one can't be swapped...it can only be removed
+        // _____
+        //      \
+        //       )
+        //   ___/
+        //  /
+        // (
+        //  \_____
+        //
+        //
+        // This one can't be swapped...it can only be removed
+        //   _____
+        //  /
+        // (
+        //  \___
+        //      \
+        //       )
+        // _____/
+        //
+        //
+        //
+        // This one can't be simplified
+        //   _
+        //  / \
+        // (   )
+        //  \_/
+        //
+        //
+        // This one is not possible if diagram is constructed correctly
+        // _      _____
+        //  \    /
+        //   \  (
+        // _  \  \_____
+        //  \  \
+        //   \  \
+        //    \  \___
+        //     \     \
+        //      \     )
+        //       \___/
+        //
+        // TODO: moar examples
+        if item0.is_opening() && item1.is_closing() {
+            let opening = &mut *item0;
+            let closing = &mut *item1;
+
+            if !opening.is_at_least_2_away_from(&closing) {
+                return Err(match opening.small_distance_from(&closing) {
+                    0 => format!(
+                        "swapping adjacent opening {opening} and closing {closing} \
+                        would mean removing an unknot from the diagram"
+                    ),
+                    1 => format!(
+                        "adjacent opening {opening} and closing {closing} \
+                        constitute a bulge and can't be swapped"
+                    ),
+                    _ => unreachable!(
+                        "BUG: We just saw that opening {opening} is less than \
+                        2 away from closing {closing}"
+                    ),
+                });
+            }
+
+            closing.index = closing.index.checked_sub(2).unwrap();
+        } else
+        // Not sure if this one was right. Maybe
+        // I meant for the the closing to be a crossing?
+        //
+        // if item0.is_closing() && item1.is_opening() {
+        //     let closing = &mut *item0;
+        //     let opening = &mut *item1;
+        //     if closing.index < opening.index {
+        //         if !closing.is_at_least_2_away_from(&opening) {
+        //             return Err(format!(
+        //                 "swapping closing {closing} and opening {opening} \
+        //                 would require splitting the crossing"
+        //             ));
+        //         }
+        //     } else {
+        //         closing.index += 2;
+        //     }
+
+        //     mem::swap(closing, opening);
+        //     return Ok(());
+        // }
+        if item0.is_crossing() && item1.is_crossing() {
+            let crossing0 = &mut *item0;
+            let crossing1 = &mut *item1;
+
+            if !crossing0.is_at_least_2_away_from(&crossing1) {
+                return Err(format!(
+                    "cannot swap {crossing0} and {crossing1} because they are too close",
+                ));
+            }
+        } else
+        // No more cases!
+        {
+            unreachable!(
+                "BUG: We should have covered all cases, but we didn't. \
+                item0: {item0:?}, item1: {item1:?}",
+            );
+        }
+
+        Ok((*item1, *item0))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct AbbreviatedItem {
     element: u8,
     index: usize,
@@ -576,6 +1249,13 @@ impl FromStr for AbbreviatedItem {
     }
 }
 
+impl fmt::Display for AbbreviatedItem {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { element, index } = self;
+        write!(formatter, "{element}{index}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbbreviatedDiagram(Vec<AbbreviatedItem>);
 
@@ -599,6 +1279,10 @@ impl AbbreviatedItem {
         } else {
             Err(element)
         }
+    }
+
+    pub const fn affected_indices(&self) -> Option<(usize, usize)> {
+        Some((self.index, try_opt!(self.index.checked_add(1))))
     }
 }
 
@@ -679,6 +1363,13 @@ impl AbbreviatedDiagram {
         }
 
         out.into_iter().collect()
+    }
+
+    pub fn to_tuples(&self) -> Vec<(u8, usize)> {
+        self.0
+            .iter()
+            .map(|item| (item.element, item.index))
+            .collect()
     }
 }
 
