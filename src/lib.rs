@@ -560,7 +560,7 @@ enum UpDown {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Move {
-    SwapAt,
+    Swap,
     WrapAround,
     Bulge(UpDown),
     BulgeRemove,
@@ -679,27 +679,27 @@ mod test {
     }
 
     #[test]
-    fn test_try_shift() {
+    fn test_try_swap() {
         let mut diagram = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'V', 0)]).unwrap();
-        assert!(diagram.try_shift(0).is_err());
-        assert!(diagram.try_shift(0).is_err());
+        assert!(diagram.try_swap(0).is_err());
+        assert!(diagram.try_swap(0).is_err());
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             0,
             [(b'A', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
             [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
         );
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             1,
             [(b'A', 0), (b'/', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
             [(b'A', 0), (b'A', 2), (b'/', 0), (b'V', 2), (b'V', 0)],
         );
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             2,
             [
                 (b'A', 0),
@@ -720,28 +720,28 @@ mod test {
         );
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             0,
             [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
             [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
         );
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             0,
             [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
             [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
         );
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             2,
             [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
             [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
         );
 
         assert_eq_after_apply!(
-            try_shift,
+            try_swap,
             2,
             [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
             [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
@@ -765,16 +765,21 @@ impl AbbreviatedDiagram {
         use Move::*;
         use UpDown::*;
 
-        match diagram_move.r#move {
-            SwapAt => self.try_shift(diagram_move.idx),
-            WrapAround => self.try_wrap_around(diagram_move.idx),
+        (match diagram_move.r#move {
+            Swap => Self::try_swap,
+            WrapAround => Self::try_wrap_around,
             r#move @ (Bulge(_) | BulgeRemove) => todo!("{move:?}"),
-        }
+        })(self, diagram_move.idx)
     }
 
-    // TODO: Maybe move all these guts into `try_swap` and just use this
-    // function to do the dumb indexing and call that function.
-    fn try_shift(&mut self, idx: usize) -> Result<(), String> {
+    fn try_apply_(
+        &mut self,
+        operation: fn(
+            AbbreviatedItem,
+            AbbreviatedItem,
+        ) -> Result<(AbbreviatedItem, AbbreviatedItem), String>,
+        idx: usize,
+    ) -> Result<(), String> {
         let range = idx..idx.checked_add(2).ok_or("cannot add to max integer")?;
 
         let items = self
@@ -787,38 +792,37 @@ impl AbbreviatedDiagram {
         let (item1, items) = items.split_first_mut().unwrap();
         debug_assert!(items.is_empty());
 
-        let (new_item0, new_item1) = item0.try_swap(*item1)?;
+        let (new_item0, new_item1) = operation(*item0, *item1)?;
         *item0 = new_item0;
         *item1 = new_item1;
 
         Ok(())
+    }
+
+    fn try_swap(&mut self, idx: usize) -> Result<(), String> {
+        self.try_apply_(AbbreviatedItem::try_swap, idx)
     }
 
     fn try_wrap_around(&mut self, idx: usize) -> Result<(), String> {
-        let range = idx..idx.checked_add(2).ok_or("cannot add to max integer")?;
-
-        let items = self
-            .0
-            .get_mut(range.clone())
-            .ok_or_else(|| format!("{range:?} is outside the range of the diagram"))?;
-
-        // Okay to unwrap because we know the range is exactly 2
-        let (item0, items) = items.split_first_mut().unwrap();
-        let (item1, items) = items.split_first_mut().unwrap();
-        debug_assert!(items.is_empty());
-
-        let (new_item0, new_item1) = item0.try_wrap_around(*item1)?;
-        *item0 = new_item0;
-        *item1 = new_item1;
-
-        Ok(())
+        self.try_apply_(AbbreviatedItem::try_wrap_around, idx)
     }
 
-    fn available_swaps(&self) -> impl '_ + Iterator<Item = usize> {
+    fn list_available(
+        &self,
+        operation: fn(AbbreviatedItem, AbbreviatedItem) -> bool,
+    ) -> impl '_ + Iterator<Item = usize> {
         self.0
             .windows(2)
             .enumerate()
-            .filter_map(|(idx, items)| items[0].can_swap(items[1]).then(|| idx))
+            .filter_map(move |(idx, items)| operation(items[0], items[1]).then(|| idx))
+    }
+
+    fn available_swaps(&self) -> impl '_ + Iterator<Item = usize> {
+        self.list_available(AbbreviatedItem::can_swap)
+    }
+
+    fn available_wrap_arounds(&self) -> impl '_ + Iterator<Item = usize> {
+        self.list_available(AbbreviatedItem::can_wrap_around)
     }
 }
 
