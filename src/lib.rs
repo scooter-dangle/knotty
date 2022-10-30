@@ -553,20 +553,20 @@ fn snapshot_from_abbreviated() {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UpDown {
-    Up,
-    Down,
+pub enum Lean {
+    Forward,
+    Backward,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Move {
+pub enum Move {
     Swap,
     WrapAround,
-    Bulge(UpDown),
-    BulgeRemove,
+    Bulge { lean: Lean, vertical_index: usize },
+    RemoveBulge,
 }
 
-struct DiagramMove {
+pub struct DiagramMove {
     idx: usize,
     r#move: Move,
 }
@@ -630,6 +630,48 @@ impl SmallDistance for AbbreviatedItem {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
+    use Lean::*;
+
+    macro_rules! assert_eq_after {
+        ($operation:expr, $idx:expr, [$($diagram:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
+            let idx = $idx;
+
+            let diagram: Vec<(u8, usize)> = vec![$($diagram,)*];
+            let expected: Vec<(u8, usize)> = vec![$($expected,)*];
+            let actual: Vec<(u8, usize)> = {
+                let mut diagram = AbbreviatedDiagram::new_from_tuples(diagram.clone()).unwrap();
+                ($operation)(&mut diagram, idx).unwrap();
+                diagram.to_tuples()
+            };
+
+            assert_eq!(
+                actual
+                    .clone()
+                    .into_iter()
+                    .map(|(element, index)| {
+                        let element = element as char;
+                        format!("{element}{index}\n")
+                    })
+                    .collect::<String>(),
+                expected
+                    .clone()
+                    .into_iter()
+                    .map(|(element, index)| {
+                        let element = element as char;
+                        format!("{element}{index}\n")
+                    })
+                    .collect::<String>(),
+                "{}@{idx}\
+                \noriginal:\n{}\
+                \nexpected:\n{}\
+                \nactual:\n{}",
+                stringify!($operation),
+                ascii_print::<false>(diagram),
+                ascii_print::<false>(expected),
+                ascii_print::<false>(actual),
+            );
+        };
+    }
 
     fn apply(
         manip: fn(&mut AbbreviatedDiagram, usize) -> Result<(), String>,
@@ -671,11 +713,42 @@ mod test {
                 \nexpected:\n{}\
                 \nactual:\n{}",
                 stringify!($operation),
-                ascii_print_compact::<true>(diagram),
-                ascii_print_compact::<true>(expected),
-                ascii_print_compact::<true>(actual),
+                ascii_print::<false>(diagram),
+                ascii_print::<false>(expected),
+                ascii_print::<false>(actual),
             );
         };
+    }
+
+    #[test]
+    fn test_try_bulge() {
+        assert_eq_after!(
+            |diagram: &mut AbbreviatedDiagram, idx| diagram.try_bulge(Backward, 0, idx),
+            1,
+            [(b'A', 0), (b'V', 0)],
+            [(b'A', 0), (b'A', 1), (b'V', 0), (b'V', 0)],
+        );
+
+        assert_eq_after_apply!(
+            try_remove_bulge,
+            1,
+            [(b'A', 0), (b'A', 1), (b'V', 0), (b'V', 0)],
+            [(b'A', 0), (b'V', 0)],
+        );
+
+        assert_eq_after!(
+            |diagram: &mut AbbreviatedDiagram, idx| diagram.try_bulge(Forward, 0, idx),
+            1,
+            [(b'A', 0), (b'V', 0)],
+            [(b'A', 0), (b'A', 0), (b'V', 1), (b'V', 0)],
+        );
+
+        assert_eq_after_apply!(
+            try_remove_bulge,
+            1,
+            [(b'A', 0), (b'A', 0), (b'V', 1), (b'V', 0)],
+            [(b'A', 0), (b'V', 0)],
+        );
     }
 
     #[test]
@@ -761,15 +834,73 @@ mod test {
 
 impl AbbreviatedDiagram {
     // TODO proper error
-    fn try_apply(&mut self, diagram_move: DiagramMove) -> Result<(), String> {
+    pub fn try_apply(&mut self, diagram_move: DiagramMove) -> Result<(), String> {
         use Move::*;
-        use UpDown::*;
 
         (match diagram_move.r#move {
             Swap => Self::try_swap,
             WrapAround => Self::try_wrap_around,
-            r#move @ (Bulge(_) | BulgeRemove) => todo!("{move:?}"),
+            RemoveBulge => Self::try_remove_bulge,
+            Bulge {
+                lean,
+                vertical_index,
+            } => {
+                return self.try_bulge(lean, vertical_index, diagram_move.idx);
+            }
         })(self, diagram_move.idx)
+    }
+
+    fn try_bulge(&mut self, lean: Lean, vertical_index: usize, idx: usize) -> Result<(), String> {
+        if idx > self.len() {
+            return Err(format!(
+                "index ({idx}) out of bounds: {idx} > {}",
+                self.len()
+            ));
+        }
+
+        let vertical_height_at_index = self
+            .0
+            .iter()
+            .map(|item| match item.element {
+                b'A' => 2,
+                b'V' => -2,
+                b'/' | b'\\' => 0,
+                _ => {
+                    let other = item.element as char;
+                    unreachable!("BUG: shouldn't be able to get here for valid diagram. Invalid element: {other:?}")
+                },
+            })
+            .take(idx)
+            .sum::<i32>();
+
+        if vertical_index as i32 >= vertical_height_at_index {
+            return Err(format!(
+                "bulge vertical index ({vertical_index}) equal to or beyond diagram height ({vertical_height_at_index}) at {idx}",
+            ));
+        }
+
+        let (opening_idx, closing_idx) = match lean {
+            Lean::Backward => (vertical_index + 1, vertical_index),
+            Lean::Forward => (vertical_index, vertical_index + 1),
+        };
+
+        self.0.reserve_exact(2);
+        self.0.insert(
+            idx,
+            AbbreviatedItem {
+                element: b'V',
+                index: closing_idx,
+            },
+        );
+        self.0.insert(
+            idx,
+            AbbreviatedItem {
+                element: b'A',
+                index: opening_idx,
+            },
+        );
+
+        Ok(())
     }
 
     fn try_apply_(
@@ -807,8 +938,32 @@ impl AbbreviatedDiagram {
         self.try_apply_(AbbreviatedItem::try_wrap_around, idx)
     }
 
-    fn list_available(
+    fn try_remove_bulge(&mut self, idx: usize) -> Result<(), String> {
+        let opening = self
+            .0
+            .get(idx)
+            .ok_or_else(|| format!("index ({idx}) out of bounds: {idx} > {}", self.len()))?;
+
+        let closing_idx = idx + 1;
+
+        let closing = self.0.get(closing_idx).ok_or_else(|| {
+            format!(
+                "index ({closing_idx}) out of bounds: {closing_idx} > {}",
+                self.len()
+            )
+        })?;
+
+        opening.error_on_remove_bulge(*closing)?;
+
+        self.0.remove(idx);
+        self.0.remove(idx);
+
+        Ok(())
+    }
+
+    pub fn list_available(
         &self,
+        // Lame. Can't use this with bulges
         operation: fn(AbbreviatedItem, AbbreviatedItem) -> bool,
     ) -> impl '_ + Iterator<Item = usize> {
         self.0
@@ -817,15 +972,120 @@ impl AbbreviatedDiagram {
             .filter_map(move |(idx, items)| operation(items[0], items[1]).then(|| idx))
     }
 
-    fn available_swaps(&self) -> impl '_ + Iterator<Item = usize> {
+    pub fn available_swaps(&self) -> impl '_ + Iterator<Item = usize> {
         self.list_available(AbbreviatedItem::can_swap)
     }
 
-    fn available_wrap_arounds(&self) -> impl '_ + Iterator<Item = usize> {
+    pub fn available_wrap_arounds(&self) -> impl '_ + Iterator<Item = usize> {
         self.list_available(AbbreviatedItem::can_wrap_around)
+    }
+
+    pub fn available_remove_bulges(&self) -> impl '_ + Iterator<Item = usize> {
+        // Maybe don't do this the wildly inefficient way, recalculating
+        // the diagram height at each index.
+        self.0
+            .windows(2)
+            .enumerate()
+            .filter_map(|(idx, items)| items[0].is_bulge_with(items[1]).then(|| idx))
+    }
+
+    pub fn available_bulges(&self) -> impl '_ + Iterator<Item = (usize, (Lean, usize))> {
+        let mut height = 0isize;
+
+        self.0
+            .iter()
+            .map(move |item| {
+                height += match item.element {
+                    b'A' => 2,
+                    b'V' => -2,
+                    b'/' | b'\\' => 0,
+                    _ => {
+                        let other = item.element as char;
+                        unreachable!(
+                            "BUG: shouldn't be able to get here for valid \
+                            diagram. Invalid element: {other:?}",
+                        )
+                    }
+                };
+
+                height
+            })
+            .enumerate()
+            .flat_map(|(idx, height)| {
+                (0..height).flat_map(move |vertical_index| {
+                    let idx = idx + 1;
+
+                    [
+                        (idx, (Lean::Backward, vertical_index as usize)),
+                        (idx, (Lean::Forward, vertical_index as usize)),
+                    ]
+                })
+            })
     }
 }
 
+#[test]
+fn test_available_bulges() {
+    let diagram = AbbreviatedDiagram::from_str(
+        "\
+        A0\n\
+        V0\n\
+        ",
+    )
+    .unwrap();
+
+    let available_bulges = diagram.available_bulges().collect::<Vec<_>>();
+
+    assert_eq!(
+        available_bulges,
+        vec![
+            (1, (Lean::Backward, 0)),
+            (1, (Lean::Forward, 0)),
+            (1, (Lean::Backward, 1)),
+            (1, (Lean::Forward, 1)),
+        ]
+    );
+
+    // ------------------------------------------
+
+    let diagram = AbbreviatedDiagram::from_str(
+        "\
+        A0\n\
+        A0\n\
+        V0\n\
+        V0\n\
+        ",
+    )
+    .unwrap();
+
+    let available_bulges = diagram.available_bulges().collect::<Vec<_>>();
+
+    assert_eq!(
+        available_bulges,
+        vec![
+            (1, (Lean::Backward, 0)),
+            (1, (Lean::Forward, 0)),
+            (1, (Lean::Backward, 1)),
+            (1, (Lean::Forward, 1)),
+            // ---
+            (2, (Lean::Backward, 0)),
+            (2, (Lean::Forward, 0)),
+            (2, (Lean::Backward, 1)),
+            (2, (Lean::Forward, 1)),
+            (2, (Lean::Backward, 2)),
+            (2, (Lean::Forward, 2)),
+            (2, (Lean::Backward, 3)),
+            (2, (Lean::Forward, 3)),
+            // ---
+            (3, (Lean::Backward, 0)),
+            (3, (Lean::Forward, 0)),
+            (3, (Lean::Backward, 1)),
+            (3, (Lean::Forward, 1)),
+        ]
+    );
+}
+
+#[allow(unused)]
 // Only works for strictly increasing sequences
 fn non_adjacent(iter: impl Iterator<Item = usize>) -> impl Iterator<Item = usize> {
     let mut iter = iter.peekable();
@@ -1322,7 +1582,7 @@ impl AbbreviatedItem {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct AbbreviatedItem {
+pub struct AbbreviatedItem {
     element: u8,
     index: usize,
 }
@@ -1389,6 +1649,38 @@ impl AbbreviatedItem {
 
     pub const fn affected_indices(&self) -> Option<(usize, usize)> {
         Some((self.index, try_opt!(self.index.checked_add(1))))
+    }
+
+    fn is_bulge_with(self, closing: Self) -> bool {
+        self.error_on_remove_bulge(closing).is_ok()
+    }
+
+    fn error_on_remove_bulge(self, closing: Self) -> Result<(), String> {
+        let opening = self;
+
+        if !opening.is_opening() {
+            return Err(format!(
+                "expected opening, found {:?}",
+                opening.element as char,
+            ));
+        }
+
+        if !closing.is_closing() {
+            return Err(format!(
+                "expected closing, found {:?}",
+                closing.element as char,
+            ));
+        }
+
+        let distance = opening.small_distance_from(&closing);
+        if distance != 1 {
+            return Err(format!(
+                "found opening followed by closing when looking for bulge, \
+                but their vertical distance is {distance} instead of the mandatory 1",
+            ));
+        }
+
+        Ok(())
     }
 }
 
