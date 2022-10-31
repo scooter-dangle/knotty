@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use knotty::AbbreviatedDiagram;
+use knotty::{self, AbbreviatedDiagram};
 
 fn read_input(file: Option<String>) -> Result<String, String> {
     let lines = match file.as_deref() {
@@ -22,7 +22,18 @@ fn read_input(file: Option<String>) -> Result<String, String> {
 }
 
 fn main() -> Result<(), String> {
-    let knot = read_input(std::env::args().nth(1))?.parse::<AbbreviatedDiagram>()?;
+    let mut knot = read_input(std::env::args().nth(1))?.parse::<AbbreviatedDiagram>()?;
+    let moves = std::env::args()
+        .nth(2)
+        .map(|source| {
+            read_input(Some(source))
+                .and_then(|move_input| move_input.parse::<knotty::DiagramMoves>())
+        })
+        .transpose()?;
+
+    if let Some(moves) = moves {
+        knot.try_apply_all(moves)?;
+    };
 
     let grid = var("KNOTTY_GRID").ok().as_deref() == Some("true");
     let compact = var("KNOTTY_COMPACT").ok().as_deref() == Some("true");

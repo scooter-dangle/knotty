@@ -558,17 +558,360 @@ pub enum Lean {
     Backward,
 }
 
+impl FromStr for Lean {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        use Lean::*;
+
+        match string {
+            "forward" => Ok(Forward),
+            "backward" => Ok(Backward),
+            _ => Err(format!("Invalid lean: {string:?}")),
+        }
+    }
+}
+
+impl fmt::Display for Lean {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Lean::*;
+
+        write!(
+            formatter,
+            "{}",
+            match self {
+                Forward => "forward",
+                Backward => "backward",
+            },
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverUnder {
+    Over,
+    Under,
+}
+
+impl FromStr for OverUnder {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        use OverUnder::*;
+
+        Ok(match string {
+            "over" => Over,
+            "under" => Under,
+            _ => return Err(format!("Invalid over/under: {string:?}")),
+        })
+    }
+}
+
+impl fmt::Display for OverUnder {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use OverUnder::*;
+
+        write!(
+            formatter,
+            "{}",
+            match self {
+                Over => "over",
+                Under => "under",
+            },
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpDown {
+    Up,
+    Down,
+}
+
+impl FromStr for UpDown {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        use UpDown::*;
+
+        Ok(match string {
+            "up" => Up,
+            "down" => Down,
+            _ => return Err(format!("Invalid up/down: {string:?}")),
+        })
+    }
+}
+
+impl fmt::Display for UpDown {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use UpDown::*;
+
+        write!(
+            formatter,
+            "{}",
+            match self {
+                Up => "up",
+                Down => "down",
+            },
+        )
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Move {
     Swap,
     WrapAround,
-    Bulge { lean: Lean, vertical_index: usize },
+    Bulge {
+        lean: Lean,
+        vertical_index: usize,
+    },
     RemoveBulge,
+    Reid1a {
+        over_under: OverUnder,
+    },
+    Reid1aReduce,
+    Reid1b {
+        up_down: UpDown,
+        over_under: OverUnder,
+        vertical_index: usize,
+    },
+    Reid1bReduce,
+    Reid2 {
+        over_under: OverUnder,
+        vertical_index: usize,
+    },
+    Reid2Reduce,
+    Reid3,
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Move::*;
+
+        match self {
+            Swap => write!(formatter, "swap"),
+            WrapAround => write!(formatter, "wrap_around"),
+            RemoveBulge => write!(formatter, "remove_bulge"),
+            Reid1a { over_under } => write!(formatter, "reid_1a({over_under})"),
+            Reid1aReduce => write!(formatter, "reid_1a_reduce"),
+            Reid1b {
+                up_down,
+                over_under,
+                vertical_index,
+            } => write!(
+                formatter,
+                "reid_1b({up_down}, {over_under}, {vertical_index})"
+            ),
+            Reid1bReduce => write!(formatter, "reid_1b_reduce"),
+            Reid2 {
+                over_under,
+                vertical_index,
+            } => write!(formatter, "reid_2a({over_under}, {vertical_index})"),
+            Reid2Reduce => write!(formatter, "reid_2_reduce"),
+            Reid3 => write!(formatter, "reid_3"),
+            Bulge {
+                lean,
+                vertical_index,
+            } => write!(formatter, "bulge({lean}, {vertical_index})"),
+        }
+    }
+}
+
+fn parse_bulge_args(mut string: &str) -> Result<(Lean, usize), String> {
+    if string.ends_with(')') {
+        string = &string[..string.len() - 1];
+    } else {
+        return Err("missing closing parenthesis".into());
+    }
+
+    let args = string.split(',').map(str::trim).collect::<Vec<_>>();
+    if args.len() != 2 {
+        return Err(format!("expected two arguments, got {}", args.len()));
+    }
+
+    Ok((
+        args[0].parse()?,
+        args[1]
+            .parse()
+            .map_err(|err| format!("invalid vertical index {}: {err}", args[1]))?,
+    ))
+}
+
+impl FromStr for Move {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        use Move::*;
+
+        let mut open_par_splits = string.split('(');
+
+        let moov = match open_par_splits
+            .next()
+            .filter(|split| !split.is_empty())
+            .ok_or_else(|| "Move can't be empty string")?
+        {
+            "swap" => Swap,
+            "wrap_around" => WrapAround,
+            "remove_bulge" => RemoveBulge,
+            "reid_1a_reduce" => Reid1aReduce,
+            "reid_1b_reduce" => Reid1bReduce,
+            "reid_2_reduce" => Reid2Reduce,
+            "reid_3" => Reid3,
+            "reid_1a" => Reid1a {
+                over_under: open_par_splits
+                    .next()
+                    .map(|split| split.trim_end_matches(')'))
+                    .ok_or_else(|| "reid_1a requires an argument")?
+                    .parse()?,
+            },
+            "reid_1b" => {
+                let (up_down, over_under, vertical_index) = parse_reid_1b_args(
+                    open_par_splits
+                        .next()
+                        .ok_or_else(|| "reid_1b requires arguments")?,
+                )?;
+
+                Reid1b {
+                    up_down,
+                    over_under,
+                    vertical_index,
+                }
+            }
+            "reid_2" => {
+                let (over_under, vertical_index) = parse_reid_2_args(
+                    open_par_splits
+                        .next()
+                        .ok_or_else(|| "reid_2 requires arguments")?,
+                )?;
+
+                Reid2 {
+                    over_under,
+                    vertical_index,
+                }
+            }
+            "bulge" => {
+                let (lean, vertical_index) = parse_bulge_args(
+                    open_par_splits
+                        .next()
+                        .ok_or_else(|| "missing bulge arguments")?,
+                )?;
+
+                Bulge {
+                    lean,
+                    vertical_index,
+                }
+            }
+            other => return Err(format!("Invalid move kind: {other:?}")),
+        };
+
+        if open_par_splits.next().is_some() {
+            return Err("unexpected opening parenthesis".into());
+        }
+
+        Ok(moov)
+    }
+}
+
+fn parse_reid_1b_args(mut string: &str) -> Result<(UpDown, OverUnder, usize), String> {
+    if string.ends_with(')') {
+        string = &string[..string.len() - 1];
+    } else {
+        return Err("missing closing parenthesis".into());
+    }
+
+    let args = string.split(',').map(str::trim).collect::<Vec<_>>();
+    if args.len() != 3 {
+        return Err(format!("expected three arguments, got {}", args.len()));
+    }
+
+    Ok((
+        args[0].parse()?,
+        args[1].parse()?,
+        args[2]
+            .parse()
+            .map_err(|err| format!("invalid vertical index {}: {err}", args[2]))?,
+    ))
+}
+
+fn parse_reid_2_args(mut string: &str) -> Result<(OverUnder, usize), String> {
+    if string.ends_with(')') {
+        string = &string[..string.len() - 1];
+    } else {
+        return Err("missing closing parenthesis".into());
+    }
+
+    let args = string.split(',').map(str::trim).collect::<Vec<_>>();
+    if args.len() != 2 {
+        return Err(format!("expected two arguments, got {}", args.len()));
+    }
+
+    Ok((
+        args[0].parse()?,
+        args[1]
+            .parse()
+            .map_err(|err| format!("invalid vertical index {}: {err}", args[1]))?,
+    ))
+}
+
+impl fmt::Display for DiagramMove {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}@{}", self.r#move, self.idx)
+    }
+}
+
+impl FromStr for DiagramMove {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let (moove, idx) = string.split_once('@').ok_or_else(|| "No @ symbol")?;
+
+        let idx = idx
+            .parse::<usize>()
+            .map_err(|err| format!("Invalid index {idx:?}: {err}"))?;
+
+        let moov = moove.parse()?;
+
+        Ok(Self { idx, r#move: moov })
+    }
 }
 
 pub struct DiagramMove {
     idx: usize,
     r#move: Move,
+}
+
+pub struct DiagramMoves(Vec<DiagramMove>);
+
+impl IntoIterator for DiagramMoves {
+    type Item = DiagramMove;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl FromStr for DiagramMoves {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        string
+            .split('\n')
+            .map(str::trim)
+            .filter(|line| !line.starts_with('#') && !line.is_empty())
+            .map(str::parse)
+            .collect::<Result<Vec<_>, _>>()
+            .map(Self)
+    }
+}
+
+impl fmt::Display for DiagramMoves {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0
+            .iter()
+            .map(|moov| writeln!(formatter, "{moov}\n"))
+            .collect()
+    }
 }
 
 trait Item {
@@ -615,8 +958,7 @@ trait SmallDistance {
 
 impl SmallDistance for usize {
     fn small_distance_from(&self, other: &Self) -> u8 {
-        let (larger, smaller) = (self.max(other), self.min(other));
-        (larger - smaller).min(u8::MAX as usize) as u8
+        (self.max(other) - self.min(other)).min(u8::MAX as usize) as u8
     }
 }
 
@@ -841,24 +1183,39 @@ impl AbbreviatedDiagram {
             Swap => Self::try_swap,
             WrapAround => Self::try_wrap_around,
             RemoveBulge => Self::try_remove_bulge,
+            Reid1aReduce => Self::try_reid_1_a_reduce,
+            Reid1bReduce => Self::try_reid_1_b_reduce,
+            Reid2Reduce => Self::try_reid_2_reduce,
+            Reid3 => Self::try_reid_3,
+            Reid1a { over_under } => return self.try_reid_1_a(over_under, diagram_move.idx),
+            Reid1b {
+                up_down,
+                over_under,
+                vertical_index,
+            } => return self.try_reid_1_b(up_down, over_under, vertical_index, diagram_move.idx),
+            Reid2 {
+                over_under,
+                vertical_index,
+            } => return self.try_reid_2(over_under, vertical_index, diagram_move.idx),
             Bulge {
                 lean,
                 vertical_index,
-            } => {
-                return self.try_bulge(lean, vertical_index, diagram_move.idx);
-            }
+            } => return self.try_bulge(lean, vertical_index, diagram_move.idx),
         })(self, diagram_move.idx)
     }
 
-    fn try_bulge(&mut self, lean: Lean, vertical_index: usize, idx: usize) -> Result<(), String> {
-        if idx > self.len() {
-            return Err(format!(
-                "index ({idx}) out of bounds: {idx} > {}",
-                self.len()
-            ));
-        }
+    pub fn try_apply_all(
+        &mut self,
+        diagram_moves: impl IntoIterator<Item = DiagramMove>,
+    ) -> Result<(), String> {
+        diagram_moves
+            .into_iter()
+            .map(|diagram_move| self.try_apply(diagram_move))
+            .collect()
+    }
 
-        let vertical_height_at_index = self
+    fn vertical_height_at_index(&self, idx: usize) -> i32 {
+        self
             .0
             .iter()
             .map(|item| match item.element {
@@ -871,7 +1228,18 @@ impl AbbreviatedDiagram {
                 },
             })
             .take(idx)
-            .sum::<i32>();
+            .sum::<i32>()
+    }
+
+    fn try_bulge(&mut self, lean: Lean, vertical_index: usize, idx: usize) -> Result<(), String> {
+        if idx > self.len() {
+            return Err(format!(
+                "index ({idx}) out of bounds: {idx} > {}",
+                self.len()
+            ));
+        }
+
+        let vertical_height_at_index = self.vertical_height_at_index(idx);
 
         if vertical_index as i32 >= vertical_height_at_index {
             return Err(format!(
@@ -913,15 +1281,16 @@ impl AbbreviatedDiagram {
     ) -> Result<(), String> {
         let range = idx..idx.checked_add(2).ok_or("cannot add to max integer")?;
 
-        let items = self
+        let mut items = self
             .0
             .get_mut(range.clone())
-            .ok_or_else(|| format!("{range:?} is outside the range of the diagram"))?;
+            .ok_or_else(|| format!("{range:?} is outside the range of the diagram"))?
+            .iter_mut();
 
         // Okay to unwrap because we know the range is exactly 2
-        let (item0, items) = items.split_first_mut().unwrap();
-        let (item1, items) = items.split_first_mut().unwrap();
-        debug_assert!(items.is_empty());
+        let item0 = items.next().unwrap();
+        let item1 = items.next().unwrap();
+        debug_assert!(items.next().is_none());
 
         let (new_item0, new_item1) = operation(*item0, *item1)?;
         *item0 = new_item0;
@@ -939,11 +1308,6 @@ impl AbbreviatedDiagram {
     }
 
     fn try_remove_bulge(&mut self, idx: usize) -> Result<(), String> {
-        let opening = self
-            .0
-            .get(idx)
-            .ok_or_else(|| format!("index ({idx}) out of bounds: {idx} > {}", self.len()))?;
-
         let closing_idx = idx + 1;
 
         let closing = self.0.get(closing_idx).ok_or_else(|| {
@@ -953,10 +1317,191 @@ impl AbbreviatedDiagram {
             )
         })?;
 
+        // Can't fail if getting closing succeeded
+        let opening = self.0[idx];
+
         opening.error_on_remove_bulge(*closing)?;
 
         self.0.remove(idx);
         self.0.remove(idx);
+
+        Ok(())
+    }
+
+    pub fn try_reid_1_a_reduce(&mut self, idx: usize) -> Result<(), String> {
+        let second_idx = idx + 1;
+
+        let item1 = self.0.get(second_idx).ok_or_else(|| {
+            format!(
+                "index ({second_idx}) out of bounds: {idx} + 1 >= {}",
+                self.len()
+            )
+        })?;
+        // Can't fail if getting item1 succeeded
+        let item0 = self.0[idx];
+
+        let idx_to_remove =
+            AbbreviatedItem::reid_1_a_reduce_index(item0, *item1, idx).ok_or_else(|| {
+                format!("cannot apply Reidemeister 1A reduction to {item0} and {item1} at {idx}",)
+            })?;
+
+        self.0.remove(idx_to_remove);
+
+        Ok(())
+    }
+
+    pub fn try_reid_1_a(&mut self, over_under: OverUnder, idx: usize) -> Result<(), String> {
+        let open_close = self
+            .0
+            .get(idx)
+            .ok_or_else(|| format!("index ({idx}) out of bounds: {idx} >= {}", self.len()))?
+            .clone();
+
+        let insertion_idx = match open_close.element {
+            b'A' => idx + 1,
+            b'V' => idx,
+            b'/' | b'\\' => {
+                return Err(format!(
+                    "cannot apply Reidemeister 1A to {open_close} at {idx}. \
+                    (Must be an opening or closing)",
+                ))
+            }
+            _ => unreachable!(
+                "BUG: shouldn't be able to get here for valid diagram. Invalid \
+                element: {open_close:?}"
+            ),
+        };
+
+        self.0.insert(
+            insertion_idx,
+            AbbreviatedItem {
+                element: match over_under {
+                    OverUnder::Over => b'\\',
+                    OverUnder::Under => b'/',
+                },
+                index: open_close.index,
+            },
+        );
+
+        Ok(())
+    }
+
+    pub fn try_reid_1_b_reduce(&mut self, idx: usize) -> Result<(), String> {
+        let third_idx = idx + 2;
+
+        let item2 = self.0.get(third_idx).ok_or_else(|| {
+            format!(
+                "index ({third_idx}) out of bounds: {idx} + 2 >= {}",
+                self.len()
+            )
+        })?;
+        // These two can't fail if getting item2 succeeded
+        let item1 = self.0[idx + 1];
+        let item0 = self.0[idx];
+
+        if AbbreviatedItem::is_reid_1_b_reduce_eligible(item0, item1, *item2) {
+            self.0.remove(idx);
+            self.0.remove(idx);
+            self.0.remove(idx);
+
+            Ok(())
+        } else {
+            Err(format!(
+                "cannot apply Reidemeister 1B reduction to {item0}, {item1}, and {item2} at {idx}",
+            ))
+        }
+    }
+
+    pub fn try_reid_2(
+        &mut self,
+        over_under: OverUnder,
+        vertical_index: usize,
+        idx: usize,
+    ) -> Result<(), String> {
+        if idx > self.len() {
+            return Err(format!(
+                "index ({idx}) out of bounds: {idx} > {}",
+                self.len()
+            ));
+        }
+
+        let vertical_height_at_index = self.vertical_height_at_index(idx);
+
+        if vertical_index as i32 > vertical_height_at_index - 2 {
+            return Err(format!(
+                "Reidemeister 2 vertical index ({vertical_index}) exceeds \
+                diagram height + 2 ({vertical_height_at_index}) at {idx}",
+            ));
+        }
+
+        let (element0, element1) = match over_under {
+            OverUnder::Over => (b'/', b'\\'),
+            OverUnder::Under => (b'\\', b'/'),
+        };
+
+        self.0.reserve_exact(2);
+
+        self.0.insert(
+            idx,
+            AbbreviatedItem {
+                element: element0,
+                index: vertical_index,
+            },
+        );
+        self.0.insert(
+            idx + 1,
+            AbbreviatedItem {
+                element: element1,
+                index: vertical_index,
+            },
+        );
+
+        Ok(())
+    }
+
+    pub fn try_reid_2_reduce(&mut self, idx: usize) -> Result<(), String> {
+        let second_idx = idx + 1;
+
+        let item1 = self.0.get(second_idx).ok_or_else(|| {
+            format!(
+                "index ({second_idx}) out of bounds: {idx} + 1 >= {}",
+                self.len()
+            )
+        })?;
+        // Can't fail if getting item1 succeeded
+        let item0 = self.0[idx];
+
+        if AbbreviatedItem::is_reid_2_reduce_eligible(item0, *item1) {
+            self.0.remove(idx);
+            self.0.remove(idx);
+
+            Ok(())
+        } else {
+            Err(format!(
+                "cannot apply Reidemeister 2 reduction to {item0} and {item1} at {idx}",
+            ))
+        }
+    }
+
+    pub fn try_reid_3(&mut self, idx: usize) -> Result<(), String> {
+        let third_idx = idx + 2;
+
+        let mut items = self
+            .0
+            .get_mut(idx..=third_idx)
+            .ok_or_else(|| format!("{idx}..{third_idx} is outside the range of the diagram"))?
+            .iter_mut();
+
+        let item0 = items.next().unwrap();
+        let item1 = items.next().unwrap();
+        let item2 = items.next().unwrap();
+        debug_assert!(items.next().is_none());
+
+        let (new_item0, new_item1, new_item2) =
+            AbbreviatedItem::try_reid_3(*item0, *item1, *item2)?;
+        *item0 = new_item0;
+        *item1 = new_item1;
+        *item2 = new_item2;
 
         Ok(())
     }
@@ -1021,6 +1566,78 @@ impl AbbreviatedDiagram {
                     ]
                 })
             })
+    }
+
+    pub fn try_reid_1_b(
+        &mut self,
+        up_down: UpDown,
+        over_under: OverUnder,
+        vertical_index: usize,
+        idx: usize,
+    ) -> Result<(), String> {
+        if idx > self.len() {
+            return Err(format!(
+                "index ({idx}) out of bounds: {idx} > {}",
+                self.len()
+            ));
+        }
+
+        let vertical_height_at_index = self.vertical_height_at_index(idx);
+
+        let crossing_vertical_height = match up_down {
+            UpDown::Up => {
+                if vertical_index == 0 {
+                    return Err(format!(
+                        "Reidemeister 1b vertical index ({vertical_index}) \
+                        must be greater than 0 if direction is up (i.e., it's \
+                        up from where? -1? that's not a valid index)",
+                    ));
+                }
+                if vertical_index as i32 > vertical_height_at_index {
+                    return Err(format!(
+                        "Reidemeister 1b vertical index ({vertical_index}) exceeds \
+                        diagram height ({vertical_height_at_index}) at {idx}",
+                    ));
+                }
+                vertical_index - 1
+            }
+            UpDown::Down => {
+                if vertical_index as i32 + 1 > vertical_height_at_index {
+                    return Err(format!(
+                        "Reidemeister 1b vertical index ({vertical_index}) exceeds \
+                        diagram height - 1 ({vertical_height_at_index}) at {idx}",
+                    ));
+                }
+                vertical_index + 1
+            }
+        };
+
+        self.0.insert(
+            idx,
+            AbbreviatedItem {
+                element: b'A',
+                index: vertical_index,
+            },
+        );
+        self.0.insert(
+            idx + 1,
+            AbbreviatedItem {
+                element: match over_under {
+                    OverUnder::Over => b'\\',
+                    OverUnder::Under => b'/',
+                },
+                index: crossing_vertical_height,
+            },
+        );
+        self.0.insert(
+            idx + 2,
+            AbbreviatedItem {
+                element: b'V',
+                index: vertical_index,
+            },
+        );
+
+        Ok(())
     }
 }
 
@@ -1632,7 +2249,7 @@ impl FromStr for AbbreviatedDiagram {
         string
             .split('\n')
             .filter(|line| !line.starts_with('#') && !line.is_empty())
-            .map(|line| line.parse())
+            .map(str::parse)
             .collect::<Result<Vec<_>, _>>()
             .map(Self)
     }
@@ -1681,6 +2298,58 @@ impl AbbreviatedItem {
         }
 
         Ok(())
+    }
+
+    fn is_reid_1_a_reduce_eligible(item0: Self, item1: Self) -> bool {
+        ((item0.is_opening() && item1.is_crossing()) || (item0.is_crossing() && item1.is_closing()))
+            && (item0.index == item1.index)
+    }
+
+    fn reid_1_a_reduce_index(item0: Self, item1: Self, idx: usize) -> Option<usize> {
+        Self::is_reid_1_a_reduce_eligible(item0, item1)
+            .then(|| idx + if item0.is_opening() { 1 } else { 0 })
+    }
+
+    fn is_reid_1_b_reduce_eligible(item0: Self, item1: Self, item2: Self) -> bool {
+        item0.is_opening()
+            && item1.is_crossing()
+            && item2.is_closing()
+            && (item0.index == item2.index)
+            && item0.small_distance_from(&item1) == 1
+    }
+
+    fn is_reid_2_reduce_eligible(item0: Self, item1: Self) -> bool {
+        item0.index == item1.index
+            && matches!(
+                (item0.element, item1.element),
+                (b'/', b'\\') | (b'\\', b'/'),
+            )
+    }
+
+    fn is_reid_3_eligible(item0: Self, item1: Self, item2: Self) -> bool {
+        match (item0.element, item1.element, item2.element) {
+            (b'/', b'\\', b'/') | (b'\\', b'/', b'\\') => false,
+            (b'/' | b'\\', b'/' | b'\\', b'/' | b'\\') => {
+                item0.index == item2.index && item0.small_distance_from(&item1) == 1
+            }
+            _ => false,
+        }
+    }
+
+    fn try_reid_3(
+        ref mut item0: Self,
+        ref mut item1: Self,
+        ref mut item2: Self,
+    ) -> Result<(Self, Self, Self), String> {
+        if Self::is_reid_3_eligible(*item0, *item1, *item2) {
+            mem::swap(&mut item0.element, &mut item2.element);
+            mem::swap(&mut item0.index, &mut item1.index);
+            item2.index = item0.index;
+
+            Ok((*item0, *item1, *item2))
+        } else {
+            Err(format!("cannot apply Reid 3 to {item0}, {item1}, {item2}",))
+        }
     }
 }
 
