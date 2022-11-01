@@ -661,6 +661,7 @@ impl fmt::Display for UpDown {
 pub enum Move {
     Swap,
     WrapAround,
+    ChangeCrossing,
     Bulge {
         lean: Lean,
         vertical_index: usize,
@@ -691,6 +692,7 @@ impl fmt::Display for Move {
         match self {
             Swap => write!(formatter, "swap"),
             WrapAround => write!(formatter, "wrap_around"),
+            ChangeCrossing => write!(formatter, "change_crossing"),
             RemoveBulge => write!(formatter, "remove_bulge"),
             Reid1a { over_under } => write!(formatter, "reid_1a({over_under})"),
             Reid1aReduce => write!(formatter, "reid_1a_reduce"),
@@ -752,6 +754,7 @@ impl FromStr for Move {
         {
             "swap" => Swap,
             "wrap_around" => WrapAround,
+            "change_crossing" => ChangeCrossing,
             "remove_bulge" => RemoveBulge,
             "reid_1a_reduce" => Reid1aReduce,
             "reid_1b_reduce" => Reid1bReduce,
@@ -1182,6 +1185,7 @@ impl AbbreviatedDiagram {
         (match diagram_move.r#move {
             Swap => Self::try_swap,
             WrapAround => Self::try_wrap_around,
+            ChangeCrossing => Self::try_change_crossing,
             RemoveBulge => Self::try_remove_bulge,
             Reid1aReduce => Self::try_reid_1_a_reduce,
             Reid1bReduce => Self::try_reid_1_b_reduce,
@@ -1305,6 +1309,17 @@ impl AbbreviatedDiagram {
 
     fn try_wrap_around(&mut self, idx: usize) -> Result<(), String> {
         self.try_apply_(AbbreviatedItem::try_wrap_around, idx)
+    }
+
+    fn try_change_crossing(&mut self, idx: usize) -> Result<(), String> {
+        let item = self
+            .0
+            .get_mut(idx)
+            .ok_or_else(|| format!("index {idx} out of bounds"))?;
+
+        *item = item.try_change_crossing()?;
+
+        Ok(())
     }
 
     fn try_remove_bulge(&mut self, idx: usize) -> Result<(), String> {
@@ -1766,6 +1781,22 @@ impl AbbreviatedItem {
         };
 
         Ok((*self_, *other))
+    }
+
+    fn try_change_crossing(mut self) -> Result<Self, String> {
+        self.element = match self.element {
+            b'/' => b'\\',
+            b'\\' => b'/',
+            b'A' | b'V' => {
+                return Err(format!(
+                    "can only change a crossing, not {}",
+                    self.element as char
+                ))
+            }
+            _ => unreachable!("BUG: shouldn't find {} in diagram", self.element as char),
+        };
+
+        Ok(self)
     }
 
     fn can_swap(self, other: Self) -> bool {
