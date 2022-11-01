@@ -1435,8 +1435,8 @@ impl AbbreviatedDiagram {
         }
 
         let (element0, element1) = match over_under {
-            OverUnder::Over => (b'/', b'\\'),
-            OverUnder::Under => (b'\\', b'/'),
+            OverUnder::Over => (b'\\', b'/'),
+            OverUnder::Under => (b'/', b'\\'),
         };
 
         self.0.reserve_exact(2);
@@ -2235,6 +2235,7 @@ impl FromStr for AbbreviatedItem {
 impl fmt::Display for AbbreviatedItem {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self { element, index } = self;
+        let element = *element as char;
         write!(formatter, "{element}{index}")
     }
 }
@@ -2252,6 +2253,15 @@ impl FromStr for AbbreviatedDiagram {
             .map(str::parse)
             .collect::<Result<Vec<_>, _>>()
             .map(Self)
+    }
+}
+
+impl fmt::Display for AbbreviatedDiagram {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
     }
 }
 

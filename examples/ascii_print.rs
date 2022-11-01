@@ -37,6 +37,8 @@ fn main() -> Result<(), String> {
 
     let grid = var("KNOTTY_GRID").ok().as_deref() == Some("true");
     let compact = var("KNOTTY_COMPACT").ok().as_deref() == Some("true");
+    let print_modified_abbreviated_diagram =
+        var("KNOTTY_PRINT_ABBREV").ok().as_deref() == Some("true");
 
     #[rustfmt::skip]
     let func = match (compact, grid) {
@@ -49,6 +51,10 @@ fn main() -> Result<(), String> {
 
     let display = func(&knot);
     print!("{display}");
+
+    if print_modified_abbreviated_diagram {
+        print!("{knot}");
+    }
 
     Ok(())
 }
