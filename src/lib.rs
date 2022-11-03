@@ -898,13 +898,11 @@ impl FromStr for DiagramMoves {
     type Err = String;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
-        string
-            .split('\n')
-            .map(str::trim)
-            .filter(|line| !line.starts_with('#') && !line.is_empty())
-            .map(str::parse)
-            .collect::<Result<Vec<_>, _>>()
-            .map(Self)
+        CommentLines {
+            delimiter: "\n",
+            comment_start: "#",
+        }
+        .parse(Self, string)
     }
 }
 
@@ -1806,423 +1804,407 @@ impl AbbreviatedItem {
     fn try_swap(mut self, ref mut item1: Self) -> Result<(Self, Self), String> {
         let ref mut item0 = self;
 
-        // Use enums instead of this giant if-else chain
-        if item0.is_crossing() && item1.is_opening() {
-            // (b'\\' | b'/', b'(') => {
-            let crossing = &mut *item0;
-            let opening = &mut *item1;
+        match (item0.element, item1.element) {
+            // Use enums instead of this giant if-else chain
+            (b'\\' | b'/', b'(') => {
+                let crossing = &mut *item0;
+                let opening = &mut *item1;
 
-            if crossing.index < opening.index {
-                if !crossing.is_at_least_2_away_from(&opening) {
-                    return Err(format!(
-                        "swapping crossing {crossing} and opening {opening} \
+                if crossing.index < opening.index {
+                    if !crossing.is_at_least_2_away_from(&opening) {
+                        return Err(format!(
+                            "swapping crossing {crossing} and opening {opening} \
                         would require splitting the crossing"
+                        ));
+                    }
+                } else {
+                    crossing.index += 2;
+                }
+            }
+
+            (b'(', b'\\' | b'/') => {
+                let opening = &mut *item0;
+                let crossing = &mut *item1;
+                if !opening.is_at_least_2_away_from(&crossing) {
+                    return Err(format!(
+                        "opening {opening} enables subsequent crossing {crossing} \
+                    and so can't be moved to the right of it"
                     ));
                 }
-            } else {
-                crossing.index += 2;
-            }
-        } else if item0.is_opening() && item1.is_crossing() {
-            // (b'(', b'\\' | b'/') => {
-            let opening = &mut *item0;
-            let crossing = &mut *item1;
-            if !opening.is_at_least_2_away_from(&crossing) {
-                return Err(format!(
-                    "opening {opening} enables subsequent crossing {crossing} \
-                    and so can't be moved to the right of it"
-                ));
+
+                if opening.index < crossing.index {
+                    // Isn't possible for crossing.index to be <= 2 if it's
+                    // greater than opening.index and at least 2 away from
+                    // it
+                    crossing.index = crossing.index.checked_sub(2).unwrap();
+                }
             }
 
-            if opening.index < crossing.index {
-                // Isn't possible for crossing.index to be <= 2 if it's
-                // greater than opening.index and at least 2 away from
-                // it
-                crossing.index = crossing.index.checked_sub(2).unwrap();
-            }
-        } else if item0.is_crossing() && item1.is_closing() {
-            // (b'\\' | b'/', b')') => {
-            let crossing = &mut *item0;
-            let closing = &mut *item1;
+            (b'\\' | b'/', b')') => {
+                let crossing = &mut *item0;
+                let closing = &mut *item1;
 
-            if !closing.is_at_least_2_away_from(&crossing) {
-                return Err(format!(
-                    "crossing {crossing} requires subsequent closing {closing} \
-                    and so can't be moved to the right of it"
-                ));
-            }
-
-            if closing.index < crossing.index {
-                // Isn't possible for crossing.index to be <= 2 if it's
-                // greater than closing.index and at least 2 away from
-                // it
-                crossing.index = crossing.index.checked_sub(2).unwrap();
-            }
-        } else if item0.is_closing() && item1.is_crossing() {
-            // (b')', b'\\' | b'/') => {
-            let closing = &mut *item0;
-            let crossing = &mut *item1;
-            if crossing.index < closing.index {
-                if !crossing.is_at_least_2_away_from(&closing) {
+                if !closing.is_at_least_2_away_from(&crossing) {
                     return Err(format!(
-                        "swapping closing {closing} and crossing {crossing} \
+                        "crossing {crossing} requires subsequent closing {closing} \
+                    and so can't be moved to the right of it"
+                    ));
+                }
+
+                if closing.index < crossing.index {
+                    // Isn't possible for crossing.index to be <= 2 if it's
+                    // greater than closing.index and at least 2 away from
+                    // it
+                    crossing.index = crossing.index.checked_sub(2).unwrap();
+                }
+            }
+
+            (b')', b'\\' | b'/') => {
+                let closing = &mut *item0;
+                let crossing = &mut *item1;
+                if crossing.index < closing.index {
+                    if !crossing.is_at_least_2_away_from(&closing) {
+                        return Err(format!(
+                            "swapping closing {closing} and crossing {crossing} \
                         would require splitting the crossing"
-                    ));
-                }
-            } else {
-                crossing.index += 2;
-            }
-        } else
-        // Open + Open
-        // ===========
-        //
-        //
-        //
-        //                      ___
-        //                     /
-        //                    /
-        //                   /  ___
-        //                  /  /
-        //                 /  /
-        //              __/  /  ___
-        //             /    /  /
-        //            /    /  /
-        //           /  __/  /  __
-        //          /  /    /  /
-        //         /  (    /  /
-        //       _/    \__/  /  ___
-        //      /           /  /
-        //     (           /  (
-        //      \_________/    \___
-        //
-        //
-        //
-        //
-        //
-        //           ___               ___
-        //          /                 /
-        //         /                 (
-        //        /  ___              \___
-        //       /  /
-        //      /  /         ⇒
-        //   __/  /  ___            ______
-        //  /    /  /              /
-        // (    /  (              (
-        //  \__/    \___           \______
-        //
-        //
-        //
-        //
-        // This one can't be swapped
-        //
-        //           ___
-        //          /
-        //         /
-        //        /  ___
-        //       /  /
-        //      /  (
-        //   __/    \___
-        //  /
-        // (
-        //  \___________
-        //
-        //
-        //
-        //
-        //      ___                    ___
-        //     /                      /
-        //    (                      /
-        //     \___                 /  ___
-        //                         /  /
-        //               ⇒        /  /
-        //   ______            __/  /  ___
-        //  /                 /    /  /
-        // (                 (    /  (
-        //  \______           \__/    \___
-        //
-
-        // TODO: test these!
-        if item0.is_opening() && item1.is_opening() {
-            // (b'(', b'(') => {
-            let opening0 = &mut *item0;
-            let opening1 = &mut *item1;
-
-            if opening0.index >= opening1.index {
-                // This comment is obsolete.
-                //
-                // // This one is weird. We could technically just
-                // // increment opening1.index by 2 and skip the swap, but
-                // // that might make it harder to unify with all the other
-                // // swap cases.
-
-                opening0.index += 2;
-            } else {
-                if opening0.is_at_least_2_away_from(&opening1) {
-                    opening1.index = opening1.index.checked_sub(2).unwrap();
+                        ));
+                    }
                 } else {
-                    return Err(format!(
-                        "swapping adjacent openings {opening0} and {opening1} \
-                        would require a reidemeister II move"
-                    ));
+                    crossing.index += 2;
                 }
             }
-        } else
-        // Close + Close
-        // =============
-        //
-        //
-        // __
-        //   \
-        //    \
-        // __  \
-        //   \  \
-        //    \  \
-        // __  \  \_
-        //   \  \   \
-        //    )  \   )
-        // __/    \_/
-        //
-        //
-        //
-        //
-        //
-        // __
-        //   \
-        //    \
-        // __  \
-        //   \  \
-        //    )  \
-        // __/    \_
-        //          \
-        //           )
-        // _________/
-        //
-        //
-        //
-        //
-        // ___
-        //    \
-        //     )
-        // ___/
-        //
-        //
-        // ______
-        //       \
-        //        )
-        // ______/
-        //
-        if item0.is_closing() && item1.is_closing() {
-            // (b')', b')') => {
-            let closing0 = &mut *item0;
-            let closing1 = &mut *item1;
 
-            if closing0.index <= closing1.index {
-                // This comment is obsolete.
-                //
-                // // This one is weird. We could technically just
-                // // increment closing1.index by 2 and skip the swap, but
-                // // that might make it harder to unify with all the other
-                // // swap cases.
+            // Open + Open
+            // ===========
+            //
+            //
+            //
+            //                      ___
+            //                     /
+            //                    /
+            //                   /  ___
+            //                  /  /
+            //                 /  /
+            //              __/  /  ___
+            //             /    /  /
+            //            /    /  /
+            //           /  __/  /  __
+            //          /  /    /  /
+            //         /  (    /  /
+            //       _/    \__/  /  ___
+            //      /           /  /
+            //     (           /  (
+            //      \_________/    \___
+            //
+            //
+            //
+            //
+            //
+            //           ___               ___
+            //          /                 /
+            //         /                 (
+            //        /  ___              \___
+            //       /  /
+            //      /  /         ⇒
+            //   __/  /  ___            ______
+            //  /    /  /              /
+            // (    /  (              (
+            //  \__/    \___           \______
+            //
+            //
+            //
+            //
+            // This one can't be swapped
+            //
+            //           ___
+            //          /
+            //         /
+            //        /  ___
+            //       /  /
+            //      /  (
+            //   __/    \___
+            //  /
+            // (
+            //  \___________
+            //
+            //
+            //
+            //
+            //      ___                    ___
+            //     /                      /
+            //    (                      /
+            //     \___                 /  ___
+            //                         /  /
+            //               ⇒        /  /
+            //   ______            __/  /  ___
+            //  /                 /    /  /
+            // (                 (    /  (
+            //  \______           \__/    \___
+            //
 
-                closing1.index += 2;
-            } else {
-                if closing0.is_at_least_2_away_from(&closing1) {
-                    closing0.index = closing0.index.checked_sub(2).unwrap();
+            // TODO: test these!
+            (b'(', b'(') => {
+                let opening0 = &mut *item0;
+                let opening1 = &mut *item1;
+
+                if opening0.index >= opening1.index {
+                    // This comment is obsolete.
+                    //
+                    // // This one is weird. We could technically just
+                    // // increment opening1.index by 2 and skip the swap, but
+                    // // that might make it harder to unify with all the other
+                    // // swap cases.
+
+                    opening0.index += 2;
                 } else {
-                    return Err(format!(
-                        "swapping adjacent closings {closing0} and {closing1} \
+                    if opening0.is_at_least_2_away_from(&opening1) {
+                        opening1.index = opening1.index.checked_sub(2).unwrap();
+                    } else {
+                        return Err(format!(
+                            "swapping adjacent openings {opening0} and {opening1} \
                         would require a reidemeister II move"
-                    ));
+                        ));
+                    }
                 }
             }
-        } else
-        // Close + Open
-        // ============
-        //
-        //                         ___
-        //                        /   \
-        //                       /     )
-        //                      /  ___/
-        //                     /  /
-        //                    /  /
-        // ____     __      _/  /  ______
-        //     \   /           /  /
-        //      ) /           /  /
-        // ____/ /  __      _/  /  ______
-        //      /  /           /  /
-        //     /  (     ⇒     /  (
-        // ___/    \__      _/    \______
-        //
-        //
-        // This one is very weird since there are two possible outcomes.
-        // We'll default to the 2nd one, but we might need to revisit.
-        // It could invalidate some unexamined assumptions.
-        //
-        //              ___
-        //             /   \
-        //            (     \
-        //             \___  \
-        //                 \  \
-        //                  \  \
-        // _    _     _____  \  \_
-        //  \  /           \  \
-        //   )(    ⇒        )  \
-        // _/  \_     _____/    \_
-        //
-        //
-        // OR
-        //                   __
-        //                  /  \
-        //                 /    )
-        //                /  __/
-        //               /  /
-        //              /  /
-        // _    _     _/  /  ____
-        //  \  /         /  /
-        //   )(    ⇒    /  (
-        // _/  \_     _/    \____
-        //
-        //
-        // NOTE: missing diagram for where closing.index < opening.index
-        if item0.is_closing() && item1.is_opening() {
-            // (b')', b'(') => {
-            let closing = &mut *item0;
-            let opening = &mut *item1;
 
-            *(if closing.index >= opening.index {
-                &mut closing.index
-            } else {
-                &mut opening.index
-            }) += 2;
-        } else
-        // Open + Close
-        // ============
-        //
-        //   ___
-        //  /   \
-        // (     \
-        //  \___  \
-        //      \  \
-        //       \  \
-        // _____  \  \_     _    _
-        //      \  \         \  /
-        //       )  \    ⇒    )(
-        // _____/    \_     _/  \_
-        //
-        //        __
-        //       /  \
-        //      /    )
-        //     /  __/
-        //    /  /
-        //   /  /
-        // _/  /  ____     _    _
-        //    /  /          \  /
-        //   /  (       ⇒    )(
-        // _/    \____     _/  \_
-        //
-        //
-        // This one can't be swapped...it can only be removed
-        // _____
-        //      \
-        //       )
-        //   ___/
-        //  /
-        // (
-        //  \_____
-        //
-        //
-        // This one can't be swapped...it can only be removed
-        //   _____
-        //  /
-        // (
-        //  \___
-        //      \
-        //       )
-        // _____/
-        //
-        //
-        //
-        // This one can't be simplified
-        //   _
-        //  / \
-        // (   )
-        //  \_/
-        //
-        //
-        // This one is not possible if diagram is constructed correctly
-        // _      _____
-        //  \    /
-        //   \  (
-        // _  \  \_____
-        //  \  \
-        //   \  \
-        //    \  \___
-        //     \     \
-        //      \     )
-        //       \___/
-        //
-        // TODO: moar examples
-        if item0.is_opening() && item1.is_closing() {
-            // (b'(', b')') => {
-            let opening = &mut *item0;
-            let closing = &mut *item1;
+            // Close + Close
+            // =============
+            //
+            //
+            // __
+            //   \
+            //    \
+            // __  \
+            //   \  \
+            //    \  \
+            // __  \  \_
+            //   \  \   \
+            //    )  \   )
+            // __/    \_/
+            //
+            //
+            //
+            //
+            //
+            // __
+            //   \
+            //    \
+            // __  \
+            //   \  \
+            //    )  \
+            // __/    \_
+            //          \
+            //           )
+            // _________/
+            //
+            //
+            //
+            //
+            // ___
+            //    \
+            //     )
+            // ___/
+            //
+            //
+            // ______
+            //       \
+            //        )
+            // ______/
+            //
+            (b')', b')') => {
+                let closing0 = &mut *item0;
+                let closing1 = &mut *item1;
 
-            if !opening.is_at_least_2_away_from(&closing) {
-                return Err(match opening.small_distance_from(&closing) {
-                    0 => format!(
-                        "swapping adjacent opening {opening} and closing {closing} \
+                if closing0.index <= closing1.index {
+                    // This comment is obsolete.
+                    //
+                    // // This one is weird. We could technically just
+                    // // increment closing1.index by 2 and skip the swap, but
+                    // // that might make it harder to unify with all the other
+                    // // swap cases.
+
+                    closing1.index += 2;
+                } else {
+                    if closing0.is_at_least_2_away_from(&closing1) {
+                        closing0.index = closing0.index.checked_sub(2).unwrap();
+                    } else {
+                        return Err(format!(
+                            "swapping adjacent closings {closing0} and {closing1} \
+                        would require a reidemeister II move"
+                        ));
+                    }
+                }
+            }
+
+            // Close + Open
+            // ============
+            //
+            //                         ___
+            //                        /   \
+            //                       /     )
+            //                      /  ___/
+            //                     /  /
+            //                    /  /
+            // ____     __      _/  /  ______
+            //     \   /           /  /
+            //      ) /           /  /
+            // ____/ /  __      _/  /  ______
+            //      /  /           /  /
+            //     /  (     ⇒     /  (
+            // ___/    \__      _/    \______
+            //
+            //
+            // This one is very weird since there are two possible outcomes.
+            // We'll default to the 2nd one, but we might need to revisit.
+            // It could invalidate some unexamined assumptions.
+            //
+            //              ___
+            //             /   \
+            //            (     \
+            //             \___  \
+            //                 \  \
+            //                  \  \
+            // _    _     _____  \  \_
+            //  \  /           \  \
+            //   )(    ⇒        )  \
+            // _/  \_     _____/    \_
+            //
+            //
+            // OR
+            //                   __
+            //                  /  \
+            //                 /    )
+            //                /  __/
+            //               /  /
+            //              /  /
+            // _    _     _/  /  ____
+            //  \  /         /  /
+            //   )(    ⇒    /  (
+            // _/  \_     _/    \____
+            //
+            //
+            // NOTE: missing diagram for where closing.index < opening.index
+            (b')', b'(') => {
+                let closing = &mut *item0;
+                let opening = &mut *item1;
+
+                *(if closing.index >= opening.index {
+                    &mut closing.index
+                } else {
+                    &mut opening.index
+                }) += 2;
+            }
+
+            // Open + Close
+            // ============
+            //
+            //   ___
+            //  /   \
+            // (     \
+            //  \___  \
+            //      \  \
+            //       \  \
+            // _____  \  \_     _    _
+            //      \  \         \  /
+            //       )  \    ⇒    )(
+            // _____/    \_     _/  \_
+            //
+            //        __
+            //       /  \
+            //      /    )
+            //     /  __/
+            //    /  /
+            //   /  /
+            // _/  /  ____     _    _
+            //    /  /          \  /
+            //   /  (       ⇒    )(
+            // _/    \____     _/  \_
+            //
+            //
+            // This one can't be swapped...it can only be removed
+            // _____
+            //      \
+            //       )
+            //   ___/
+            //  /
+            // (
+            //  \_____
+            //
+            //
+            // This one can't be swapped...it can only be removed
+            //   _____
+            //  /
+            // (
+            //  \___
+            //      \
+            //       )
+            // _____/
+            //
+            //
+            //
+            // This one can't be simplified
+            //   _
+            //  / \
+            // (   )
+            //  \_/
+            //
+            //
+            // This one is not possible if diagram is constructed correctly
+            // _      _____
+            //  \    /
+            //   \  (
+            // _  \  \_____
+            //  \  \
+            //   \  \
+            //    \  \___
+            //     \     \
+            //      \     )
+            //       \___/
+            //
+            // TODO: moar examples
+            (b'(', b')') => {
+                let opening = &mut *item0;
+                let closing = &mut *item1;
+
+                if !opening.is_at_least_2_away_from(&closing) {
+                    return Err(match opening.small_distance_from(&closing) {
+                        0 => format!(
+                            "swapping adjacent opening {opening} and closing {closing} \
                         would mean removing an unknot from the diagram"
-                    ),
-                    1 => format!(
-                        "adjacent opening {opening} and closing {closing} \
+                        ),
+                        1 => format!(
+                            "adjacent opening {opening} and closing {closing} \
                         constitute a bulge and can't be swapped"
-                    ),
-                    _ => unreachable!(
-                        "BUG: We just saw that opening {opening} is less than \
+                        ),
+                        _ => unreachable!(
+                            "BUG: We just saw that opening {opening} is less than \
                         2 away from closing {closing}"
-                    ),
-                });
+                        ),
+                    });
+                }
+
+                closing.index = closing.index.checked_sub(2).unwrap();
             }
 
-            closing.index = closing.index.checked_sub(2).unwrap();
-        } else
-        // Not sure if this one was right. Maybe
-        // I meant for the the closing to be a crossing?
-        //
-        // if item0.is_closing() && item1.is_opening() {
-        //     let closing = &mut *item0;
-        //     let opening = &mut *item1;
-        //     if closing.index < opening.index {
-        //         if !closing.is_at_least_2_away_from(&opening) {
-        //             return Err(format!(
-        //                 "swapping closing {closing} and opening {opening} \
-        //                 would require splitting the crossing"
-        //             ));
-        //         }
-        //     } else {
-        //         closing.index += 2;
-        //     }
+            (b'\\' | b'/', b'\\' | b'/') => {
+                let crossing0 = &mut *item0;
+                let crossing1 = &mut *item1;
 
-        //     mem::swap(closing, opening);
-        //     return Ok(());
-        // }
-        if item0.is_crossing() && item1.is_crossing() {
-            // (b'\\' | b'/', b'\\' | b'/') => {
-            let crossing0 = &mut *item0;
-            let crossing1 = &mut *item1;
-
-            if !crossing0.is_at_least_2_away_from(&crossing1) {
-                return Err(format!(
-                    "cannot swap {crossing0} and {crossing1} because they are too close",
-                ));
+                if !crossing0.is_at_least_2_away_from(&crossing1) {
+                    return Err(format!(
+                        "cannot swap {crossing0} and {crossing1} because they are too close",
+                    ));
+                }
             }
-        } else
-        // No more cases!
-        {
-            // _ => {
-            unreachable!(
-                "BUG: We should have covered all cases, but we didn't. \
-                item0: {item0:?}, item1: {item1:?}",
-            );
+
+            // No more cases!
+            _ => {
+                unreachable!(
+                    "BUG: We should have covered all cases, but we didn't. \
+                    item0: {item0:?}, item1: {item1:?}",
+                );
+            }
         }
 
         Ok((*item1, *item0))
@@ -2274,25 +2256,60 @@ impl fmt::Display for AbbreviatedItem {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbbreviatedDiagram(Vec<AbbreviatedItem>);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CommentLines {
+    delimiter: &'static str,
+    comment_start: &'static str,
+}
+
+impl CommentLines {
+    fn split_n_strip<'a>(self, string: &'a str) -> impl 'a + Iterator<Item = &'a str> {
+        string
+            .split(self.delimiter)
+            .map(str::trim)
+            .filter_map(move |line| line.split(self.comment_start).next().map(str::trim))
+            .filter(|line| !line.is_empty())
+    }
+
+    fn parse_iter<'a, OK, ERR>(self, string: &'a str) -> impl Iterator<Item = Result<OK, ERR>> + 'a
+    where
+        OK: 'a + FromStr<Err = ERR>,
+    {
+        self.split_n_strip(string).map(str::parse)
+    }
+
+    fn parse<'a, OK, ERR, T>(
+        self,
+        constructor: impl Fn(Vec<OK>) -> T,
+        string: &str,
+    ) -> Result<T, ERR>
+    where
+        OK: 'a + FromStr<Err = ERR>,
+    {
+        self.parse_iter(string)
+            .collect::<Result<Vec<OK>, ERR>>()
+            .map(constructor)
+    }
+}
+
 impl FromStr for AbbreviatedDiagram {
     type Err = String;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
-        string
-            .split('\n')
-            .filter(|line| !line.starts_with('#') && !line.is_empty())
-            .map(str::parse)
-            .collect::<Result<Vec<_>, _>>()
-            .map(Self)
+        CommentLines {
+            delimiter: "\n",
+            comment_start: "#",
+        }
+        .parse(Self, string)
     }
 }
 
 impl fmt::Display for AbbreviatedDiagram {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for item in &self.0 {
-            writeln!(formatter, "{item}")?;
-        }
-        Ok(())
+        self.0
+            .iter()
+            .map(|item| writeln!(formatter, "{item}"))
+            .collect()
     }
 }
 
