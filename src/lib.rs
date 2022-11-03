@@ -465,7 +465,7 @@ fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
 
 fn raw_lines_append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
     match element {
-        b'A' => {
+        b'(' => {
             if raw_lines_is_empty_above(&*lines, idx) {
                 raw_lines_continue(lines);
             } else {
@@ -474,7 +474,7 @@ fn raw_lines_append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
             *lines[idx].last_mut().unwrap() = Horiz::OpenedAbove;
             *lines[idx + 1].last_mut().unwrap() = Horiz::OpenedBelow;
         }
-        b'V' => {
+        b')' => {
             let is_empty_above = raw_lines_is_empty_above(&*lines, idx + 2);
             if is_empty_above {
                 raw_lines_continue(lines);
@@ -484,13 +484,13 @@ fn raw_lines_append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
                 raw_lines_contract_above(lines, idx);
             }
         }
-        b'/' => {
+        b'\\' => {
             raw_lines_continue(lines);
 
             *lines[idx].last_mut().unwrap() = Horiz::CrossUpUnder;
             *lines[idx + 1].last_mut().unwrap() = Horiz::CrossDownOver;
         }
-        b'\\' => {
+        b'/' => {
             raw_lines_continue(lines);
 
             *lines[idx].last_mut().unwrap() = Horiz::CrossUpOver;
@@ -504,16 +504,16 @@ fn raw_lines_append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
 fn snapshot_raw_lines_append() {
     let mut lines = vec![vec![]; 4];
 
-    raw_lines_append(&mut lines, b'A', 0);
+    raw_lines_append(&mut lines, b'(', 0);
     insta::assert_debug_snapshot!(lines);
 
-    raw_lines_append(&mut lines, b'A', 1);
+    raw_lines_append(&mut lines, b'(', 1);
     insta::assert_debug_snapshot!(lines);
 
-    raw_lines_append(&mut lines, b'V', 0);
+    raw_lines_append(&mut lines, b')', 0);
     insta::assert_debug_snapshot!(lines);
 
-    raw_lines_append(&mut lines, b'V', 0);
+    raw_lines_append(&mut lines, b')', 0);
     insta::assert_debug_snapshot!(lines);
 }
 
@@ -546,7 +546,7 @@ impl VerboseDiagram {
 
 #[test]
 fn snapshot_from_abbreviated() {
-    let knot = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'/', 0), (b'V', 0)]).unwrap();
+    let knot = AbbreviatedDiagram::new_from_tuples(vec![(b'(', 0), (b'\\', 0), (b')', 0)]).unwrap();
 
     let verbose = VerboseDiagram::from_abbreviated(&knot).unwrap();
     insta::assert_debug_snapshot!(verbose);
@@ -925,15 +925,15 @@ trait Item {
 
 impl Item for u8 {
     fn is_crossing(&self) -> bool {
-        matches!(self, b'/' | b'\\')
+        matches!(self, b'\\' | b'/')
     }
 
     fn is_opening(&self) -> bool {
-        matches!(self, b'A')
+        matches!(self, b'(')
     }
 
     fn is_closing(&self) -> bool {
-        matches!(self, b'V')
+        matches!(self, b')')
     }
 }
 
@@ -1070,99 +1070,99 @@ mod test {
         assert_eq_after!(
             |diagram: &mut AbbreviatedDiagram, idx| diagram.try_bulge(Backward, 0, idx),
             1,
-            [(b'A', 0), (b'V', 0)],
-            [(b'A', 0), (b'A', 1), (b'V', 0), (b'V', 0)],
+            [(b'(', 0), (b')', 0)],
+            [(b'(', 0), (b'(', 1), (b')', 0), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_remove_bulge,
             1,
-            [(b'A', 0), (b'A', 1), (b'V', 0), (b'V', 0)],
-            [(b'A', 0), (b'V', 0)],
+            [(b'(', 0), (b'(', 1), (b')', 0), (b')', 0)],
+            [(b'(', 0), (b')', 0)],
         );
 
         assert_eq_after!(
             |diagram: &mut AbbreviatedDiagram, idx| diagram.try_bulge(Forward, 0, idx),
             1,
-            [(b'A', 0), (b'V', 0)],
-            [(b'A', 0), (b'A', 0), (b'V', 1), (b'V', 0)],
+            [(b'(', 0), (b')', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 1), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_remove_bulge,
             1,
-            [(b'A', 0), (b'A', 0), (b'V', 1), (b'V', 0)],
-            [(b'A', 0), (b'V', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 1), (b')', 0)],
+            [(b'(', 0), (b')', 0)],
         );
     }
 
     #[test]
     fn test_try_swap() {
-        let mut diagram = AbbreviatedDiagram::new_from_tuples(vec![(b'A', 0), (b'V', 0)]).unwrap();
+        let mut diagram = AbbreviatedDiagram::new_from_tuples(vec![(b'(', 0), (b')', 0)]).unwrap();
         assert!(diagram.try_swap(0).is_err());
         assert!(diagram.try_swap(0).is_err());
 
         assert_eq_after_apply!(
             try_swap,
             0,
-            [(b'A', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
-            [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+            [(b'(', 0), (b'(', 2), (b')', 2), (b')', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 2), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_swap,
             1,
-            [(b'A', 0), (b'/', 0), (b'A', 2), (b'V', 2), (b'V', 0)],
-            [(b'A', 0), (b'A', 2), (b'/', 0), (b'V', 2), (b'V', 0)],
+            [(b'(', 0), (b'\\', 0), (b'(', 2), (b')', 2), (b')', 0)],
+            [(b'(', 0), (b'(', 2), (b'\\', 0), (b')', 2), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_swap,
             2,
             [
-                (b'A', 0),
-                (b'A', 2),
-                (b'/', 2),
-                (b'/', 0),
-                (b'V', 2),
-                (b'V', 0),
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 2),
+                (b'\\', 0),
+                (b')', 2),
+                (b')', 0),
             ],
             [
-                (b'A', 0),
-                (b'A', 2),
-                (b'/', 0),
-                (b'/', 2),
-                (b'V', 2),
-                (b'V', 0),
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 0),
+                (b'\\', 2),
+                (b')', 2),
+                (b')', 0),
             ],
         );
 
         assert_eq_after_apply!(
             try_swap,
             0,
-            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
-            [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 0), (b')', 0)],
+            [(b'(', 0), (b'(', 2), (b')', 0), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_swap,
             0,
-            [(b'A', 0), (b'A', 2), (b'V', 0), (b'V', 0)],
-            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+            [(b'(', 0), (b'(', 2), (b')', 0), (b')', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 0), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_swap,
             2,
-            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
-            [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 0), (b')', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 2), (b')', 0)],
         );
 
         assert_eq_after_apply!(
             try_swap,
             2,
-            [(b'A', 0), (b'A', 0), (b'V', 2), (b'V', 0)],
-            [(b'A', 0), (b'A', 0), (b'V', 0), (b'V', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 2), (b')', 0)],
+            [(b'(', 0), (b'(', 0), (b')', 0), (b')', 0)],
         );
     }
 
@@ -1171,8 +1171,8 @@ mod test {
         assert_eq_after_apply!(
             try_wrap_around,
             1,
-            [(b'A', 0), (b'A', 0), (b'/', 1), (b'V', 2), (b'V', 0)],
-            [(b'A', 0), (b'A', 1), (b'\\', 0), (b'V', 2), (b'V', 0)],
+            [(b'(', 0), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)],
+            [(b'(', 0), (b'(', 1), (b'/', 0), (b')', 2), (b')', 0)],
         );
     }
 }
@@ -1223,9 +1223,9 @@ impl AbbreviatedDiagram {
             .0
             .iter()
             .map(|item| match item.element {
-                b'A' => 2,
-                b'V' => -2,
-                b'/' | b'\\' => 0,
+                b'(' => 2,
+                b')' => -2,
+                b'\\' | b'/' => 0,
                 _ => {
                     let other = item.element as char;
                     unreachable!("BUG: shouldn't be able to get here for valid diagram. Invalid element: {other:?}")
@@ -1260,14 +1260,14 @@ impl AbbreviatedDiagram {
         self.0.insert(
             idx,
             AbbreviatedItem {
-                element: b'V',
+                element: b')',
                 index: closing_idx,
             },
         );
         self.0.insert(
             idx,
             AbbreviatedItem {
-                element: b'A',
+                element: b'(',
                 index: opening_idx,
             },
         );
@@ -1373,9 +1373,9 @@ impl AbbreviatedDiagram {
             .clone();
 
         let insertion_idx = match open_close.element {
-            b'A' => idx + 1,
-            b'V' => idx,
-            b'/' | b'\\' => {
+            b'(' => idx + 1,
+            b')' => idx,
+            b'\\' | b'/' => {
                 return Err(format!(
                     "cannot apply Reidemeister 1A to {open_close} at {idx}. \
                     (Must be an opening or closing)",
@@ -1391,8 +1391,8 @@ impl AbbreviatedDiagram {
             insertion_idx,
             AbbreviatedItem {
                 element: match over_under {
-                    OverUnder::Over => b'\\',
-                    OverUnder::Under => b'/',
+                    OverUnder::Over => b'/',
+                    OverUnder::Under => b'\\',
                 },
                 index: open_close.index,
             },
@@ -1450,8 +1450,8 @@ impl AbbreviatedDiagram {
         }
 
         let (element0, element1) = match over_under {
-            OverUnder::Over => (b'\\', b'/'),
-            OverUnder::Under => (b'/', b'\\'),
+            OverUnder::Over => (b'/', b'\\'),
+            OverUnder::Under => (b'\\', b'/'),
         };
 
         self.0.reserve_exact(2);
@@ -1556,9 +1556,9 @@ impl AbbreviatedDiagram {
             .iter()
             .map(move |item| {
                 height += match item.element {
-                    b'A' => 2,
-                    b'V' => -2,
-                    b'/' | b'\\' => 0,
+                    b'(' => 2,
+                    b')' => -2,
+                    b'\\' | b'/' => 0,
                     _ => {
                         let other = item.element as char;
                         unreachable!(
@@ -1630,7 +1630,7 @@ impl AbbreviatedDiagram {
         self.0.insert(
             idx,
             AbbreviatedItem {
-                element: b'A',
+                element: b'(',
                 index: vertical_index,
             },
         );
@@ -1638,8 +1638,8 @@ impl AbbreviatedDiagram {
             idx + 1,
             AbbreviatedItem {
                 element: match over_under {
-                    OverUnder::Over => b'\\',
-                    OverUnder::Under => b'/',
+                    OverUnder::Over => b'/',
+                    OverUnder::Under => b'\\',
                 },
                 index: crossing_vertical_height,
             },
@@ -1647,7 +1647,7 @@ impl AbbreviatedDiagram {
         self.0.insert(
             idx + 2,
             AbbreviatedItem {
-                element: b'V',
+                element: b')',
                 index: vertical_index,
             },
         );
@@ -1660,8 +1660,8 @@ impl AbbreviatedDiagram {
 fn test_available_bulges() {
     let diagram = AbbreviatedDiagram::from_str(
         "\
-        A0\n\
-        V0\n\
+        (0\n\
+        )0\n\
         ",
     )
     .unwrap();
@@ -1682,10 +1682,10 @@ fn test_available_bulges() {
 
     let diagram = AbbreviatedDiagram::from_str(
         "\
-        A0\n\
-        A0\n\
-        V0\n\
-        V0\n\
+        (0\n\
+        (0\n\
+        )0\n\
+        )0\n\
         ",
     )
     .unwrap();
@@ -1756,8 +1756,8 @@ impl AbbreviatedItem {
         let self_ = &mut self;
 
         let (crossing, open_close) = match (self_.element, other.element) {
-            (b'/' | b'\\', b'V') => (&mut *self_, &mut *other),
-            (b'A', b'/' | b'\\') => (&mut *other, &mut *self_),
+            (b'\\' | b'/', b')') => (&mut *self_, &mut *other),
+            (b'(', b'\\' | b'/') => (&mut *other, &mut *self_),
             _ => {
                 return Err(format!(
                     "can only wrap when a crossing follows an opening or precedes a closing"
@@ -1774,8 +1774,8 @@ impl AbbreviatedItem {
 
         mem::swap(&mut crossing.index, &mut open_close.index);
         crossing.element = match crossing.element {
-            b'/' => b'\\',
             b'\\' => b'/',
+            b'/' => b'\\',
             // We checked above that crossing is, in fact, a crossing
             _ => unreachable!(),
         };
@@ -1785,9 +1785,9 @@ impl AbbreviatedItem {
 
     fn try_change_crossing(mut self) -> Result<Self, String> {
         self.element = match self.element {
-            b'/' => b'\\',
             b'\\' => b'/',
-            b'A' | b'V' => {
+            b'/' => b'\\',
+            b'(' | b')' => {
                 return Err(format!(
                     "can only change a crossing, not {}",
                     self.element as char
@@ -1808,7 +1808,7 @@ impl AbbreviatedItem {
 
         // Use enums instead of this giant if-else chain
         if item0.is_crossing() && item1.is_opening() {
-            // (b'/' | b'\\', b'A') => {
+            // (b'\\' | b'/', b'(') => {
             let crossing = &mut *item0;
             let opening = &mut *item1;
 
@@ -1823,7 +1823,7 @@ impl AbbreviatedItem {
                 crossing.index += 2;
             }
         } else if item0.is_opening() && item1.is_crossing() {
-            // (b'A', b'/' | b'\\') => {
+            // (b'(', b'\\' | b'/') => {
             let opening = &mut *item0;
             let crossing = &mut *item1;
             if !opening.is_at_least_2_away_from(&crossing) {
@@ -1840,7 +1840,7 @@ impl AbbreviatedItem {
                 crossing.index = crossing.index.checked_sub(2).unwrap();
             }
         } else if item0.is_crossing() && item1.is_closing() {
-            // (b'/' | b'\\', b'V') => {
+            // (b'\\' | b'/', b')') => {
             let crossing = &mut *item0;
             let closing = &mut *item1;
 
@@ -1858,7 +1858,7 @@ impl AbbreviatedItem {
                 crossing.index = crossing.index.checked_sub(2).unwrap();
             }
         } else if item0.is_closing() && item1.is_crossing() {
-            // (b'V', b'/' | b'\\') => {
+            // (b')', b'\\' | b'/') => {
             let closing = &mut *item0;
             let crossing = &mut *item1;
             if crossing.index < closing.index {
@@ -1942,7 +1942,7 @@ impl AbbreviatedItem {
 
         // TODO: test these!
         if item0.is_opening() && item1.is_opening() {
-            // (b'A', b'A') => {
+            // (b'(', b'(') => {
             let opening0 = &mut *item0;
             let opening1 = &mut *item1;
 
@@ -2011,7 +2011,7 @@ impl AbbreviatedItem {
         // ______/
         //
         if item0.is_closing() && item1.is_closing() {
-            // (b'V', b'V') => {
+            // (b')', b')') => {
             let closing0 = &mut *item0;
             let closing1 = &mut *item1;
 
@@ -2084,7 +2084,7 @@ impl AbbreviatedItem {
         //
         // NOTE: missing diagram for where closing.index < opening.index
         if item0.is_closing() && item1.is_opening() {
-            // (b'V', b'A') => {
+            // (b')', b'(') => {
             let closing = &mut *item0;
             let opening = &mut *item1;
 
@@ -2162,7 +2162,7 @@ impl AbbreviatedItem {
         //
         // TODO: moar examples
         if item0.is_opening() && item1.is_closing() {
-            // (b'A', b'V') => {
+            // (b'(', b')') => {
             let opening = &mut *item0;
             let closing = &mut *item1;
 
@@ -2206,7 +2206,7 @@ impl AbbreviatedItem {
         //     return Ok(());
         // }
         if item0.is_crossing() && item1.is_crossing() {
-            // (b'/' | b'\\', b'/' | b'\\') => {
+            // (b'\\' | b'/', b'\\' | b'/') => {
             let crossing0 = &mut *item0;
             let crossing1 = &mut *item1;
 
@@ -2298,7 +2298,7 @@ impl fmt::Display for AbbreviatedDiagram {
 
 impl AbbreviatedItem {
     pub const fn new(element: u8, index: usize) -> Result<Self, u8> {
-        if matches!(element, b'A' | b'V' | b'/' | b'\\') {
+        if matches!(element, b'(' | b')' | b'\\' | b'/') {
             Ok(Self { element, index })
         } else {
             Err(element)
@@ -2363,14 +2363,14 @@ impl AbbreviatedItem {
         item0.index == item1.index
             && matches!(
                 (item0.element, item1.element),
-                (b'/', b'\\') | (b'\\', b'/'),
+                (b'\\', b'/') | (b'/', b'\\'),
             )
     }
 
     fn is_reid_3_eligible(item0: Self, item1: Self, item2: Self) -> bool {
         match (item0.element, item1.element, item2.element) {
-            (b'/', b'\\', b'/') | (b'\\', b'/', b'\\') => false,
-            (b'/' | b'\\', b'/' | b'\\', b'/' | b'\\') => {
+            (b'\\', b'/', b'\\') | (b'/', b'\\', b'/') => false,
+            (b'\\' | b'/', b'\\' | b'/', b'\\' | b'/') => {
                 item0.index == item2.index && item0.small_distance_from(&item1) == 1
             }
             _ => false,
@@ -2427,8 +2427,8 @@ impl AbbreviatedDiagram {
             .iter()
             .fold((0isize, 0usize), |(mut num_open, max_open), item| {
                 num_open += match item.element {
-                    b'A' => 1,
-                    b'V' => -1,
+                    b'(' => 1,
+                    b')' => -1,
                     _ => 0,
                 };
 
@@ -2501,7 +2501,7 @@ fn snapshot_ascii_print() {
     // <  >
     //  \/
     //
-    let unknot = vec![(b'A', 0), (b'V', 0)];
+    let unknot = vec![(b'(', 0), (b')', 0)];
     insta::assert_snapshot!(ascii_print_compact::<false>(unknot));
 
     // Trefoil:
@@ -2518,80 +2518,80 @@ fn snapshot_ascii_print() {
     //
     //
     let trefoil = vec![
-        (b'A', 0),
-        (b'A', 2),
-        (b'/', 1),
-        (b'\\', 0),
-        (b'/', 1),
-        (b'V', 2),
-        (b'V', 0),
+        (b'(', 0),
+        (b'(', 2),
+        (b'\\', 1),
+        (b'/', 0),
+        (b'\\', 1),
+        (b')', 2),
+        (b')', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(trefoil));
 
     // donut:
-    let donut = vec![(b'A', 0), (b'A', 1), (b'V', 1), (b'V', 0)];
+    let donut = vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)];
     insta::assert_snapshot!(ascii_print_compact::<false>(donut));
 
     // C:
-    let c_thingy = vec![(b'A', 0), (b'A', 1), (b'V', 2), (b'V', 0)];
+    let c_thingy = vec![(b'(', 0), (b'(', 1), (b')', 2), (b')', 0)];
     insta::assert_snapshot!(ascii_print_compact::<false>(c_thingy));
 
     // weird terrace thing:
     let terrace = vec![
-        (b'A', 0),
-        (b'A', 2),
-        (b'A', 4),
-        (b'A', 6),
-        (b'V', 5),
-        (b'V', 3),
-        (b'V', 1),
-        (b'A', 1),
-        (b'A', 3),
-        (b'A', 5),
-        (b'V', 6),
-        (b'V', 4),
-        (b'V', 2),
-        (b'V', 0),
+        (b'(', 0),
+        (b'(', 2),
+        (b'(', 4),
+        (b'(', 6),
+        (b')', 5),
+        (b')', 3),
+        (b')', 1),
+        (b'(', 1),
+        (b'(', 3),
+        (b'(', 5),
+        (b')', 6),
+        (b')', 4),
+        (b')', 2),
+        (b')', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(terrace));
 
     // basket:
     let basket = vec![
-        (b'A', 0),
-        (b'A', 1),
-        (b'A', 1),
-        (b'/', 3),
-        (b'/', 2),
-        (b'/', 4),
-        (b'/', 3),
-        (b'V', 1),
-        (b'V', 1),
-        (b'V', 0),
+        (b'(', 0),
+        (b'(', 1),
+        (b'(', 1),
+        (b'\\', 3),
+        (b'\\', 2),
+        (b'\\', 4),
+        (b'\\', 3),
+        (b')', 1),
+        (b')', 1),
+        (b')', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(basket));
 
     // ugly trefoil:
     let ugly_trefoil = vec![
-        (b'A', 0),
-        (b'A', 0),
-        (b'/', 1),
-        (b'\\', 0),
-        (b'/', 1),
-        (b'V', 0),
-        (b'V', 0),
+        (b'(', 0),
+        (b'(', 0),
+        (b'\\', 1),
+        (b'/', 0),
+        (b'\\', 1),
+        (b')', 0),
+        (b')', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(ugly_trefoil));
 
     // weird_thing_that_broke_once:
     let weird_thing_that_broke_once = vec![
-        (b'A', 0),
-        (b'A', 2),
-        (b'V', 0),
-        (b'A', 2),
-        (b'V', 2),
-        (b'A', 0),
-        (b'V', 1),
-        (b'V', 0),
+        (b'(', 0),
+        (b'(', 2),
+        (b')', 0),
+        (b'(', 2),
+        (b')', 2),
+        (b'(', 0),
+        (b')', 1),
+        (b')', 0),
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(weird_thing_that_broke_once));
 }
