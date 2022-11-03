@@ -519,16 +519,15 @@ fn snapshot_raw_lines_append() {
 
 impl VerboseDiagram {
     pub fn display<'a, const GRID_BORDERS: bool>(&'a self) -> impl 'a + Iterator<Item = String> {
-        let last_idx = self.0.len() - 1;
+        let (last_idx, inner) = match self.0.len().checked_sub(1) {
+            Some(idx) => (idx, self.0.as_slice()),
+            None => (0, &[][..]),
+        };
 
-        self.0
-            .iter()
-            .rev()
-            .enumerate()
-            .flat_map(move |(idx, line)| {
-                line.display::<GRID_BORDERS>()
-                    .take(display_lines(GRID_BORDERS) - if idx == last_idx { 2 } else { 0 })
-            })
+        inner.iter().rev().enumerate().flat_map(move |(idx, line)| {
+            line.display::<GRID_BORDERS>()
+                .take(display_lines(GRID_BORDERS) - if idx == last_idx { 2 } else { 0 })
+        })
     }
 
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
@@ -878,11 +877,13 @@ impl FromStr for DiagramMove {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct DiagramMove {
     idx: usize,
     r#move: Move,
 }
 
+#[derive(Default, Clone)]
 pub struct DiagramMoves(Vec<DiagramMove>);
 
 impl IntoIterator for DiagramMoves {
@@ -2463,6 +2464,10 @@ impl AbbreviatedDiagram {
     }
 
     pub fn ascii_print_compact<const GRID_BORDERS: bool>(&self) -> String {
+        if self.0.is_empty() {
+            return String::new();
+        }
+
         let inner = VerboseDiagram::from_abbreviated(self)
             .unwrap()
             .display::<GRID_BORDERS>()
