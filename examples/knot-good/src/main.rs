@@ -1,4 +1,5 @@
-use yew::prelude::*;
+use web_sys::Node;
+use yew::{prelude::*, virtual_dom::VNode};
 
 enum Msg {
     Diagram(Option<String>),
@@ -29,7 +30,7 @@ impl Component for Model {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             encoded_diagram: DIAGRAM.to_string(),
-            diagram: render_knot(DIAGRAM, Default::default()),
+            diagram: render_knot_to_html(DIAGRAM, Default::default()),
             parsed_moves: Default::default(),
             moves: "".to_string(),
         }
@@ -40,7 +41,7 @@ impl Component for Model {
 
         match msg {
             Diagram(Some(diagram)) => {
-                self.diagram = render_knot(&diagram, self.parsed_moves.clone());
+                self.diagram = render_knot_to_html(&diagram, self.parsed_moves.clone());
                 self.encoded_diagram = diagram;
                 true
             }
@@ -52,7 +53,8 @@ impl Component for Model {
                     }
                     Err(_) => return false,
                 }
-                self.diagram = render_knot(&self.encoded_diagram, self.parsed_moves.clone());
+                self.diagram =
+                    render_knot_to_html(&self.encoded_diagram, self.parsed_moves.clone());
                 true
             }
             Moves(None) | Diagram(None) => false,
@@ -99,6 +101,7 @@ impl Component for Model {
 
         html! {
             <div>
+                <RawHtml inner_html={render_knot_to_svg(&self.encoded_diagram, self.parsed_moves.clone()).unwrap_or_default()}></RawHtml>
                 <p><pre>{ self.diagram.clone() }</pre></p>
                 <textarea
                     value={self.encoded_diagram.clone()}
@@ -113,15 +116,27 @@ impl Component for Model {
     }
 }
 
-fn render_knot(diagram: &str, moves: knotty::DiagramMoves) -> Html {
+fn render_knot(diagram: &str, moves: knotty::DiagramMoves) -> Result<String, String> {
+    let mut knot = diagram.parse::<knotty::AbbreviatedDiagram>()?;
+    knot.try_apply_all(moves)?;
+
+    Ok(knot.ascii_print::<false>())
+}
+
+fn render_knot_to_svg(diagram: &str, moves: knotty::DiagramMoves) -> Result<String, String> {
+    Ok(svgbob::to_svg_with_settings(
+        &render_knot(diagram, moves)?,
+        &svgbob::Settings {
+            stroke_width: 5.0,
+            ..Default::default()
+        },
+    ))
+}
+
+fn render_knot_to_html(diagram: &str, moves: knotty::DiagramMoves) -> Html {
     // TODO return err
-    let mut knot = match diagram.parse::<knotty::AbbreviatedDiagram>() {
+    let diagram = match render_knot(diagram, moves) {
         Ok(diagram) => diagram,
-        Err(err) => return html! { <p>{ format!("Error: {}", err) }</p> },
-    };
-    // TODO return err
-    let diagram = match knot.try_apply_all(moves) {
-        Ok(()) => knot.ascii_print::<false>(),
         Err(err) => return html! { <p>{ format!("Error: {}", err) }</p> },
     };
 
@@ -136,6 +151,56 @@ fn render_knot(diagram: &str, moves: knotty::DiagramMoves) -> Html {
             _ => unreachable!("bug!"),
         })
         .collect()
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq, Properties)]
+struct RawHtmlProps {
+    pub inner_html: String,
+}
+
+#[derive(Default)]
+struct RawHtml {
+    props: RawHtmlProps,
+}
+
+impl Component for RawHtml {
+    type Message = Msg;
+    type Properties = RawHtmlProps;
+
+    fn create(_ctx: &Context<Self>) -> Self {
+        RawHtml {
+            props: RawHtmlProps {
+                inner_html: "hola&nbsp;adios".into(),
+            },
+        }
+    }
+
+    fn update(&mut self, _ctx: &Context<Self>, _: Self::Message) -> bool {
+        true
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        if self.props != *ctx.props() {
+            self.props = (&*ctx.props()).clone();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn view(&self, _ctx: &Context<Self>) -> Html {
+        let div = web_sys::window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .create_element("div")
+            .unwrap();
+        div.set_inner_html(&self.props.inner_html[..]);
+
+        let node = Node::from(div);
+        let vnode = VNode::VRef(node);
+        vnode
+    }
 }
 
 fn main() {
