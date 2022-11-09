@@ -2689,23 +2689,28 @@ impl AbbreviatedDiagram {
             * 2
     }
 
-    pub fn ascii_print<const GRID_BORDERS: bool>(&self) -> String {
-        VerboseDiagram::from_abbreviated(self)
-            .unwrap()
-            .display::<GRID_BORDERS>()
-            .collect::<String>()
+    pub fn try_ascii_print<const GRID_BORDERS: bool>(&self) -> Result<String, String> {
+        Ok({
+            VerboseDiagram::from_abbreviated(self)?
+                .display::<GRID_BORDERS>()
+                .collect::<String>()
+        })
     }
 
-    pub fn ascii_print_compact<const GRID_BORDERS: bool>(&self) -> String {
+    pub fn ascii_print<const GRID_BORDERS: bool>(&self) -> String {
+        self.try_ascii_print::<GRID_BORDERS>().unwrap()
+    }
+
+    pub fn try_ascii_print_compact<const GRID_BORDERS: bool>(&self) -> Result<String, String> {
         if self.0.is_empty() {
-            return String::new();
+            return Ok(String::new());
         }
 
-        let inner = VerboseDiagram::from_abbreviated(self)
-            .unwrap()
+        let inner = VerboseDiagram::from_abbreviated(self)?
             .display::<GRID_BORDERS>()
             .collect::<Vec<_>>();
 
+        // We just verified that the self.0 isn't empty
         let string_len = inner.first().unwrap().len();
 
         let mut out = (0..inner.len())
@@ -2725,7 +2730,11 @@ impl AbbreviatedDiagram {
             });
         }
 
-        out.into_iter().collect()
+        Ok(out.into_iter().collect())
+    }
+
+    pub fn ascii_print_compact<const GRID_BORDERS: bool>(&self) -> String {
+        self.try_ascii_print_compact::<GRID_BORDERS>().unwrap()
     }
 
     pub fn to_tuples(&self) -> Vec<(u8, usize)> {
@@ -2736,16 +2745,24 @@ impl AbbreviatedDiagram {
     }
 }
 
+pub fn try_ascii_print<const GRID_BORDERS: bool>(
+    tuples: Vec<(u8, usize)>,
+) -> Result<String, String> {
+    AbbreviatedDiagram::new_from_tuples(tuples)?.try_ascii_print::<GRID_BORDERS>()
+}
+
 pub fn ascii_print<const GRID_BORDERS: bool>(knot: Vec<(u8, usize)>) -> String {
-    AbbreviatedDiagram::new_from_tuples(knot)
-        .unwrap()
-        .ascii_print::<GRID_BORDERS>()
+    try_ascii_print::<GRID_BORDERS>(knot).unwrap()
+}
+
+pub fn try_ascii_print_compact<const GRID_BORDERS: bool>(
+    tuples: Vec<(u8, usize)>,
+) -> Result<String, String> {
+    AbbreviatedDiagram::new_from_tuples(tuples)?.try_ascii_print_compact::<GRID_BORDERS>()
 }
 
 pub fn ascii_print_compact<const GRID_BORDERS: bool>(knot: Vec<(u8, usize)>) -> String {
-    AbbreviatedDiagram::new_from_tuples(knot)
-        .unwrap()
-        .ascii_print_compact::<GRID_BORDERS>()
+    try_ascii_print_compact::<GRID_BORDERS>(knot).unwrap()
 }
 
 #[test]

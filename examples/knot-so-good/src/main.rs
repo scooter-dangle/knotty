@@ -120,7 +120,7 @@ fn render_knot(diagram: &str, moves: knotty::DiagramMoves) -> Result<String, Str
     let mut knot = diagram.parse::<knotty::AbbreviatedDiagram>()?;
     knot.try_apply_all(moves)?;
 
-    Ok(knot.ascii_print::<false>())
+    knot.try_ascii_print::<false>()
 }
 
 fn render_knot_to_svg(diagram: &str, moves: knotty::DiagramMoves) -> Result<String, String> {
