@@ -279,6 +279,9 @@ dependencies = [
 [[package]]
 name = "knotty"
 version = "0.1.0"
+dependencies = [
+ "itertools",
+]
 
 [[package]]
 name = "lazy_static"

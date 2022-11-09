@@ -11,7 +11,7 @@ macro_rules! try_opt {
 use pretty_assertions::assert_eq;
 
 use core::fmt;
-use std::{collections::VecDeque, mem, str::FromStr};
+use std::{cmp::Ordering, collections::VecDeque, mem, str::FromStr};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
@@ -660,12 +660,12 @@ impl fmt::Display for UpDown {
 pub enum Move {
     Swap,
     WrapAround,
-    ChangeCrossing,
     Bulge {
         lean: Lean,
         vertical_index: usize,
     },
     RemoveBulge,
+
     Reid1a {
         over_under: OverUnder,
     },
@@ -682,6 +682,8 @@ pub enum Move {
     },
     Reid2Reduce,
     Reid3,
+
+    ChangeCrossing,
 }
 
 impl fmt::Display for Move {
@@ -707,7 +709,7 @@ impl fmt::Display for Move {
             Reid2 {
                 over_under,
                 vertical_index,
-            } => write!(formatter, "reid_2a({over_under}, {vertical_index})"),
+            } => write!(formatter, "reid_2({over_under}, {vertical_index})"),
             Reid2Reduce => write!(formatter, "reid_2_reduce"),
             Reid3 => write!(formatter, "reid_3"),
             Bulge {
@@ -1539,6 +1541,211 @@ impl AbbreviatedDiagram {
         self.list_available(AbbreviatedItem::can_wrap_around)
     }
 
+    pub fn available_moves(&self) -> impl '_ + Iterator<Item = DiagramMove> {
+        let mut height = 0;
+
+        (0..self.len()).flat_map(move |idx| {
+            let (new_height, moves) = self.available_moves_in_slice_at(idx, height);
+            height = new_height;
+            moves
+        })
+    }
+
+    pub fn available_moves_in_slice_at(
+        &self,
+        idx: usize,
+        height: usize,
+    ) -> (usize, Vec<DiagramMove>) {
+        let slice_len = 3.min(self.len().checked_sub(idx).unwrap_or(0));
+        let slicer = match (idx < self.len())
+            .then(|| ())
+            .and_then(|()| self.0.get(idx..idx + slice_len))
+        {
+            Some(&[]) | None => return (height, vec![]),
+            Some(slicer) => slicer,
+        };
+
+        let item0 = slicer.get(0).cloned();
+        let item1 = slicer.get(1).cloned();
+        let item2 = slicer.get(2).cloned();
+
+        let first_two = item0.zip(item1);
+        let all_three = item0.zip(item1).zip(item2).map(|((a, b), c)| (a, b, c));
+
+        let new_height = match item0 {
+            // unwrap?
+            Some(AbbreviatedItem { element: b'(', .. }) => height.checked_add(2).unwrap_or(height),
+            Some(AbbreviatedItem { element: b')', .. }) => height.checked_sub(2).unwrap_or(height),
+            Some(_) | None => height,
+        };
+
+        (
+            // TODO: is new_height correct? What if there are more
+            // closings than openings?
+            new_height,
+            itertools::chain!(
+                (0..height).flat_map(|vertical_index| {
+                    [
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Bulge {
+                                lean: Lean::Backward,
+                                vertical_index,
+                            },
+                        },
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Bulge {
+                                lean: Lean::Forward,
+                                vertical_index,
+                            },
+                        },
+                    ]
+                }),
+                (0..(height.checked_sub(1).unwrap_or(0))).flat_map(|vertical_index| {
+                    [
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Reid2 {
+                                over_under: OverUnder::Over,
+                                vertical_index,
+                            },
+                        },
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Reid2 {
+                                over_under: OverUnder::Under,
+                                vertical_index,
+                            },
+                        },
+                    ]
+                }),
+                item0.and_then(|item0| {
+                    item0.is_crossing().then(|| DiagramMove {
+                        idx,
+                        r#move: Move::ChangeCrossing,
+                    })
+                }),
+                item0
+                    .and_then(|item0| {
+                        use OverUnder::*;
+
+                        (item0.is_opening() || item0.is_closing()).then(|| {
+                            vec![
+                                DiagramMove {
+                                    idx,
+                                    r#move: Move::Reid1a { over_under: Over },
+                                },
+                                DiagramMove {
+                                    idx,
+                                    r#move: Move::Reid1a { over_under: Under },
+                                },
+                            ]
+                        })
+                    })
+                    .unwrap_or_default(),
+                item0
+                    .is_some()
+                    .then(|| {
+                        (0..height)
+                            .flat_map(|vertical_index| {
+                                use OverUnder::*;
+                                use UpDown::*;
+
+                                // TODO: use iters to make sure we don't typo
+                                //
+                                // TODO: If we change the logic of Reid1b per
+                                // the comment for try_reid_1_b, remember to
+                                // update the logic here.
+                                [
+                                    DiagramMove {
+                                        idx,
+                                        r#move: Move::Reid1b {
+                                            up_down: Up,
+                                            over_under: Over,
+                                            vertical_index: vertical_index + 1,
+                                        },
+                                    },
+                                    DiagramMove {
+                                        idx,
+                                        r#move: Move::Reid1b {
+                                            up_down: Up,
+                                            over_under: Under,
+                                            vertical_index: vertical_index + 1,
+                                        },
+                                    },
+                                    DiagramMove {
+                                        idx,
+                                        r#move: Move::Reid1b {
+                                            up_down: Down,
+                                            over_under: Over,
+                                            vertical_index,
+                                        },
+                                    },
+                                    DiagramMove {
+                                        idx,
+                                        r#move: Move::Reid1b {
+                                            up_down: Down,
+                                            over_under: Under,
+                                            vertical_index,
+                                        },
+                                    },
+                                ]
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default(),
+                first_two.and_then(|(item0, item1)| {
+                    item0.can_swap(item1).then(|| DiagramMove {
+                        idx,
+                        r#move: Move::Swap,
+                    })
+                }),
+                first_two.and_then(|(item0, item1)| {
+                    item0.can_wrap_around(item1).then(|| DiagramMove {
+                        idx,
+                        r#move: Move::WrapAround,
+                    })
+                }),
+                first_two.and_then(|(item0, item1)| {
+                    item0.is_bulge_with(item1).then(|| DiagramMove {
+                        idx,
+                        r#move: Move::RemoveBulge,
+                    })
+                }),
+                first_two.and_then(|(item0, item1)| {
+                    AbbreviatedItem::is_reid_1_a_reduce_eligible(item0, item1).then(|| {
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Reid1aReduce,
+                        }
+                    })
+                }),
+                first_two.and_then(|(item0, item1)| {
+                    AbbreviatedItem::is_reid_2_reduce_eligible(item0, item1).then(|| DiagramMove {
+                        idx,
+                        r#move: Move::Reid2Reduce,
+                    })
+                }),
+                all_three.and_then(|(item0, item1, item2)| {
+                    AbbreviatedItem::is_reid_1_b_reduce_eligible(item0, item1, item2).then(|| {
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Reid1bReduce,
+                        }
+                    })
+                }),
+                all_three.and_then(|(item0, item1, item2)| {
+                    AbbreviatedItem::is_reid_3_eligible(item0, item1, item2).then(|| DiagramMove {
+                        idx,
+                        r#move: Move::Reid3,
+                    })
+                }),
+            )
+            .collect(),
+        )
+    }
+
     pub fn available_remove_bulges(&self) -> impl '_ + Iterator<Item = usize> {
         // Maybe don't do this the wildly inefficient way, recalculating
         // the diagram height at each index.
@@ -1582,6 +1789,8 @@ impl AbbreviatedDiagram {
             })
     }
 
+    // TODO: modify so that vertical_index doesn't need to change when
+    // up_down changes
     pub fn try_reid_1_b(
         &mut self,
         up_down: UpDown,
@@ -1963,7 +2172,7 @@ impl AbbreviatedItem {
                     } else {
                         return Err(format!(
                             "swapping adjacent openings {opening0} and {opening1} \
-                        would require a reidemeister II move"
+                            would require a reidemeister II move"
                         ));
                     }
                 }
@@ -2100,6 +2309,7 @@ impl AbbreviatedItem {
             // Open + Close
             // ============
             //
+            // TODO: We don't handle this case!!!
             //   ___
             //  /   \
             // (     \
@@ -2152,6 +2362,7 @@ impl AbbreviatedItem {
             //
             //
             // This one is not possible if diagram is constructed correctly
+            //
             // _      _____
             //  \    /
             //   \  (
@@ -2163,6 +2374,29 @@ impl AbbreviatedItem {
             //      \     )
             //       \___/
             //
+            // TODO: The above claim is wrong! See
+            //
+            // (0        (1 /0       (1 )2             (3 )1       )2 )0
+            //
+            //                        __                __
+            //                       /  \              /  \
+            //                      /    \            /    \
+            //                     /  __  \          /   _  \
+            //                    /  /  \  \        /   / \  \
+            //                   /  /    \  \      /   (   \  \
+            //            ______/  /  _   \  \____/     \_  \  \__
+            //           /        /  / \   \              \  \    \
+            //          /        /  /   )   \              \  \    )
+            //         /   _____/  /   /     \___________   \  \__/
+            //        /   /       /   /                  \   \
+            //       /   (       /   (                    )   \
+            //    __/     \   __/     \__________________/     \_____
+            //   /         \ /                                       \
+            //  (           /                                         )
+            //   \_________/ \_______________________________________/
+            //
+            //
+            //
             // TODO: moar examples
             (b'(', b')') => {
                 let opening = &mut *item0;
@@ -2172,20 +2406,34 @@ impl AbbreviatedItem {
                     return Err(match opening.small_distance_from(&closing) {
                         0 => format!(
                             "swapping adjacent opening {opening} and closing {closing} \
-                        would mean removing an unknot from the diagram"
+                            would mean removing an unknot from the diagram"
                         ),
                         1 => format!(
                             "adjacent opening {opening} and closing {closing} \
-                        constitute a bulge and can't be swapped"
+                            constitute a bulge and can't be swapped"
                         ),
                         _ => unreachable!(
                             "BUG: We just saw that opening {opening} is less than \
-                        2 away from closing {closing}"
+                            2 away from closing {closing}"
                         ),
                     });
                 }
 
-                closing.index = closing.index.checked_sub(2).unwrap();
+                // TODO: see unhandled cases mentioned above
+                // closing.index = closing.index.checked_sub(2).unwrap();
+                //
+                // I think it should probly be the following
+                let larger_item = match opening.index.cmp(&closing.index) {
+                    Ordering::Less => closing,
+                    Ordering::Greater => opening,
+                    Ordering::Equal => {
+                        unreachable!("BUG: We verified above that they're more than 1 apart")
+                    }
+                };
+                // Impossible to panic on unwrap. They're more than 1
+                // apart and we're subtracting from the larger of the
+                // two.
+                larger_item.index = larger_item.index.checked_sub(2).unwrap();
             }
 
             (b'\\' | b'/', b'\\' | b'/') => {
@@ -2203,7 +2451,7 @@ impl AbbreviatedItem {
             _ => {
                 unreachable!(
                     "BUG: We should have covered all cases, but we didn't. \
-                    item0: {item0:?}, item1: {item1:?}",
+                    item0: {item0}, item1: {item1}",
                 );
             }
         }
@@ -2240,7 +2488,7 @@ impl FromStr for AbbreviatedItem {
 
             format!(
                 "invalid element. Expected one of \
-                'A', 'V', '\\', or '/'; got {formatted_element}"
+                '(', ')', '/', or '\\'; got {formatted_element}"
             )
         })
     }
@@ -2427,7 +2675,7 @@ impl AbbreviatedDiagram {
 
                             format!(
                                 "invalid element at position {position}. Expected one of \
-                                'A', 'V', '\\', '/', got {formatted_element}"
+                                '(', ')', '/', '\\', got {formatted_element}"
                             )
                         })
                     })

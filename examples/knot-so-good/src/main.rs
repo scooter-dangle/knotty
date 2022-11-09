@@ -62,8 +62,8 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        use wasm_bindgen::{JsCast, UnwrapThrowExt};
-        use web_sys::{EventTarget, HtmlInputElement, HtmlTextAreaElement};
+        use wasm_bindgen::JsCast;
+        use web_sys::{EventTarget, HtmlTextAreaElement};
 
         let link = ctx.link();
 
