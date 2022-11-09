@@ -170,7 +170,7 @@ impl Component for RawHtml {
     fn create(_ctx: &Context<Self>) -> Self {
         RawHtml {
             props: RawHtmlProps {
-                inner_html: "hola&nbsp;adios".into(),
+                inner_html: String::new(),
             },
         }
     }
