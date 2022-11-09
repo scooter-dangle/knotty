@@ -1,33 +1,50 @@
+knotty
+======
+
+Custom encoding of knot diagrams and diagram manipulations.
 
 ```knot
 # square knot
-A0
-A2
-/1
-A3
-\2
-\4
-V3
-/1
-V2
-V0
+(0
+(2
+\1
+(3
+/2
+/4
+)3
+\1
+)2
+)0
 ```
 
+```knot
+                 ____   _
+                /    \ / \
+               /      /   \
+              /   ___/ \   \
+             /   /      \   \
+            /   (        )   \
+      _____/     \   ___/     \_____
+     /            \ /               \
+    (              /                 )
+     \   _________/ \____________   /
+      \ /                        \ /
+       \                          \
+   ___/ \________________________/ \___
+  /                                    \
+ (                                      )
+  \____________________________________/
 ```
-             ____   _
-            /    \ / \
-           /      /   \
-          /   ___/ \   \
-         /   /      \   \
-        /   |        |   \
-    ___/     \   ___/     \___
-   /          \ /             \
-  |            /               |
-   \   _______/ \__________   /
-    \ /                    \ /
-     \                      \
-  __/ \____________________/ \__
- /                              \
-|                                |
- \______________________________/
-```
+
+Examples for playing around with them so much
+---------------------------------------------
+
+### `ascii_print`
+
+The \[for now] inaptly named `ascii_print` example program takes a knot diagram and, optionally, moves as input(s) and renders
+the ASCII version of the resulting diagram.
+
+### `knot-so-good`
+
+An ugly, simple mini browser-based app for more quickly working with knot diagrams. See it's README:
+./examples/knot-so-good/README.md
