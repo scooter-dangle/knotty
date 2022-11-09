@@ -1653,17 +1653,13 @@ impl AbbreviatedDiagram {
                                 use UpDown::*;
 
                                 // TODO: use iters to make sure we don't typo
-                                //
-                                // TODO: If we change the logic of Reid1b per
-                                // the comment for try_reid_1_b, remember to
-                                // update the logic here.
                                 [
                                     DiagramMove {
                                         idx,
                                         r#move: Move::Reid1b {
                                             up_down: Up,
                                             over_under: Over,
-                                            vertical_index: vertical_index + 1,
+                                            vertical_index,
                                         },
                                     },
                                     DiagramMove {
@@ -1671,7 +1667,7 @@ impl AbbreviatedDiagram {
                                         r#move: Move::Reid1b {
                                             up_down: Up,
                                             over_under: Under,
-                                            vertical_index: vertical_index + 1,
+                                            vertical_index,
                                         },
                                     },
                                     DiagramMove {
@@ -1807,31 +1803,25 @@ impl AbbreviatedDiagram {
 
         let vertical_height_at_index = self.vertical_height_at_index(idx);
 
-        let crossing_vertical_height = match up_down {
+        let (open_close_vertical_index, crossing_vertical_height) = match up_down {
             UpDown::Up => {
-                if vertical_index == 0 {
+                if vertical_index as i32 >= vertical_height_at_index {
                     return Err(format!(
-                        "Reidemeister 1b vertical index ({vertical_index}) \
-                        must be greater than 0 if direction is up (i.e., it's \
-                        up from where? -1? that's not a valid index)",
-                    ));
-                }
-                if vertical_index as i32 > vertical_height_at_index {
-                    return Err(format!(
-                        "Reidemeister 1b vertical index ({vertical_index}) exceeds \
+                        "Reidemeister 1b vertical index ({vertical_index}) matches or exceeds \
                         diagram height ({vertical_height_at_index}) at {idx}",
                     ));
                 }
-                vertical_index - 1
+
+                (vertical_index + 1, vertical_index)
             }
             UpDown::Down => {
-                if vertical_index as i32 + 1 > vertical_height_at_index {
+                if vertical_index as i32 >= vertical_height_at_index {
                     return Err(format!(
-                        "Reidemeister 1b vertical index ({vertical_index}) exceeds \
-                        diagram height - 1 ({vertical_height_at_index}) at {idx}",
+                        "Reidemeister 1b vertical index ({vertical_index}) matches or exceeds \
+                        diagram height ({vertical_height_at_index}) at {idx}",
                     ));
                 }
-                vertical_index + 1
+                (vertical_index, vertical_index + 1)
             }
         };
 
@@ -1839,7 +1829,7 @@ impl AbbreviatedDiagram {
             idx,
             AbbreviatedItem {
                 element: b'(',
-                index: vertical_index,
+                index: open_close_vertical_index,
             },
         );
         self.0.insert(
@@ -1856,7 +1846,7 @@ impl AbbreviatedDiagram {
             idx + 2,
             AbbreviatedItem {
                 element: b')',
-                index: vertical_index,
+                index: open_close_vertical_index,
             },
         );
 
@@ -2309,7 +2299,6 @@ impl AbbreviatedItem {
             // Open + Close
             // ============
             //
-            // TODO: We don't handle this case!!!
             //   ___
             //  /   \
             // (     \
@@ -2374,8 +2363,8 @@ impl AbbreviatedItem {
             //      \     )
             //       \___/
             //
-            // TODO: The above claim is wrong! See
             //
+            // Complicated example  (`(3 )1`)
             // (0        (1 /0       (1 )2             (3 )1       )2 )0
             //
             //                        __                __
@@ -2397,7 +2386,6 @@ impl AbbreviatedItem {
             //
             //
             //
-            // TODO: moar examples
             (b'(', b')') => {
                 let opening = &mut *item0;
                 let closing = &mut *item1;
@@ -2419,10 +2407,7 @@ impl AbbreviatedItem {
                     });
                 }
 
-                // TODO: see unhandled cases mentioned above
-                // closing.index = closing.index.checked_sub(2).unwrap();
-                //
-                // I think it should probly be the following
+                // TODO: where are the tests?
                 let larger_item = match opening.index.cmp(&closing.index) {
                     Ordering::Less => closing,
                     Ordering::Greater => opening,
