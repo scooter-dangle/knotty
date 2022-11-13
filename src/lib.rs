@@ -664,23 +664,23 @@ pub enum Move {
         lean: Lean,
         vertical_index: usize,
     },
-    RemoveBulge,
+    CollapseBulge,
 
     Reid1a {
         over_under: OverUnder,
     },
-    Reid1aReduce,
+    CollapseReid1a,
     Reid1b {
         up_down: UpDown,
         over_under: OverUnder,
         vertical_index: usize,
     },
-    Reid1bReduce,
+    CollapseReid1b,
     Reid2 {
         over_under: OverUnder,
         vertical_index: usize,
     },
-    Reid2Reduce,
+    Collapse2Reduce,
     Reid3,
 
     ChangeCrossing,
@@ -694,9 +694,9 @@ impl fmt::Display for Move {
             Swap => write!(formatter, "swap"),
             WrapAround => write!(formatter, "wrap_around"),
             ChangeCrossing => write!(formatter, "change_crossing"),
-            RemoveBulge => write!(formatter, "remove_bulge"),
+            CollapseBulge => write!(formatter, "collapse_bulge"),
             Reid1a { over_under } => write!(formatter, "reid_1a({over_under})"),
-            Reid1aReduce => write!(formatter, "reid_1a_reduce"),
+            CollapseReid1a => write!(formatter, "collapse_reid_1a"),
             Reid1b {
                 up_down,
                 over_under,
@@ -705,12 +705,12 @@ impl fmt::Display for Move {
                 formatter,
                 "reid_1b({up_down}, {over_under}, {vertical_index})"
             ),
-            Reid1bReduce => write!(formatter, "reid_1b_reduce"),
+            CollapseReid1b => write!(formatter, "collapse_reid_1b"),
             Reid2 {
                 over_under,
                 vertical_index,
             } => write!(formatter, "reid_2({over_under}, {vertical_index})"),
-            Reid2Reduce => write!(formatter, "reid_2_reduce"),
+            Collapse2Reduce => write!(formatter, "collapse_reid_2"),
             Reid3 => write!(formatter, "reid_3"),
             Bulge {
                 lean,
@@ -756,10 +756,10 @@ impl FromStr for Move {
             "swap" => Swap,
             "wrap_around" => WrapAround,
             "change_crossing" => ChangeCrossing,
-            "remove_bulge" => RemoveBulge,
-            "reid_1a_reduce" => Reid1aReduce,
-            "reid_1b_reduce" => Reid1bReduce,
-            "reid_2_reduce" => Reid2Reduce,
+            "collapse_bulge" => CollapseBulge,
+            "collapse_reid_1a" => CollapseReid1a,
+            "collapse_reid_1b" => CollapseReid1b,
+            "collapse_reid_2" => Collapse2Reduce,
             "reid_3" => Reid3,
             "reid_1a" => Reid1a {
                 over_under: open_par_splits
@@ -1076,7 +1076,7 @@ mod test {
         );
 
         assert_eq_after_apply!(
-            try_remove_bulge,
+            try_collapse_bulge,
             1,
             [(b'(', 0), (b'(', 1), (b')', 0), (b')', 0)],
             [(b'(', 0), (b')', 0)],
@@ -1090,7 +1090,7 @@ mod test {
         );
 
         assert_eq_after_apply!(
-            try_remove_bulge,
+            try_collapse_bulge,
             1,
             [(b'(', 0), (b'(', 0), (b')', 1), (b')', 0)],
             [(b'(', 0), (b')', 0)],
@@ -1187,10 +1187,10 @@ impl AbbreviatedDiagram {
             Swap => Self::try_swap,
             WrapAround => Self::try_wrap_around,
             ChangeCrossing => Self::try_change_crossing,
-            RemoveBulge => Self::try_remove_bulge,
-            Reid1aReduce => Self::try_reid_1_a_reduce,
-            Reid1bReduce => Self::try_reid_1_b_reduce,
-            Reid2Reduce => Self::try_reid_2_reduce,
+            CollapseBulge => Self::try_collapse_bulge,
+            CollapseReid1a => Self::try_reid_1_a_reduce,
+            CollapseReid1b => Self::try_reid_1_b_reduce,
+            Collapse2Reduce => Self::try_collapse_reid_2,
             Reid3 => Self::try_reid_3,
             Reid1a { over_under } => return self.try_reid_1_a(over_under, diagram_move.idx),
             Reid1b {
@@ -1323,7 +1323,7 @@ impl AbbreviatedDiagram {
         Ok(())
     }
 
-    fn try_remove_bulge(&mut self, idx: usize) -> Result<(), String> {
+    fn try_collapse_bulge(&mut self, idx: usize) -> Result<(), String> {
         let closing_idx = idx + 1;
 
         let closing = self.0.get(closing_idx).ok_or_else(|| {
@@ -1336,7 +1336,7 @@ impl AbbreviatedDiagram {
         // Can't fail if getting closing succeeded
         let opening = self.0[idx];
 
-        opening.error_on_remove_bulge(*closing)?;
+        opening.error_on_collapse_bulge(*closing)?;
 
         self.0.remove(idx);
         self.0.remove(idx);
@@ -1475,7 +1475,7 @@ impl AbbreviatedDiagram {
         Ok(())
     }
 
-    pub fn try_reid_2_reduce(&mut self, idx: usize) -> Result<(), String> {
+    pub fn try_collapse_reid_2(&mut self, idx: usize) -> Result<(), String> {
         let second_idx = idx + 1;
 
         let item1 = self.0.get(second_idx).ok_or_else(|| {
@@ -1487,7 +1487,7 @@ impl AbbreviatedDiagram {
         // Can't fail if getting item1 succeeded
         let item0 = self.0[idx];
 
-        if AbbreviatedItem::is_reid_2_reduce_eligible(item0, *item1) {
+        if AbbreviatedItem::is_collapse_reid_2_eligible(item0, *item1) {
             self.0.remove(idx);
             self.0.remove(idx);
 
@@ -1706,28 +1706,30 @@ impl AbbreviatedDiagram {
                 first_two.and_then(|(item0, item1)| {
                     item0.is_bulge_with(item1).then(|| DiagramMove {
                         idx,
-                        r#move: Move::RemoveBulge,
+                        r#move: Move::CollapseBulge,
                     })
                 }),
                 first_two.and_then(|(item0, item1)| {
                     AbbreviatedItem::is_reid_1_a_reduce_eligible(item0, item1).then(|| {
                         DiagramMove {
                             idx,
-                            r#move: Move::Reid1aReduce,
+                            r#move: Move::CollapseReid1a,
                         }
                     })
                 }),
                 first_two.and_then(|(item0, item1)| {
-                    AbbreviatedItem::is_reid_2_reduce_eligible(item0, item1).then(|| DiagramMove {
-                        idx,
-                        r#move: Move::Reid2Reduce,
+                    AbbreviatedItem::is_collapse_reid_2_eligible(item0, item1).then(|| {
+                        DiagramMove {
+                            idx,
+                            r#move: Move::Collapse2Reduce,
+                        }
                     })
                 }),
                 all_three.and_then(|(item0, item1, item2)| {
                     AbbreviatedItem::is_reid_1_b_reduce_eligible(item0, item1, item2).then(|| {
                         DiagramMove {
                             idx,
-                            r#move: Move::Reid1bReduce,
+                            r#move: Move::CollapseReid1b,
                         }
                     })
                 }),
@@ -1742,7 +1744,7 @@ impl AbbreviatedDiagram {
         )
     }
 
-    pub fn available_remove_bulges(&self) -> impl '_ + Iterator<Item = usize> {
+    pub fn available_collapse_bulges(&self) -> impl '_ + Iterator<Item = usize> {
         // Maybe don't do this the wildly inefficient way, recalculating
         // the diagram height at each index.
         self.0
@@ -2561,10 +2563,10 @@ impl AbbreviatedItem {
     }
 
     fn is_bulge_with(self, closing: Self) -> bool {
-        self.error_on_remove_bulge(closing).is_ok()
+        self.error_on_collapse_bulge(closing).is_ok()
     }
 
-    fn error_on_remove_bulge(self, closing: Self) -> Result<(), String> {
+    fn error_on_collapse_bulge(self, closing: Self) -> Result<(), String> {
         let opening = self;
 
         if !opening.is_opening() {
@@ -2610,7 +2612,7 @@ impl AbbreviatedItem {
             && item0.small_distance_from(&item1) == 1
     }
 
-    fn is_reid_2_reduce_eligible(item0: Self, item1: Self) -> bool {
+    fn is_collapse_reid_2_eligible(item0: Self, item1: Self) -> bool {
         item0.index == item1.index
             && matches!(
                 (item0.element, item1.element),
