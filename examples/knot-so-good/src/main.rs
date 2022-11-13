@@ -1,3 +1,4 @@
+use knotty::DiagramMove;
 use wasm_bindgen::JsValue;
 use web_sys::Node;
 use yew::{prelude::*, virtual_dom::VNode};
@@ -6,6 +7,7 @@ enum Msg {
     DisplayMode(DisplayMode),
     Diagram(Option<String>),
     Moves(Option<String>),
+    AddMove(DiagramMove),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -23,6 +25,7 @@ struct Model {
     ascii_modified_diagram: Result<String, String>,
     raw_moves: String,
     parsed_moves: knotty::DiagramMoves,
+    parsed_moves_valid: bool,
     ascii_html_diagram: Html,
 }
 
@@ -92,11 +95,12 @@ impl Component for Model {
             ascii_modified_diagram: Ok(String::new()),
             ascii_html_diagram: Default::default(),
             parsed_moves: Default::default(),
+            parsed_moves_valid: true,
             raw_moves: "".to_string(),
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         use Msg::*;
 
         match msg {
@@ -130,21 +134,45 @@ impl Component for Model {
                     return false;
                 }
 
+                let moves_previously_valid = self.parsed_moves_valid;
+                self.raw_moves = moves.clone();
+
                 match moves.parse::<knotty::DiagramMoves>() {
                     Ok(parsed_moves) => {
-                        self.raw_moves = moves;
+                        self.parsed_moves_valid = true;
 
                         if self.parsed_moves == parsed_moves {
-                            return false;
+                            // If the parsed version of the moves hasn't
+                            // changed, we only need to update view if
+                            // we've gone from invalid to valid.
+                            return !moves_previously_valid;
                         }
+
                         self.parsed_moves = parsed_moves;
                     }
-                    Err(_) => return false,
+                    Err(_) => {
+                        let moves_previously_valid = self.parsed_moves_valid;
+                        self.parsed_moves_valid = false;
+                        // There's only a change if we're going from valid to invalid.
+                        return moves_previously_valid;
+                    }
                 }
 
                 self.update_modified();
                 true
             }
+            AddMove(moove) => self.update(
+                ctx,
+                Moves(Some(format!(
+                    "{}{}{moove}",
+                    self.raw_moves,
+                    if self.raw_moves.is_empty() || self.raw_moves.ends_with('\n') {
+                        ""
+                    } else {
+                        "\n"
+                    }
+                ))),
+            ),
             Moves(None) | Diagram(None) => false,
         }
     }
@@ -208,6 +236,12 @@ impl Component for Model {
             DisplayMode::Svg => DisplayMode::Ascii,
         };
 
+        let available_moves = self
+            .modified_diagram
+            .as_ref()
+            .map(|diagram| diagram.available_moves().collect::<Vec<_>>())
+            .unwrap_or_default();
+
         html! {
             <div>
                 { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
@@ -235,6 +269,23 @@ impl Component for Model {
                     value={self.raw_moves.clone()}
                     oninput={moves_oninput}>
                 </textarea>
+                {
+                    if self.parsed_moves_valid {
+                        html! {
+                            <p>
+                            <br/>
+                            {
+                                available_moves.into_iter().map(|moov| {
+                                    html! {
+                                        <button onclick={link.callback(move |_| Msg::AddMove(moov))}>{ moov }</button>
+                                    }
+                                }).collect::<Html>()
+                            }</p>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
                 <br/>
                 <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
                 <br/>
