@@ -1,4 +1,3 @@
-use knotty::DiagramMove;
 use wasm_bindgen::JsValue;
 use web_sys::Node;
 use yew::{prelude::*, virtual_dom::VNode};
@@ -7,7 +6,7 @@ enum Msg {
     DisplayMode(DisplayMode),
     Diagram(Option<String>),
     Moves(Option<String>),
-    AddMove(DiagramMove),
+    AddMove(String),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -185,8 +184,6 @@ impl Component for Model {
 
         // This is a mess.
         let diagram_oninput = link.callback(|e: InputEvent| {
-            // web_sys::console::log_1(&e);
-
             let value = e
                 .dyn_into()
                 .ok()
@@ -201,8 +198,6 @@ impl Component for Model {
 
         // This is a mess.
         let moves_oninput = link.callback(|e: InputEvent| {
-            // web_sys::console::log_1(&e);
-
             let value = e
                 .dyn_into()
                 .ok()
@@ -213,6 +208,25 @@ impl Component for Model {
                 .map(|target| target.value());
 
             Msg::Moves(value)
+        });
+
+        let add_move_oninput = link.batch_callback(|event: KeyboardEvent| {
+            if event.key() != "Enter" {
+                return None;
+            }
+
+            let value = event
+                .dyn_into()
+                .ok()
+                .and_then(|event: Event| event.target())
+                .and_then(
+                    |event_target: EventTarget| -> Option<web_sys::HtmlInputElement> {
+                        event_target.dyn_into().ok()
+                    },
+                )
+                .map(|target| target.value());
+
+            value.map(Msg::AddMove)
         });
 
         let svg = ascii_diagram_to_svg(&self.ascii_modified_diagram.as_deref().unwrap_or(""));
@@ -243,7 +257,7 @@ impl Component for Model {
             .unwrap_or_default();
 
         html! {
-            <div>
+            <>
                 { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
                     <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
                 }).collect::<Html>() }
@@ -269,27 +283,27 @@ impl Component for Model {
                     value={self.raw_moves.clone()}
                     oninput={moves_oninput}>
                 </textarea>
-                {
-                    if self.parsed_moves_valid {
-                        html! {
-                            <p>
-                            <br/>
-                            {
-                                available_moves.into_iter().map(|moov| {
-                                    html! {
-                                        <button onclick={link.callback(move |_| Msg::AddMove(moov))}>{ moov }</button>
-                                    }
-                                }).collect::<Html>()
-                            }</p>
-                        }
-                    } else {
-                        html! {}
-                    }
-                }
+                { html! {
+                    <>
+                    <br/>
+                    <input
+                        class="select-move"
+                        placeholder="select move"
+                        autocomplete="on"
+                        list="moves"
+                        onkeypress={add_move_oninput}
+                        value=""
+                        disabled={!self.parsed_moves_valid || available_moves.is_empty()}
+                    />
+                    <datalist id="moves">{ available_moves.iter().map(|moove| html! {
+                        <option value={moove.to_string()}>{ moove.to_string() }</option>
+                    }).collect::<Html>() }</datalist>
+                    </>
+                } }
                 <br/>
                 <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
                 <br/>
-            </div>
+            </>
         }
     }
 }
@@ -358,15 +372,15 @@ impl Component for RawHtml {
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
-        let div = web_sys::window()
+        let span = web_sys::window()
             .unwrap()
             .document()
             .unwrap()
-            .create_element("div")
+            .create_element("span")
             .unwrap();
-        div.set_inner_html(&self.props.inner_html[..]);
+        span.set_inner_html(&self.props.inner_html[..]);
 
-        let node = Node::from(div);
+        let node = Node::from(span);
         let vnode = VNode::VRef(node);
         vnode
     }
