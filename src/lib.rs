@@ -879,13 +879,13 @@ impl FromStr for DiagramMove {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct DiagramMove {
     idx: usize,
     r#move: Move,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq, Eq)]
 pub struct DiagramMoves(Vec<DiagramMove>);
 
 impl IntoIterator for DiagramMoves {
@@ -2487,7 +2487,7 @@ impl fmt::Display for AbbreviatedItem {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct AbbreviatedDiagram(Vec<AbbreviatedItem>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

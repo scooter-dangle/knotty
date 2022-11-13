@@ -3,18 +3,35 @@ use web_sys::Node;
 use yew::{prelude::*, virtual_dom::VNode};
 
 enum Msg {
+    DisplayMode(DisplayMode),
     Diagram(Option<String>),
     Moves(Option<String>),
 }
 
-struct Model {
-    encoded_diagram: String,
-    moves: String,
-    parsed_moves: knotty::DiagramMoves,
-    diagram: Html,
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+enum DisplayMode {
+    Ascii,
+    #[default]
+    Svg,
 }
 
-const DIAGRAM: &str = "\
+struct Model {
+    display_mode: DisplayMode,
+    raw_base_diagram: String,
+    parsed_base_diagram: Result<knotty::AbbreviatedDiagram, String>,
+    modified_diagram: Result<knotty::AbbreviatedDiagram, String>,
+    ascii_modified_diagram: Result<String, String>,
+    raw_moves: String,
+    parsed_moves: knotty::DiagramMoves,
+    ascii_html_diagram: Html,
+}
+
+const UNKNOT: &str = "\
+    (0\n\
+    )0\n\
+";
+
+const TREFOIL: &str = "\
     (0\n\
     (2\n\
     /1\n\
@@ -24,16 +41,58 @@ const DIAGRAM: &str = "\
     )0\n\
 ";
 
+const SQUARE_KNOT: &str = "\
+    (0\n\
+    (2\n\
+    \\1\n\
+    (3\n\
+    /2\n\
+    /4\n\
+    )3\n\
+    \\1\n\
+    )2\n\
+    )0\n\
+";
+
+const BUILT_IN_KNOTS: &[(&str, &str)] = &[
+    ("unknot", UNKNOT),
+    ("trefoil", TREFOIL),
+    ("square knot", SQUARE_KNOT),
+];
+
+impl Model {
+    fn update_modified(&mut self) {
+        self.modified_diagram = self.parsed_base_diagram.clone().and_then(|mut knot| {
+            knot.try_apply_all(self.parsed_moves.clone())?;
+            Ok(knot)
+        });
+
+        self.ascii_modified_diagram = self
+            .modified_diagram
+            .clone()
+            .and_then(|knot| knot.try_ascii_print::<false>());
+
+        self.ascii_html_diagram = self
+            .ascii_modified_diagram
+            .as_deref()
+            .map_or_else(|err| error_to_html(err), ascii_diagram_to_html);
+    }
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            encoded_diagram: DIAGRAM.to_string(),
-            diagram: render_knot_to_html(DIAGRAM, Default::default()),
+            display_mode: Default::default(),
+            raw_base_diagram: String::new(),
+            parsed_base_diagram: Ok(Default::default()),
+            modified_diagram: Ok(Default::default()),
+            ascii_modified_diagram: Ok(String::new()),
+            ascii_html_diagram: Default::default(),
             parsed_moves: Default::default(),
-            moves: "".to_string(),
+            raw_moves: "".to_string(),
         }
     }
 
@@ -41,21 +100,49 @@ impl Component for Model {
         use Msg::*;
 
         match msg {
+            DisplayMode(mode) => {
+                if self.display_mode == mode {
+                    false
+                } else {
+                    self.display_mode = mode;
+                    true
+                }
+            }
             Diagram(Some(diagram)) => {
-                self.diagram = render_knot_to_html(&diagram, self.parsed_moves.clone());
-                self.encoded_diagram = diagram;
+                if self.raw_base_diagram == diagram {
+                    return false;
+                }
+
+                self.raw_base_diagram = diagram;
+                let parsed_base_diagram = self.raw_base_diagram.parse();
+
+                if self.parsed_base_diagram == parsed_base_diagram {
+                    return false;
+                }
+
+                self.parsed_base_diagram = self.raw_base_diagram.parse();
+
+                self.update_modified();
                 true
             }
             Moves(Some(moves)) => {
+                if self.raw_moves == moves {
+                    return false;
+                }
+
                 match moves.parse::<knotty::DiagramMoves>() {
                     Ok(parsed_moves) => {
-                        self.moves = moves;
+                        self.raw_moves = moves;
+
+                        if self.parsed_moves == parsed_moves {
+                            return false;
+                        }
                         self.parsed_moves = parsed_moves;
                     }
                     Err(_) => return false,
                 }
-                self.diagram =
-                    render_knot_to_html(&self.encoded_diagram, self.parsed_moves.clone());
+
+                self.update_modified();
                 true
             }
             Moves(None) | Diagram(None) => false,
@@ -100,8 +187,7 @@ impl Component for Model {
             Msg::Moves(value)
         });
 
-        let svg = render_knot_to_svg(&self.encoded_diagram, self.parsed_moves.clone())
-            .unwrap_or_default();
+        let svg = ascii_diagram_to_svg(&self.ascii_modified_diagram.as_deref().unwrap_or(""));
 
         let array: JsValue = std::iter::once(JsValue::from_str(&svg.clone()))
             .collect::<js_sys::Array>()
@@ -117,48 +203,51 @@ impl Component for Model {
                 .map_err(|err| web_sys::console::log_1(&err.into()))
         });
 
+        let other_mode = match self.display_mode {
+            DisplayMode::Ascii => DisplayMode::Svg,
+            DisplayMode::Svg => DisplayMode::Ascii,
+        };
+
         html! {
             <div>
-                <RawHtml inner_html={svg}></RawHtml>
-                <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
-                <p><pre>{ self.diagram.clone() }</pre></p>
+                { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
+                    <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
+                }).collect::<Html>() }
+                <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
+                { match self.display_mode {
+                    DisplayMode::Ascii => html! {
+                        <p><pre>{ self.ascii_html_diagram.clone() }</pre></p>
+                    },
+                    DisplayMode::Svg => html! {
+                        <p><RawHtml inner_html={svg}></RawHtml></p>
+                    },
+                } }
+                <pre>{
+                    // TODO modify diagram input to allow moves on the same line
+                    self.modified_diagram.clone().unwrap_or_default().to_string().replace('\n', " ")
+                }</pre>
+                <br/>
                 <textarea
-                    value={self.encoded_diagram.clone()}
+                    value={self.raw_base_diagram.clone()}
                     oninput={diagram_oninput}>
                 </textarea>
                 <textarea
-                    value={self.moves.clone()}
+                    value={self.raw_moves.clone()}
                     oninput={moves_oninput}>
                 </textarea>
+                <br/>
+                <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
+                <br/>
             </div>
         }
     }
 }
 
-fn render_knot(diagram: &str, moves: knotty::DiagramMoves) -> Result<String, String> {
-    let mut knot = diagram.parse::<knotty::AbbreviatedDiagram>()?;
-    knot.try_apply_all(moves)?;
-
-    knot.try_ascii_print::<false>()
+fn error_to_html(error: &str) -> Html {
+    html! { <p>{ format!("Error: {error}") }</p> }
 }
 
-fn render_knot_to_svg(diagram: &str, moves: knotty::DiagramMoves) -> Result<String, String> {
-    Ok(svgbob::to_svg_with_settings(
-        &render_knot(diagram, moves)?,
-        &svgbob::Settings {
-            stroke_width: 5.0,
-            ..Default::default()
-        },
-    ))
-}
-
-fn render_knot_to_html(diagram: &str, moves: knotty::DiagramMoves) -> Html {
-    // TODO return err
-    let diagram = match render_knot(diagram, moves) {
-        Ok(diagram) => diagram,
-        Err(err) => return html! { <p>{ format!("Error: {}", err) }</p> },
-    };
-
+fn ascii_diagram_to_html(diagram: &str) -> Html {
     diagram
         .bytes()
         .map(|byte| match byte {
@@ -170,6 +259,16 @@ fn render_knot_to_html(diagram: &str, moves: knotty::DiagramMoves) -> Html {
             _ => unreachable!("bug!"),
         })
         .collect()
+}
+
+fn ascii_diagram_to_svg(diagram: &str) -> String {
+    svgbob::to_svg_with_settings(
+        diagram,
+        &svgbob::Settings {
+            stroke_width: 5.0,
+            ..Default::default()
+        },
+    )
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Properties)]
