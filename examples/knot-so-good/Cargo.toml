@@ -10,4 +10,5 @@ yew = "0.19.3"
 knotty = { path = "../../../knotty" }
 wasm-bindgen = "0.2.83"
 web-sys = "0.3.60"
+js-sys = "0.3.60"
 svgbob = "0.6.7"

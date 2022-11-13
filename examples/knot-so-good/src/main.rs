@@ -1,3 +1,4 @@
+use wasm_bindgen::JsValue;
 use web_sys::Node;
 use yew::{prelude::*, virtual_dom::VNode};
 
@@ -99,9 +100,27 @@ impl Component for Model {
             Msg::Moves(value)
         });
 
+        let svg = render_knot_to_svg(&self.encoded_diagram, self.parsed_moves.clone())
+            .unwrap_or_default();
+
+        let array: JsValue = std::iter::once(JsValue::from_str(&svg.clone()))
+            .collect::<js_sys::Array>()
+            .into();
+
+        let url = web_sys::Blob::new_with_str_sequence_and_options(
+            &array,
+            &*web_sys::BlobPropertyBag::new().type_("image/svg+xml;charset=utf-8"),
+        )
+        .map_err(|err| web_sys::console::log_1(&err.into()))
+        .and_then(|blob| {
+            web_sys::Url::create_object_url_with_blob(&blob)
+                .map_err(|err| web_sys::console::log_1(&err.into()))
+        });
+
         html! {
             <div>
-                <RawHtml inner_html={render_knot_to_svg(&self.encoded_diagram, self.parsed_moves.clone()).unwrap_or_default()}></RawHtml>
+                <RawHtml inner_html={svg}></RawHtml>
+                <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
                 <p><pre>{ self.diagram.clone() }</pre></p>
                 <textarea
                     value={self.encoded_diagram.clone()}
