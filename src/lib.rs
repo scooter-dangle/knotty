@@ -914,6 +914,7 @@ impl FromStr for DiagramMoves {
         CommentLines {
             delimiter: "\n",
             comment_start: "#",
+            inner_delimiter: None,
         }
         .parse(Self, string)
     }
@@ -2506,9 +2507,11 @@ pub struct AbbreviatedDiagram(Vec<AbbreviatedItem>);
 struct CommentLines {
     delimiter: &'static str,
     comment_start: &'static str,
+    inner_delimiter: Option<&'static str>,
 }
 
 impl CommentLines {
+    // Get rid of the comment lines and trailing comments
     fn split_n_strip<'a>(self, string: &'a str) -> impl 'a + Iterator<Item = &'a str> {
         string
             .split(self.delimiter)
@@ -2521,7 +2524,17 @@ impl CommentLines {
     where
         OK: 'a + FromStr<Err = ERR>,
     {
-        self.split_n_strip(string).map(str::parse)
+        let inner_delimiter = self.inner_delimiter.unwrap_or(self.delimiter);
+
+        self.split_n_strip(string)
+            .flat_map(move |line| {
+                // If we default to the main delimiter when no inner
+                // delimiter is provided, it's essentially a no-op since
+                // we've already split on the main delimiter.
+                line.split(inner_delimiter).map(str::trim)
+            })
+            .filter(|line| !line.is_empty())
+            .map(str::parse)
     }
 
     fn parse<'a, OK, ERR, T>(
@@ -2544,6 +2557,7 @@ impl FromStr for AbbreviatedDiagram {
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         CommentLines {
             delimiter: "\n",
+            inner_delimiter: Some(" "),
             comment_start: "#",
         }
         .parse(Self, string)
