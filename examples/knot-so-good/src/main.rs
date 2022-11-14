@@ -100,7 +100,13 @@ fn move_select(
 ) -> Html {
     {
         html! {
-            <>
+            // We're only using 'dialog' here to get the Enter button
+            // to work correctly in Chrome on Android. Without wrapping
+            // each input in a form, Chrome's 'Enter' button is a Tab
+            // unless you're on the last input item. But then when you
+            // wrap the input in a form, Chrome refreshes the page when
+            // you press Enter.
+            <form action="" method="dialog">
             <input
                 class="select-move"
                 placeholder={format!("select a {label} move")}
@@ -113,7 +119,7 @@ fn move_select(
             <datalist id={format!("{label}-moves")}>{ moves.iter().map(|moove| html! {
                 <option value={moove.to_string()}>{ moove.to_string() }</option>
             }).collect::<Html>() }</datalist>
-            </>
+            </form>
         }
     }
 }
