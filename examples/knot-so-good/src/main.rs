@@ -1,6 +1,6 @@
 use knotty::DiagramMove;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{EventTarget, Node};
+use web_sys::{EventTarget, HtmlTextAreaElement, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
 enum Msg {
@@ -30,37 +30,26 @@ struct Model {
 }
 
 const UNKNOT: &str = "\
-    (0\n\
-    )0\n\
+    (0 )0\
 ";
 
 const TREFOIL: &str = "\
-    (0\n\
-    (2\n\
-    /1\n\
-    \\0\n\
-    /1\n\
-    )2\n\
-    )0\n\
+    (0 (2 /1 \\0 /1 )2 )0\
 ";
 
 const SQUARE_KNOT: &str = "\
-    (0\n\
-    (2\n\
-    \\1\n\
-    (3\n\
-    /2\n\
-    /4\n\
-    )3\n\
-    \\1\n\
-    )2\n\
-    )0\n\
+    (0 (2 \\1 (3 /2 /4 )3 \\1 )2 )0\
+";
+
+const KNOT_5_1: &str = "\
+    (0 (2 /1 \\0 \\0 \\0 /1 )2 )0\
 ";
 
 const BUILT_IN_KNOTS: &[(&str, &str)] = &[
     ("unknot", UNKNOT),
     ("trefoil", TREFOIL),
     ("square knot", SQUARE_KNOT),
+    ("knot 5_1", KNOT_5_1),
 ];
 
 impl Model {
@@ -225,14 +214,11 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        use wasm_bindgen::JsCast;
-        use web_sys::{EventTarget, HtmlTextAreaElement};
-
         let link = ctx.link();
 
         // This is a mess.
-        let diagram_oninput = link.callback(|e: InputEvent| {
-            let value = e
+        let diagram_oninput = link.callback(|event: InputEvent| {
+            let value = event
                 .dyn_into()
                 .ok()
                 .and_then(|event: Event| event.target())
@@ -245,8 +231,8 @@ impl Component for Model {
         });
 
         // This is a mess.
-        let moves_oninput = link.callback(|e: InputEvent| {
-            let value = e
+        let moves_oninput = link.callback(|event: InputEvent| {
+            let value = event
                 .dyn_into()
                 .ok()
                 .and_then(|event: Event| event.target())
@@ -256,25 +242,6 @@ impl Component for Model {
                 .map(|target| target.value());
 
             Msg::Moves(value)
-        });
-
-        let add_move_oninput = link.batch_callback(|event: KeyboardEvent| {
-            if event.key() != "Enter" {
-                return None;
-            }
-
-            let value = event
-                .dyn_into()
-                .ok()
-                .and_then(|event: Event| event.target())
-                .and_then(
-                    |event_target: EventTarget| -> Option<web_sys::HtmlInputElement> {
-                        event_target.dyn_into().ok()
-                    },
-                )
-                .map(|target| target.value());
-
-            value.map(Msg::AddMove)
         });
 
         let svg = ascii_diagram_to_svg(&self.ascii_modified_diagram.as_deref().unwrap_or(""));
@@ -332,6 +299,7 @@ impl Component for Model {
                     value={self.raw_base_diagram.clone()}
                     oninput={diagram_oninput}>
                 </textarea>
+                <br/>
                 <textarea
                     value={self.raw_moves.clone()}
                     oninput={moves_oninput}>
