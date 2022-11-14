@@ -885,6 +885,16 @@ pub struct DiagramMove {
     r#move: Move,
 }
 
+impl DiagramMove {
+    pub fn r#move(&self) -> Move {
+        self.r#move
+    }
+
+    pub fn idx(&self) -> usize {
+        self.idx
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct DiagramMoves(Vec<DiagramMove>);
 

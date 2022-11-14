@@ -1,5 +1,6 @@
-use wasm_bindgen::JsValue;
-use web_sys::Node;
+use knotty::DiagramMove;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{EventTarget, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
 enum Msg {
@@ -78,6 +79,53 @@ impl Model {
             .ascii_modified_diagram
             .as_deref()
             .map_or_else(|err| error_to_html(err), ascii_diagram_to_html);
+    }
+}
+
+fn onkeypress_add_move(scope: &html::Scope<Model>) -> Callback<KeyboardEvent> {
+    scope.batch_callback(|event: KeyboardEvent| {
+        if event.key() != "Enter" {
+            return None;
+        }
+
+        let value = event
+            .dyn_into()
+            .ok()
+            .and_then(|event: Event| event.target())
+            .and_then(
+                |event_target: EventTarget| -> Option<web_sys::HtmlInputElement> {
+                    event_target.dyn_into().ok()
+                },
+            )
+            .map(|target| target.value());
+
+        value.map(Msg::AddMove)
+    })
+}
+
+fn move_select(
+    link: &html::Scope<Model>,
+    label: &str,
+    moves: &[DiagramMove],
+    parsed_moves_valid: bool,
+) -> Html {
+    {
+        html! {
+            <>
+            <input
+                class="select-move"
+                placeholder={format!("select a {label} move")}
+                autocomplete="on"
+                list={format!("{label}-moves")}
+                onkeypress={onkeypress_add_move(link)}
+                value=""
+                disabled={!parsed_moves_valid || moves.is_empty()}
+            />
+            <datalist id={format!("{label}-moves")}>{ moves.iter().map(|moove| html! {
+                <option value={moove.to_string()}>{ moove.to_string() }</option>
+            }).collect::<Html>() }</datalist>
+            </>
+        }
     }
 }
 
@@ -250,10 +298,15 @@ impl Component for Model {
             DisplayMode::Svg => DisplayMode::Ascii,
         };
 
-        let available_moves = self
+        let Moves {
+            changing,
+            complecting,
+            rearranging,
+            simplifying,
+        } = self
             .modified_diagram
             .as_ref()
-            .map(|diagram| diagram.available_moves().collect::<Vec<_>>())
+            .map(|diagram| diagram.available_moves().collect::<Moves>())
             .unwrap_or_default();
 
         html! {
@@ -283,28 +336,61 @@ impl Component for Model {
                     value={self.raw_moves.clone()}
                     oninput={moves_oninput}>
                 </textarea>
-                { html! {
-                    <>
-                    <br/>
-                    <input
-                        class="select-move"
-                        placeholder="select move"
-                        autocomplete="on"
-                        list="moves"
-                        onkeypress={add_move_oninput}
-                        value=""
-                        disabled={!self.parsed_moves_valid || available_moves.is_empty()}
-                    />
-                    <datalist id="moves">{ available_moves.iter().map(|moove| html! {
-                        <option value={moove.to_string()}>{ moove.to_string() }</option>
-                    }).collect::<Html>() }</datalist>
-                    </>
-                } }
+
+                {
+                    [
+                        ("simplifying", simplifying),
+                        ("reärranging", rearranging),
+                        ("complecting", complecting),
+                        ("changing", changing),
+                    ].into_iter().flat_map(|(label, moves)| {
+                        [html! { <br/> }, move_select(link, label, &moves, self.parsed_moves_valid)]
+                    }).collect::<Html>()
+                }
+
                 <br/>
                 <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
                 <br/>
             </>
         }
+    }
+}
+
+#[derive(Default)]
+struct Moves {
+    changing: Vec<DiagramMove>,
+    complecting: Vec<DiagramMove>,
+    rearranging: Vec<DiagramMove>,
+    simplifying: Vec<DiagramMove>,
+}
+
+impl FromIterator<DiagramMove> for Moves {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = DiagramMove>,
+    {
+        use knotty::Move::*;
+
+        let mut moves = Self::default();
+
+        iter.into_iter().for_each(|moove| {
+            (match moove.r#move() {
+                ChangeCrossing => &mut moves.changing,
+
+                Bulge { .. } | Reid1a { .. } | Reid1b { .. } | Reid2 { .. } => {
+                    &mut moves.complecting
+                }
+
+                Swap | WrapAround | Reid3 => &mut moves.rearranging,
+
+                CollapseBulge | CollapseReid1a | CollapseReid1b | Collapse2Reduce => {
+                    &mut moves.simplifying
+                }
+            })
+            .push(moove)
+        });
+
+        moves
     }
 }
 
