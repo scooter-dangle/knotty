@@ -357,7 +357,7 @@ impl FromIterator<DiagramMove> for Moves {
 
                 Swap | WrapAround | Reid3 => &mut moves.rearranging,
 
-                CollapseBulge | CollapseReid1a | CollapseReid1b | Collapse2Reduce => {
+                CollapseBulge | CollapseReid1a | CollapseReid1b | CollapseReid2 => {
                     &mut moves.simplifying
                 }
             })

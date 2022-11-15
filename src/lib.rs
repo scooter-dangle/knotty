@@ -680,7 +680,7 @@ pub enum Move {
         over_under: OverUnder,
         vertical_index: usize,
     },
-    Collapse2Reduce,
+    CollapseReid2,
     Reid3,
 
     ChangeCrossing,
@@ -710,7 +710,7 @@ impl fmt::Display for Move {
                 over_under,
                 vertical_index,
             } => write!(formatter, "reid_2({over_under}, {vertical_index})"),
-            Collapse2Reduce => write!(formatter, "collapse_reid_2"),
+            CollapseReid2 => write!(formatter, "collapse_reid_2"),
             Reid3 => write!(formatter, "reid_3"),
             Bulge {
                 lean,
@@ -759,7 +759,7 @@ impl FromStr for Move {
             "collapse_bulge" => CollapseBulge,
             "collapse_reid_1a" => CollapseReid1a,
             "collapse_reid_1b" => CollapseReid1b,
-            "collapse_reid_2" => Collapse2Reduce,
+            "collapse_reid_2" => CollapseReid2,
             "reid_3" => Reid3,
             "reid_1a" => Reid1a {
                 over_under: open_par_splits
@@ -1201,7 +1201,7 @@ impl AbbreviatedDiagram {
             CollapseBulge => Self::try_collapse_bulge,
             CollapseReid1a => Self::try_reid_1_a_reduce,
             CollapseReid1b => Self::try_reid_1_b_reduce,
-            Collapse2Reduce => Self::try_collapse_reid_2,
+            CollapseReid2 => Self::try_collapse_reid_2,
             Reid3 => Self::try_reid_3,
             Reid1a { over_under } => return self.try_reid_1_a(over_under, diagram_move.idx),
             Reid1b {
@@ -1732,7 +1732,7 @@ impl AbbreviatedDiagram {
                     AbbreviatedItem::is_collapse_reid_2_eligible(item0, item1).then(|| {
                         DiagramMove {
                             idx,
-                            r#move: Move::Collapse2Reduce,
+                            r#move: Move::CollapseReid2,
                         }
                     })
                 }),
