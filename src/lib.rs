@@ -898,6 +898,12 @@ impl DiagramMove {
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct DiagramMoves(Vec<DiagramMove>);
 
+impl From<Vec<DiagramMove>> for DiagramMoves {
+    fn from(moves: Vec<DiagramMove>) -> Self {
+        Self(moves)
+    }
+}
+
 impl IntoIterator for DiagramMoves {
     type Item = DiagramMove;
     type IntoIter = std::vec::IntoIter<Self::Item>;
