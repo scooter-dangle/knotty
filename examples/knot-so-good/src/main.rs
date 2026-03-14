@@ -258,7 +258,11 @@ impl Component for Model {
 
         let url = web_sys::Blob::new_with_str_sequence_and_options(
             &array,
-            &*web_sys::BlobPropertyBag::new().type_("image/svg+xml;charset=utf-8"),
+            &{
+                let bag = web_sys::BlobPropertyBag::new();
+                bag.set_type("image/svg+xml;charset=utf-8");
+                bag
+            },
         )
         .map_err(|err| web_sys::console::log_1(&err.into()))
         .and_then(|blob| {
