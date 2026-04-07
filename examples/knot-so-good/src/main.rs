@@ -3,14 +3,18 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{EventTarget, HtmlTextAreaElement, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
+fn default_display_mode() -> String {
+    "svg".to_string()
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 struct PersistedState {
     #[serde(default)]
     diagram: String,
     #[serde(default)]
     moves: String,
-    #[serde(default)]
-    display_mode: String, // "svg" | "ascii"; missing/unknown → Svg
+    #[serde(default = "default_display_mode")]
+    display_mode: String, // "svg" | "ascii"
 }
 
 impl PersistedState {
@@ -32,11 +36,13 @@ fn get_local_storage() -> Option<web_sys::Storage> {
     web_sys::window().and_then(|window| window.local_storage().ok().flatten())
 }
 
-fn load_from_storage() -> Result<Option<PersistedState>, ()> {
-    let storage = get_local_storage().ok_or(())?;
+fn load_from_storage() -> Result<Option<PersistedState>, String> {
+    let storage = get_local_storage().ok_or_else(|| "localStorage unavailable".to_string())?;
     match storage.get_item(STORAGE_KEY).ok().flatten() {
         None => Ok(None),
-        Some(json_str) => serde_json::from_str(&json_str).map(Some).map_err(|_| ()),
+        Some(json_str) => serde_json::from_str(&json_str)
+            .map(Some)
+            .map_err(|err| err.to_string()),
     }
 }
 
@@ -81,7 +87,7 @@ struct Model {
     parsed_moves: knotty::DiagramMoves,
     parsed_moves_valid: bool,
     ascii_html_diagram: Html,
-    storage_error: bool,
+    storage_error: Option<String>,
 }
 
 const UNKNOT: &str = "\
@@ -191,12 +197,13 @@ impl Component for Model {
                         "ascii" => DisplayMode::Ascii,
                         _ => DisplayMode::Svg,
                     };
-                    (persisted.diagram, persisted.moves, mode, false)
+                    (persisted.diagram, persisted.moves, mode, None)
                 }
-                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, false),
-                Err(()) => {
+                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, None),
+                Err(err) => {
                     clear_storage();
-                    (String::new(), String::new(), DisplayMode::Svg, true)
+                    web_sys::console::error_1(&format!("knotty: failed to restore state: {err}").into());
+                    (String::new(), String::new(), DisplayMode::Svg, Some(err))
                 }
             };
 
@@ -226,7 +233,7 @@ impl Component for Model {
 
         let should_render = match msg {
             DismissStorageError => {
-                self.storage_error = false;
+                self.storage_error = None;
                 true
             }
             DisplayMode(mode) => {
@@ -376,9 +383,9 @@ impl Component for Model {
 
         html! {
             <>
-                if self.storage_error {
+                if let Some(ref err) = self.storage_error {
                     <p>
-                        { "Could not restore saved state (corrupt data was cleared). " }
+                        { format!("Could not restore saved state (corrupt data was cleared): {err}. ") }
                         <button onclick={link.callback(|_| Msg::DismissStorageError)}>
                             { "Dismiss" }
                         </button>
@@ -586,7 +593,7 @@ mod tests {
         let restored: PersistedState =
             serde_json::from_str(r#"{"diagram":"(0 )0","moves":""}"#).unwrap();
         assert_eq!(restored.diagram, "(0 )0");
-        assert_eq!(restored.display_mode, ""); // empty string → treated as Svg in create()
+        assert_eq!(restored.display_mode, "svg");
     }
 
     #[test]
