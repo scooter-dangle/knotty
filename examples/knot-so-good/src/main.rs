@@ -3,8 +3,33 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{EventTarget, HtmlTextAreaElement, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
-fn default_display_mode() -> String {
-    "svg".to_string()
+#[derive(Default, PartialEq, Debug)]
+enum PersistedDisplayMode {
+    #[default]
+    Svg,
+    Ascii,
+    Other(String),
+}
+
+impl serde::Serialize for PersistedDisplayMode {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Svg => s.serialize_str("svg"),
+            Self::Ascii => s.serialize_str("ascii"),
+            Self::Other(x) => s.serialize_str(x),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PersistedDisplayMode {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Ok(match s.as_str() {
+            "svg" => Self::Svg,
+            "ascii" => Self::Ascii,
+            _ => Self::Other(s),
+        })
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Default)]
@@ -13,8 +38,8 @@ struct PersistedState {
     diagram: String,
     #[serde(default)]
     moves: String,
-    #[serde(default = "default_display_mode")]
-    display_mode: String, // "svg" | "ascii"
+    #[serde(default)]
+    display_mode: PersistedDisplayMode,
 }
 
 impl PersistedState {
@@ -23,8 +48,8 @@ impl PersistedState {
             diagram: model.raw_base_diagram.clone(),
             moves: model.raw_moves.clone(),
             display_mode: match model.display_mode {
-                DisplayMode::Svg => "svg".to_string(),
-                DisplayMode::Ascii => "ascii".to_string(),
+                DisplayMode::Svg => PersistedDisplayMode::Svg,
+                DisplayMode::Ascii => PersistedDisplayMode::Ascii,
             },
         }
     }
@@ -193,9 +218,9 @@ impl Component for Model {
         let (raw_base_diagram, raw_moves, display_mode, storage_error) =
             match load_from_storage() {
                 Ok(Some(persisted)) => {
-                    let mode = match persisted.display_mode.as_str() {
-                        "ascii" => DisplayMode::Ascii,
-                        _ => DisplayMode::Svg,
+                    let mode = match persisted.display_mode {
+                        PersistedDisplayMode::Ascii => DisplayMode::Ascii,
+                        PersistedDisplayMode::Svg | PersistedDisplayMode::Other(_) => DisplayMode::Svg,
                     };
                     (persisted.diagram, persisted.moves, mode, None)
                 }
@@ -562,20 +587,20 @@ mod tests {
     // These tests run against the host target (`cargo test`).
     // The LocalStorage glue (load_from_storage/save_to_storage) wraps web_sys
     // and is not tested here; it is too thin to warrant browser-based tests.
-    use super::PersistedState;
+    use super::{PersistedDisplayMode, PersistedState};
 
     #[test]
     fn round_trip_full() {
         let state = PersistedState {
             diagram: "(0 )0".into(),
             moves: "swap".into(),
-            display_mode: "ascii".into(),
+            display_mode: PersistedDisplayMode::Ascii,
         };
         let json = serde_json::to_string(&state).unwrap();
         let restored: PersistedState = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.diagram, "(0 )0");
         assert_eq!(restored.moves, "swap");
-        assert_eq!(restored.display_mode, "ascii");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Ascii);
     }
 
     #[test]
@@ -584,7 +609,7 @@ mod tests {
         let restored: PersistedState = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.diagram, "");
         assert_eq!(restored.moves, "");
-        assert_eq!(restored.display_mode, "");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
     }
 
     #[test]
@@ -593,7 +618,7 @@ mod tests {
         let restored: PersistedState =
             serde_json::from_str(r#"{"diagram":"(0 )0","moves":""}"#).unwrap();
         assert_eq!(restored.diagram, "(0 )0");
-        assert_eq!(restored.display_mode, "svg");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
     }
 
     #[test]
@@ -603,7 +628,7 @@ mod tests {
             r#"{"diagram":"","moves":"","display_mode":"svg","future_field":42}"#,
         )
         .unwrap();
-        assert_eq!(restored.display_mode, "svg");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
     }
 
     #[test]
@@ -612,15 +637,17 @@ mod tests {
     }
 
     #[test]
-    fn display_mode_string_unknown_falls_back_to_svg() {
-        // The match expression used in create() must fall back to Svg for unknown strings.
-        // Exercises the exact pattern used there.
+    fn display_mode_unknown_string_deserializes_to_other() {
+        // Unknown display_mode values are preserved as Other(_) for forward compatibility.
+        // In create(), Other(_) falls back to DisplayMode::Svg.
         for mode_str in ["", "garbage", "SVG", "ASCII"] {
-            let resolved = match mode_str {
-                "ascii" => "ascii",
-                _ => "svg",
-            };
-            assert_eq!(resolved, "svg", "expected Svg fallback for {mode_str:?}");
+            let json = format!(r#"{{"diagram":"","moves":"","display_mode":{mode_str:?}}}"#);
+            let restored: PersistedState = serde_json::from_str(&json).unwrap();
+            assert!(
+                matches!(restored.display_mode, PersistedDisplayMode::Other(_)),
+                "expected Other for {mode_str:?}, got {:?}",
+                restored.display_mode,
+            );
         }
     }
 }
