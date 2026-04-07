@@ -3,33 +3,14 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{EventTarget, HtmlTextAreaElement, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
-#[derive(Default, PartialEq, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Default, PartialEq, Debug)]
+#[serde(rename_all = "snake_case")]
 enum PersistedDisplayMode {
     #[default]
     Svg,
     Ascii,
-    Other(String),
-}
-
-impl serde::Serialize for PersistedDisplayMode {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::Svg => s.serialize_str("svg"),
-            Self::Ascii => s.serialize_str("ascii"),
-            Self::Other(x) => s.serialize_str(x),
-        }
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for PersistedDisplayMode {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        Ok(match s.as_str() {
-            "svg" => Self::Svg,
-            "ascii" => Self::Ascii,
-            _ => Self::Other(s),
-        })
-    }
+    #[serde(other)]
+    Other,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Default)]
@@ -220,7 +201,7 @@ impl Component for Model {
                 Ok(Some(persisted)) => {
                     let mode = match persisted.display_mode {
                         PersistedDisplayMode::Ascii => DisplayMode::Ascii,
-                        PersistedDisplayMode::Svg | PersistedDisplayMode::Other(_) => DisplayMode::Svg,
+                        PersistedDisplayMode::Svg | PersistedDisplayMode::Other => DisplayMode::Svg,
                     };
                     (persisted.diagram, persisted.moves, mode, None)
                 }
@@ -638,15 +619,15 @@ mod tests {
 
     #[test]
     fn display_mode_unknown_string_deserializes_to_other() {
-        // Unknown display_mode values are preserved as Other(_) for forward compatibility.
-        // In create(), Other(_) falls back to DisplayMode::Svg.
+        // Unknown display_mode values deserialize to Other for forward compatibility.
+        // In create(), Other falls back to DisplayMode::Svg.
         for mode_str in ["", "garbage", "SVG", "ASCII"] {
             let json = format!(r#"{{"diagram":"","moves":"","display_mode":{mode_str:?}}}"#);
             let restored: PersistedState = serde_json::from_str(&json).unwrap();
-            assert!(
-                matches!(restored.display_mode, PersistedDisplayMode::Other(_)),
-                "expected Other for {mode_str:?}, got {:?}",
+            assert_eq!(
                 restored.display_mode,
+                PersistedDisplayMode::Other,
+                "expected Other for {mode_str:?}",
             );
         }
     }
