@@ -14,11 +14,12 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
     steps:
       - uses: anthropics/claude-code-action@c281e17d7fbbea390fc94d336d6b7904f10d2a41 # v1.0.84
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          direct_prompt: |
+          prompt: |
             Review this pull request. Focus on:
             - Correctness and soundness of Rust code
             - Adherence to conventions in CLAUDE.md (conventional commits, minimal abstractions, no docstrings on unchanged code)
