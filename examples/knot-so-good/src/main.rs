@@ -3,11 +3,77 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{EventTarget, HtmlTextAreaElement, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
+#[derive(serde::Serialize, serde::Deserialize, Default, PartialEq, Debug)]
+#[serde(rename_all = "snake_case")]
+enum PersistedDisplayMode {
+    #[default]
+    Svg,
+    Ascii,
+    #[serde(other)]
+    Other,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+struct PersistedState {
+    #[serde(default)]
+    diagram: String,
+    #[serde(default)]
+    moves: String,
+    #[serde(default)]
+    display_mode: PersistedDisplayMode,
+}
+
+impl PersistedState {
+    fn from_model(model: &Model) -> Self {
+        Self {
+            diagram: model.raw_base_diagram.clone(),
+            moves: model.raw_moves.clone(),
+            display_mode: match model.display_mode {
+                DisplayMode::Svg => PersistedDisplayMode::Svg,
+                DisplayMode::Ascii => PersistedDisplayMode::Ascii,
+            },
+        }
+    }
+}
+
+const STORAGE_KEY: &str = "knotty_state";
+
+fn get_local_storage() -> Option<web_sys::Storage> {
+    web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+}
+
+fn load_from_storage() -> Result<Option<PersistedState>, String> {
+    let storage = get_local_storage().ok_or_else(|| "localStorage unavailable".to_string())?;
+    match storage.get_item(STORAGE_KEY).ok().flatten() {
+        None => Ok(None),
+        Some(json_str) => serde_json::from_str(&json_str)
+            .map(Some)
+            .map_err(|err| err.to_string()),
+    }
+}
+
+fn save_to_storage(state: &PersistedState) {
+    let Some(storage) = get_local_storage() else {
+        return;
+    };
+    if let Ok(json) = serde_json::to_string(state) {
+        let _ = storage.set_item(STORAGE_KEY, &json);
+    }
+}
+
+fn clear_storage() {
+    let Some(storage) = get_local_storage() else {
+        return;
+    };
+    let _ = storage.remove_item(STORAGE_KEY);
+}
+
 enum Msg {
     DisplayMode(DisplayMode),
     Diagram(Option<String>),
     Moves(Option<String>),
     AddMove(String),
+    DismissStorageError,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -27,6 +93,7 @@ struct Model {
     parsed_moves: knotty::DiagramMoves,
     parsed_moves_valid: bool,
     ascii_html_diagram: Html,
+    storage_error: Option<String>,
 }
 
 const UNKNOT: &str = "\
@@ -129,23 +196,52 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            display_mode: Default::default(),
-            raw_base_diagram: String::new(),
-            parsed_base_diagram: Ok(Default::default()),
+        let (raw_base_diagram, raw_moves, display_mode, storage_error) =
+            match load_from_storage() {
+                Ok(Some(persisted)) => {
+                    let mode = match persisted.display_mode {
+                        PersistedDisplayMode::Ascii => DisplayMode::Ascii,
+                        PersistedDisplayMode::Svg | PersistedDisplayMode::Other => DisplayMode::Svg,
+                    };
+                    (persisted.diagram, persisted.moves, mode, None)
+                }
+                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, None),
+                Err(err) => {
+                    clear_storage();
+                    web_sys::console::error_1(&format!("knotty: failed to restore state: {err}").into());
+                    (String::new(), String::new(), DisplayMode::Svg, Some(err))
+                }
+            };
+
+        let parsed_base_diagram = raw_base_diagram.parse();
+        let parsed_moves_result = raw_moves.parse::<knotty::DiagramMoves>();
+        let parsed_moves_valid = parsed_moves_result.is_ok();
+        let parsed_moves = parsed_moves_result.unwrap_or_default();
+
+        let mut model = Self {
+            display_mode,
+            raw_base_diagram,
+            parsed_base_diagram,
             modified_diagram: Ok(Default::default()),
             ascii_modified_diagram: Ok(String::new()),
             ascii_html_diagram: Default::default(),
-            parsed_moves: Default::default(),
-            parsed_moves_valid: true,
-            raw_moves: "".to_string(),
-        }
+            parsed_moves,
+            parsed_moves_valid,
+            raw_moves,
+            storage_error,
+        };
+        model.update_modified();
+        model
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         use Msg::*;
 
-        match msg {
+        let should_render = match msg {
+            DismissStorageError => {
+                self.storage_error = None;
+                true
+            }
             DisplayMode(mode) => {
                 if self.display_mode == mode {
                     false
@@ -216,7 +312,12 @@ impl Component for Model {
                 ))),
             ),
             Moves(None) | Diagram(None) => false,
+        };
+
+        if should_render {
+            save_to_storage(&PersistedState::from_model(self));
         }
+        should_render
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -288,6 +389,14 @@ impl Component for Model {
 
         html! {
             <>
+                if let Some(ref err) = self.storage_error {
+                    <p>
+                        { format!("Could not restore saved state (corrupt data was cleared): {err}. ") }
+                        <button onclick={link.callback(|_| Msg::DismissStorageError)}>
+                            { "Dismiss" }
+                        </button>
+                    </p>
+                }
                 { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
                     <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
                 }).collect::<Html>() }
@@ -452,4 +561,74 @@ impl Component for RawHtml {
 
 fn main() {
     yew::start_app::<Model>();
+}
+
+#[cfg(test)]
+mod tests {
+    // These tests run against the host target (`cargo test`).
+    // The LocalStorage glue (load_from_storage/save_to_storage) wraps web_sys
+    // and is not tested here; it is too thin to warrant browser-based tests.
+    use super::{PersistedDisplayMode, PersistedState};
+
+    #[test]
+    fn round_trip_full() {
+        let state = PersistedState {
+            diagram: "(0 )0".into(),
+            moves: "swap".into(),
+            display_mode: PersistedDisplayMode::Ascii,
+        };
+        let json = serde_json::to_string(&state).unwrap();
+        let restored: PersistedState = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.diagram, "(0 )0");
+        assert_eq!(restored.moves, "swap");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Ascii);
+    }
+
+    #[test]
+    fn round_trip_empty() {
+        let json = serde_json::to_string(&PersistedState::default()).unwrap();
+        let restored: PersistedState = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.diagram, "");
+        assert_eq!(restored.moves, "");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
+    }
+
+    #[test]
+    fn missing_fields_use_defaults() {
+        // Older version wrote state without display_mode
+        let restored: PersistedState =
+            serde_json::from_str(r#"{"diagram":"(0 )0","moves":""}"#).unwrap();
+        assert_eq!(restored.diagram, "(0 )0");
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
+    }
+
+    #[test]
+    fn unknown_fields_are_ignored() {
+        // Newer version wrote a field this version doesn't know about
+        let restored: PersistedState = serde_json::from_str(
+            r#"{"diagram":"","moves":"","display_mode":"svg","future_field":42}"#,
+        )
+        .unwrap();
+        assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
+    }
+
+    #[test]
+    fn invalid_json_triggers_error_path() {
+        assert!(serde_json::from_str::<PersistedState>("not json").is_err());
+    }
+
+    #[test]
+    fn display_mode_unknown_string_deserializes_to_other() {
+        // Unknown display_mode values deserialize to Other for forward compatibility.
+        // In create(), Other falls back to DisplayMode::Svg.
+        for mode_str in ["", "garbage", "SVG", "ASCII"] {
+            let json = format!(r#"{{"diagram":"","moves":"","display_mode":{mode_str:?}}}"#);
+            let restored: PersistedState = serde_json::from_str(&json).unwrap();
+            assert_eq!(
+                restored.display_mode,
+                PersistedDisplayMode::Other,
+                "expected Other for {mode_str:?}",
+            );
+        }
+    }
 }

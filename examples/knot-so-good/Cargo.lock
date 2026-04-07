@@ -329,6 +329,8 @@ version = "0.1.0"
 dependencies = [
  "js-sys",
  "knotty",
+ "serde",
+ "serde_json",
  "svgbob",
  "wasm-bindgen",
  "web-sys",
