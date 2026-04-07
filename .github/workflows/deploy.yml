@@ -22,7 +22,11 @@ jobs:
 
       - uses: cargo-bins/cargo-binstall@bc432b49369a3f25c8c8b19578a82060c18a5dd6 # v1.17.6
 
-      - run: cargo binstall trunk@0.21.4 --no-confirm
+      - run: |
+          if ! trunk --version 2>/dev/null | grep --fixed-strings 'trunk 0.21.4'; then
+            cargo binstall trunk@0.21.4 --no-confirm --force
+          fi
+          trunk --version | grep --fixed-strings 'trunk 0.21.4'
 
       - run: trunk build --release --public-url "/${{ github.event.repository.name }}/"
         working-directory: examples/knot-so-good
