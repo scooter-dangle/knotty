@@ -3,7 +3,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{EventTarget, HtmlTextAreaElement, Node};
 use yew::{prelude::*, virtual_dom::VNode};
 
-#[derive(serde::Serialize, serde::Deserialize, Default, PartialEq, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
 enum PersistedDisplayMode {
     #[default]
@@ -21,6 +21,8 @@ struct PersistedState {
     moves: String,
     #[serde(default)]
     display_mode: PersistedDisplayMode,
+    #[serde(default)]
+    snapshots: Vec<PersistedSnapshot>,
 }
 
 impl PersistedState {
@@ -32,8 +34,20 @@ impl PersistedState {
                 DisplayMode::Svg => PersistedDisplayMode::Svg,
                 DisplayMode::Ascii => PersistedDisplayMode::Ascii,
             },
+            snapshots: model.snapshots.clone(),
         }
     }
+}
+
+const MAX_SNAPSHOTS: usize = 9;
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct PersistedSnapshot {
+    diagram: String,
+    moves: String,
+    display_mode: PersistedDisplayMode,
+    current_diagram_encoding: String,
+    svg: String,
 }
 
 const STORAGE_KEY: &str = "knotty_state";
@@ -74,6 +88,9 @@ enum Msg {
     Moves(Option<String>),
     AddMove(String),
     DismissStorageError,
+    Snapshot,
+    RestoreSnapshot(usize),
+    DeleteSnapshot(usize),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -93,7 +110,9 @@ struct Model {
     parsed_moves: knotty::DiagramMoves,
     parsed_moves_valid: bool,
     ascii_html_diagram: Html,
+    svg_diagram: String,
     storage_error: Option<String>,
+    snapshots: Vec<PersistedSnapshot>,
 }
 
 const UNKNOT: &str = "\
@@ -135,6 +154,9 @@ impl Model {
             .ascii_modified_diagram
             .as_deref()
             .map_or_else(|err| error_to_html(err), ascii_diagram_to_html);
+
+        self.svg_diagram =
+            ascii_diagram_to_svg(self.ascii_modified_diagram.as_deref().unwrap_or(""));
     }
 }
 
@@ -196,20 +218,20 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let (raw_base_diagram, raw_moves, display_mode, storage_error) =
+        let (raw_base_diagram, raw_moves, display_mode, snapshots, storage_error) =
             match load_from_storage() {
                 Ok(Some(persisted)) => {
                     let mode = match persisted.display_mode {
                         PersistedDisplayMode::Ascii => DisplayMode::Ascii,
                         PersistedDisplayMode::Svg | PersistedDisplayMode::Other => DisplayMode::Svg,
                     };
-                    (persisted.diagram, persisted.moves, mode, None)
+                    (persisted.diagram, persisted.moves, mode, persisted.snapshots, None)
                 }
-                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, None),
+                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, Vec::new(), None),
                 Err(err) => {
                     clear_storage();
                     web_sys::console::error_1(&format!("knotty: failed to restore state: {err}").into());
-                    (String::new(), String::new(), DisplayMode::Svg, Some(err))
+                    (String::new(), String::new(), DisplayMode::Svg, Vec::new(), Some(err))
                 }
             };
 
@@ -225,10 +247,12 @@ impl Component for Model {
             modified_diagram: Ok(Default::default()),
             ascii_modified_diagram: Ok(String::new()),
             ascii_html_diagram: Default::default(),
+            svg_diagram: String::new(),
             parsed_moves,
             parsed_moves_valid,
             raw_moves,
             storage_error,
+            snapshots,
         };
         model.update_modified();
         model
@@ -311,6 +335,53 @@ impl Component for Model {
                     }
                 ))),
             ),
+            Snapshot => {
+                if self.snapshots.len() >= MAX_SNAPSHOTS
+                    || self.modified_diagram.is_err()
+                    || !self.parsed_moves_valid
+                {
+                    return false;
+                }
+
+                let modified = self.modified_diagram.as_ref().unwrap();
+                self.snapshots.push(PersistedSnapshot {
+                    diagram: self.raw_base_diagram.clone(),
+                    moves: self.raw_moves.clone(),
+                    display_mode: match self.display_mode {
+                        self::DisplayMode::Svg => PersistedDisplayMode::Svg,
+                        self::DisplayMode::Ascii => PersistedDisplayMode::Ascii,
+                    },
+                    current_diagram_encoding: modified.to_string().replace('\n', " "),
+                    svg: self.svg_diagram.clone(),
+                });
+                true
+            }
+            RestoreSnapshot(idx) => {
+                let Some(snapshot) = self.snapshots.get(idx) else {
+                    return false;
+                };
+
+                self.raw_base_diagram = snapshot.diagram.clone();
+                self.raw_moves = snapshot.moves.clone();
+                self.display_mode = match snapshot.display_mode {
+                    PersistedDisplayMode::Ascii => self::DisplayMode::Ascii,
+                    PersistedDisplayMode::Svg | PersistedDisplayMode::Other => self::DisplayMode::Svg,
+                };
+                self.parsed_base_diagram = self.raw_base_diagram.parse();
+                let parsed_moves_result = self.raw_moves.parse::<knotty::DiagramMoves>();
+                self.parsed_moves_valid = parsed_moves_result.is_ok();
+                self.parsed_moves = parsed_moves_result.unwrap_or_default();
+                self.update_modified();
+                true
+            }
+            DeleteSnapshot(idx) => {
+                if idx < self.snapshots.len() {
+                    self.snapshots.remove(idx);
+                    true
+                } else {
+                    false
+                }
+            }
             Moves(None) | Diagram(None) => false,
         };
 
@@ -351,9 +422,9 @@ impl Component for Model {
             Msg::Moves(value)
         });
 
-        let svg = ascii_diagram_to_svg(&self.ascii_modified_diagram.as_deref().unwrap_or(""));
+        let svg = &self.svg_diagram;
 
-        let array: JsValue = std::iter::once(JsValue::from_str(&svg.clone()))
+        let array: JsValue = std::iter::once(JsValue::from_str(svg))
             .collect::<js_sys::Array>()
             .into();
 
@@ -387,6 +458,10 @@ impl Component for Model {
             .map(|diagram| diagram.available_moves().collect::<Moves>())
             .unwrap_or_default();
 
+        let snapshot_disabled = self.snapshots.len() >= MAX_SNAPSHOTS
+            || self.modified_diagram.is_err()
+            || !self.parsed_moves_valid;
+
         html! {
             <>
                 if let Some(ref err) = self.storage_error {
@@ -401,12 +476,17 @@ impl Component for Model {
                     <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
                 }).collect::<Html>() }
                 <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
+                <button
+                    class="snapshot"
+                    disabled={snapshot_disabled}
+                    onclick={link.callback(|_| Msg::Snapshot)}
+                >{ "snapshot" }</button>
                 { match self.display_mode {
                     DisplayMode::Ascii => html! {
                         <p><pre>{ self.ascii_html_diagram.clone() }</pre></p>
                     },
                     DisplayMode::Svg => html! {
-                        <p><RawHtml inner_html={svg}></RawHtml></p>
+                        <p><RawHtml inner_html={svg.clone()}></RawHtml></p>
                     },
                 } }
                 <pre>{
@@ -438,6 +518,27 @@ impl Component for Model {
                 <br/>
                 <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
                 <br/>
+
+                if !self.snapshots.is_empty() {
+                    <div class="snapshot-catalog">
+                        { self.snapshots.iter().enumerate().map(|(idx, snapshot)| {
+                            html! {
+                                <div class="snapshot-entry">
+                                    <div class="snapshot-preview">
+                                        <RawHtml inner_html={snapshot.svg.clone()} />
+                                    </div>
+                                    <pre>{ &snapshot.current_diagram_encoding }</pre>
+                                    <button onclick={link.callback(move |_| Msg::RestoreSnapshot(idx))}>
+                                        { "restore" }
+                                    </button>
+                                    <button onclick={link.callback(move |_| Msg::DeleteSnapshot(idx))}>
+                                        { "delete" }
+                                    </button>
+                                </div>
+                            }
+                        }).collect::<Html>() }
+                    </div>
+                }
             </>
         }
     }
@@ -566,7 +667,7 @@ mod tests {
     // These tests run against the host target (`cargo test`).
     // The LocalStorage glue (load_from_storage/save_to_storage) wraps web_sys
     // and is not tested here; it is too thin to warrant browser-based tests.
-    use super::{PersistedDisplayMode, PersistedState};
+    use super::{PersistedDisplayMode, PersistedSnapshot, PersistedState};
 
     #[test]
     fn round_trip_full() {
@@ -574,12 +675,14 @@ mod tests {
             diagram: "(0 )0".into(),
             moves: "swap".into(),
             display_mode: PersistedDisplayMode::Ascii,
+            snapshots: Vec::new(),
         };
         let json = serde_json::to_string(&state).unwrap();
         let restored: PersistedState = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.diagram, "(0 )0");
         assert_eq!(restored.moves, "swap");
         assert_eq!(restored.display_mode, PersistedDisplayMode::Ascii);
+        assert!(restored.snapshots.is_empty());
     }
 
     #[test]
@@ -628,5 +731,60 @@ mod tests {
                 "expected Other for {mode_str:?}",
             );
         }
+    }
+
+    #[test]
+    fn round_trip_with_snapshots() {
+        let state = PersistedState {
+            diagram: "(0 )0".into(),
+            moves: "".into(),
+            display_mode: PersistedDisplayMode::Svg,
+            snapshots: vec![
+                PersistedSnapshot {
+                    diagram: "(0 (2 /1 \\0 /1 )2 )0".into(),
+                    moves: "swap@0".into(),
+                    display_mode: PersistedDisplayMode::Ascii,
+                    current_diagram_encoding: "(0 (2 /1 \\0 /1 )2 )0".into(),
+                    svg: "<svg>trefoil</svg>".into(),
+                },
+                PersistedSnapshot {
+                    diagram: "(0 )0".into(),
+                    moves: "".into(),
+                    display_mode: PersistedDisplayMode::Svg,
+                    current_diagram_encoding: "(0 )0".into(),
+                    svg: "<svg>unknot</svg>".into(),
+                },
+            ],
+        };
+        let json = serde_json::to_string(&state).unwrap();
+        let restored: PersistedState = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.snapshots.len(), 2);
+        assert_eq!(restored.snapshots[0].diagram, "(0 (2 /1 \\0 /1 )2 )0");
+        assert_eq!(restored.snapshots[0].moves, "swap@0");
+        assert_eq!(restored.snapshots[0].display_mode, PersistedDisplayMode::Ascii);
+        assert_eq!(restored.snapshots[0].svg, "<svg>trefoil</svg>");
+        assert_eq!(restored.snapshots[1].diagram, "(0 )0");
+    }
+
+    #[test]
+    fn missing_snapshots_field_defaults_to_empty() {
+        // Older persisted state without snapshots field
+        let restored: PersistedState = serde_json::from_str(
+            r#"{"diagram":"(0 )0","moves":"","display_mode":"svg"}"#,
+        )
+        .unwrap();
+        assert!(restored.snapshots.is_empty());
+    }
+
+    #[test]
+    fn unknown_fields_in_snapshots_are_ignored() {
+        let json = r#"{"diagram":"","moves":"","snapshots":[{
+            "diagram":"(0 )0","moves":"","display_mode":"svg",
+            "current_diagram_encoding":"(0 )0","svg":"<svg/>",
+            "future_snapshot_field":"hello"
+        }]}"#;
+        let restored: PersistedState = serde_json::from_str(json).unwrap();
+        assert_eq!(restored.snapshots.len(), 1);
+        assert_eq!(restored.snapshots[0].diagram, "(0 )0");
     }
 }
