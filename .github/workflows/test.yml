@@ -22,3 +22,28 @@ jobs:
       - run: cargo build
 
       - run: cargo test
+
+  build-example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
+        with:
+          workspaces: examples/knot-so-good
+
+      - uses: cargo-bins/cargo-binstall@bc432b49369a3f25c8c8b19578a82060c18a5dd6 # v1.17.6
+
+      - run: |
+          if ! trunk --version 2>/dev/null | grep --fixed-strings 'trunk 0.21.4'; then
+            cargo binstall trunk@0.21.4 --no-confirm --force
+          fi
+          trunk --version | grep --fixed-strings 'trunk 0.21.4'
+
+      - run: trunk build --release
+        working-directory: examples/knot-so-good
