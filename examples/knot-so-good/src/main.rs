@@ -523,11 +523,9 @@ impl Component for RawHtml {
     type Message = Msg;
     type Properties = RawHtmlProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
         RawHtml {
-            props: RawHtmlProps {
-                inner_html: String::new(),
-            },
+            props: ctx.props().clone(),
         }
     }
 
