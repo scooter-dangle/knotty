@@ -139,6 +139,12 @@ const BUILT_IN_KNOTS: &[(&str, &str)] = &[
 ];
 
 impl Model {
+    fn snapshot_disabled(&self) -> bool {
+        self.snapshots.len() >= MAX_SNAPSHOTS
+            || self.modified_diagram.is_err()
+            || !self.parsed_moves_valid
+    }
+
     fn update_modified(&mut self) {
         self.modified_diagram = self.parsed_base_diagram.clone().and_then(|mut knot| {
             knot.try_apply_all(self.parsed_moves.clone())?;
@@ -336,10 +342,7 @@ impl Component for Model {
                 ))),
             ),
             Snapshot => {
-                if self.snapshots.len() >= MAX_SNAPSHOTS
-                    || self.modified_diagram.is_err()
-                    || !self.parsed_moves_valid
-                {
+                if self.snapshot_disabled() {
                     return false;
                 }
 
@@ -458,10 +461,6 @@ impl Component for Model {
             .map(|diagram| diagram.available_moves().collect::<Moves>())
             .unwrap_or_default();
 
-        let snapshot_disabled = self.snapshots.len() >= MAX_SNAPSHOTS
-            || self.modified_diagram.is_err()
-            || !self.parsed_moves_valid;
-
         html! {
             <>
                 if let Some(ref err) = self.storage_error {
@@ -478,7 +477,7 @@ impl Component for Model {
                 <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
                 <button
                     class="snapshot"
-                    disabled={snapshot_disabled}
+                    disabled={self.snapshot_disabled()}
                     onclick={link.callback(|_| Msg::Snapshot)}
                 >{ "snapshot" }</button>
                 { match self.display_mode {
