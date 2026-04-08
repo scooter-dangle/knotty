@@ -524,7 +524,7 @@ impl Component for Model {
                             html! {
                                 <div class="snapshot-entry">
                                     <div class="snapshot-preview">
-                                        <RawHtml inner_html={snapshot.svg.clone()} />
+                                        <RawHtml inner_html={make_svg_scalable(&snapshot.svg)} />
                                     </div>
                                     <pre>{ &snapshot.current_diagram_encoding }</pre>
                                     <button onclick={link.callback(move |_| Msg::RestoreSnapshot(idx))}>
@@ -609,6 +609,35 @@ fn ascii_diagram_to_svg(diagram: &str) -> String {
     )
 }
 
+fn make_svg_scalable(svg: &str) -> String {
+    try_make_svg_scalable(svg).unwrap_or_else(|| svg.to_string())
+}
+
+fn try_make_svg_scalable(svg: &str) -> Option<String> {
+    let tag_end = svg.find('>')?;
+    let svg_tag = &svg[..tag_end];
+
+    let width = svg_attr_value(svg_tag, "width")?;
+    let height = svg_attr_value(svg_tag, "height")?;
+    let width_num = width.trim_end_matches("px");
+    let height_num = height.trim_end_matches("px");
+
+    let new_tag = format!(
+        "{} viewBox=\"0 0 {width_num} {height_num}\"",
+        svg_tag
+            .replacen(&format!(" width=\"{width}\""), "", 1)
+            .replacen(&format!(" height=\"{height}\""), "", 1),
+    );
+    Some(format!("{new_tag}{}", &svg[tag_end..]))
+}
+
+fn svg_attr_value<'a>(tag: &'a str, attr: &str) -> Option<&'a str> {
+    let needle = format!("{attr}=\"");
+    let start = tag.find(needle.as_str())? + needle.len();
+    let end = tag[start..].find('"')? + start;
+    Some(&tag[start..end])
+}
+
 #[derive(Debug, Default, Clone, Eq, PartialEq, Properties)]
 struct RawHtmlProps {
     pub inner_html: String,
@@ -666,7 +695,7 @@ mod tests {
     // These tests run against the host target (`cargo test`).
     // The LocalStorage glue (load_from_storage/save_to_storage) wraps web_sys
     // and is not tested here; it is too thin to warrant browser-based tests.
-    use super::{PersistedDisplayMode, PersistedSnapshot, PersistedState};
+    use super::{ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedSnapshot, PersistedState};
 
     #[test]
     fn round_trip_full() {
@@ -763,6 +792,20 @@ mod tests {
         assert_eq!(restored.snapshots[0].display_mode, PersistedDisplayMode::Ascii);
         assert_eq!(restored.snapshots[0].svg, "<svg>trefoil</svg>");
         assert_eq!(restored.snapshots[1].diagram, "(0 )0");
+    }
+
+    #[test]
+    fn make_svg_scalable_adds_viewbox_and_removes_dimensions() {
+        let svg = ascii_diagram_to_svg("(0 )0");
+        assert!(svg.contains("width="), "svgbob should produce width attr");
+        assert!(svg.contains("height="), "svgbob should produce height attr");
+
+        let scalable = make_svg_scalable(&svg);
+        assert!(scalable.contains("viewBox="), "should add viewBox");
+        let tag_end = scalable.find('>').unwrap();
+        let tag = &scalable[..tag_end];
+        assert!(!tag.contains("width="), "opening tag should not contain width");
+        assert!(!tag.contains("height="), "opening tag should not contain height");
     }
 
     #[test]
