@@ -22,6 +22,8 @@ struct PersistedState {
     #[serde(default)]
     display_mode: PersistedDisplayMode,
     #[serde(default)]
+    compact: bool,
+    #[serde(default)]
     snapshots: Vec<PersistedSnapshot>,
 }
 
@@ -34,6 +36,7 @@ impl PersistedState {
                 DisplayMode::Svg => PersistedDisplayMode::Svg,
                 DisplayMode::Ascii => PersistedDisplayMode::Ascii,
             },
+            compact: model.compact,
             snapshots: model.snapshots.clone(),
         }
     }
@@ -46,6 +49,8 @@ struct PersistedSnapshot {
     diagram: String,
     moves: String,
     display_mode: PersistedDisplayMode,
+    #[serde(default)]
+    compact: bool,
     current_diagram_encoding: String,
     svg: String,
 }
@@ -84,6 +89,7 @@ fn clear_storage() {
 
 enum Msg {
     DisplayMode(DisplayMode),
+    Compact(bool),
     Diagram(Option<String>),
     Moves(Option<String>),
     AddMove(String),
@@ -102,6 +108,7 @@ enum DisplayMode {
 
 struct Model {
     display_mode: DisplayMode,
+    compact: bool,
     raw_base_diagram: String,
     parsed_base_diagram: Result<knotty::AbbreviatedDiagram, String>,
     modified_diagram: Result<knotty::AbbreviatedDiagram, String>,
@@ -154,7 +161,13 @@ impl Model {
         self.ascii_modified_diagram = self
             .modified_diagram
             .clone()
-            .and_then(|knot| knot.try_ascii_print::<false>());
+            .and_then(|knot| {
+                if self.compact {
+                    knot.try_ascii_print_compact::<false>()
+                } else {
+                    knot.try_ascii_print::<false>()
+                }
+            });
 
         self.ascii_html_diagram = self
             .ascii_modified_diagram
@@ -224,20 +237,20 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let (raw_base_diagram, raw_moves, display_mode, snapshots, storage_error) =
+        let (raw_base_diagram, raw_moves, display_mode, compact, snapshots, storage_error) =
             match load_from_storage() {
                 Ok(Some(persisted)) => {
                     let mode = match persisted.display_mode {
                         PersistedDisplayMode::Ascii => DisplayMode::Ascii,
                         PersistedDisplayMode::Svg | PersistedDisplayMode::Other => DisplayMode::Svg,
                     };
-                    (persisted.diagram, persisted.moves, mode, persisted.snapshots, None)
+                    (persisted.diagram, persisted.moves, mode, persisted.compact, persisted.snapshots, None)
                 }
-                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, Vec::new(), None),
+                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, false, Vec::new(), None),
                 Err(err) => {
                     clear_storage();
                     web_sys::console::error_1(&format!("knotty: failed to restore state: {err}").into());
-                    (String::new(), String::new(), DisplayMode::Svg, Vec::new(), Some(err))
+                    (String::new(), String::new(), DisplayMode::Svg, false, Vec::new(), Some(err))
                 }
             };
 
@@ -248,6 +261,7 @@ impl Component for Model {
 
         let mut model = Self {
             display_mode,
+            compact,
             raw_base_diagram,
             parsed_base_diagram,
             modified_diagram: Ok(Default::default()),
@@ -277,6 +291,15 @@ impl Component for Model {
                     false
                 } else {
                     self.display_mode = mode;
+                    true
+                }
+            }
+            Compact(compact) => {
+                if self.compact == compact {
+                    false
+                } else {
+                    self.compact = compact;
+                    self.update_modified();
                     true
                 }
             }
@@ -354,6 +377,7 @@ impl Component for Model {
                         self::DisplayMode::Svg => PersistedDisplayMode::Svg,
                         self::DisplayMode::Ascii => PersistedDisplayMode::Ascii,
                     },
+                    compact: self.compact,
                     current_diagram_encoding: modified.to_string().replace('\n', " "),
                     svg: self.svg_diagram.clone(),
                 });
@@ -370,6 +394,7 @@ impl Component for Model {
                     PersistedDisplayMode::Ascii => self::DisplayMode::Ascii,
                     PersistedDisplayMode::Svg | PersistedDisplayMode::Other => self::DisplayMode::Svg,
                 };
+                self.compact = snapshot.compact;
                 self.parsed_base_diagram = self.raw_base_diagram.parse();
                 let parsed_moves_result = self.raw_moves.parse::<knotty::DiagramMoves>();
                 self.parsed_moves_valid = parsed_moves_result.is_ok();
@@ -449,6 +474,7 @@ impl Component for Model {
             DisplayMode::Ascii => DisplayMode::Svg,
             DisplayMode::Svg => DisplayMode::Ascii,
         };
+        let other_compact = !self.compact;
 
         let Moves {
             changing,
@@ -475,6 +501,9 @@ impl Component for Model {
                     <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
                 }).collect::<Html>() }
                 <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
+                <button onclick={link.callback(move |_| Msg::Compact(other_compact))}>
+                    { if self.compact { "switch to full display" } else { "switch to compact display" } }
+                </button>
                 <button
                     class="snapshot"
                     disabled={self.snapshot_disabled()}
@@ -703,6 +732,7 @@ mod tests {
             diagram: "(0 )0".into(),
             moves: "swap".into(),
             display_mode: PersistedDisplayMode::Ascii,
+            compact: false,
             snapshots: Vec::new(),
         };
         let json = serde_json::to_string(&state).unwrap();
@@ -767,11 +797,13 @@ mod tests {
             diagram: "(0 )0".into(),
             moves: "".into(),
             display_mode: PersistedDisplayMode::Svg,
+            compact: false,
             snapshots: vec![
                 PersistedSnapshot {
                     diagram: "(0 (2 /1 \\0 /1 )2 )0".into(),
                     moves: "swap@0".into(),
                     display_mode: PersistedDisplayMode::Ascii,
+                    compact: false,
                     current_diagram_encoding: "(0 (2 /1 \\0 /1 )2 )0".into(),
                     svg: "<svg>trefoil</svg>".into(),
                 },
@@ -779,6 +811,7 @@ mod tests {
                     diagram: "(0 )0".into(),
                     moves: "".into(),
                     display_mode: PersistedDisplayMode::Svg,
+                    compact: false,
                     current_diagram_encoding: "(0 )0".into(),
                     svg: "<svg>unknot</svg>".into(),
                 },
@@ -816,6 +849,45 @@ mod tests {
         )
         .unwrap();
         assert!(restored.snapshots.is_empty());
+    }
+
+    #[test]
+    fn compact_persists_true() {
+        let state = PersistedState {
+            diagram: "(0 )0".into(),
+            moves: "".into(),
+            display_mode: PersistedDisplayMode::Svg,
+            compact: true,
+            snapshots: Vec::new(),
+        };
+        let json = serde_json::to_string(&state).unwrap();
+        let restored: PersistedState = serde_json::from_str(&json).unwrap();
+        assert!(restored.compact);
+    }
+
+    #[test]
+    fn compact_defaults_to_false_when_missing() {
+        let restored: PersistedState =
+            serde_json::from_str(r#"{"diagram":"","moves":"","display_mode":"svg"}"#).unwrap();
+        assert!(!restored.compact);
+    }
+
+    #[test]
+    fn compact_and_non_compact_differ_for_trefoil() {
+        let trefoil = "(0 (2 /1 \\0 /1 )2 )0"
+            .parse::<knotty::AbbreviatedDiagram>()
+            .unwrap();
+        let full = trefoil.try_ascii_print::<false>().unwrap();
+        let compact = trefoil.try_ascii_print_compact::<false>().unwrap();
+        assert_ne!(full, compact);
+    }
+
+    #[test]
+    fn non_compact_mode_uses_full_ascii() {
+        let unknot = "(0 )0".parse::<knotty::AbbreviatedDiagram>().unwrap();
+        let full = unknot.try_ascii_print::<false>().unwrap();
+        let also = unknot.ascii_print::<false>();
+        assert_eq!(full, also);
     }
 
     #[test]
