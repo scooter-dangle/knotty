@@ -1200,9 +1200,9 @@ mod test {
     }
 
     fn rotate_elements(input: Vec<(u8, usize)>) -> Vec<u8> {
-        let mut d = AbbreviatedDiagram::new_from_tuples(input).unwrap();
-        d.try_rotate_90_ccw().unwrap();
-        d.to_tuples().into_iter().map(|(e, _)| e).collect()
+        let mut diag = AbbreviatedDiagram::new_from_tuples(input).unwrap();
+        diag.try_rotate_90_ccw().unwrap();
+        diag.to_tuples().into_iter().map(|(e, _)| e).collect()
     }
 
     fn fmt_elements(elems: &[u8]) -> String {
