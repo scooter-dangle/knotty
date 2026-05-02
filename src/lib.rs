@@ -11,7 +11,18 @@ macro_rules! try_opt {
 use pretty_assertions::assert_eq;
 
 use core::fmt;
-use std::{cmp::Ordering, collections::VecDeque, mem, str::FromStr};
+use std::{cmp::Ordering, collections::VecDeque, mem, str::FromStr, sync::LazyLock};
+
+use regex::Regex;
+
+static ROTATE_OPEN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"/_*\\").unwrap());
+static ROTATE_CLOSE_UNDERSCORE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r" _+ ").unwrap());
+static ROTATE_CENTERED_SLASH_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" / ").unwrap());
+static ROTATE_CENTERED_BACKSLASH_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r" \\ ").unwrap());
+static ROTATE_PREV_CLOSE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\\/").unwrap());
+static ROTATE_PREV_X_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\\ /").unwrap());
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
@@ -684,6 +695,8 @@ pub enum Move {
     Reid3,
 
     ChangeCrossing,
+
+    Rotate90CounterClockwise,
 }
 
 impl fmt::Display for Move {
@@ -694,6 +707,7 @@ impl fmt::Display for Move {
             Swap => write!(formatter, "swap"),
             WrapAround => write!(formatter, "wrap_around"),
             ChangeCrossing => write!(formatter, "change_crossing"),
+            Rotate90CounterClockwise => write!(formatter, "rotate_90_counter_clockwise"),
             CollapseBulge => write!(formatter, "collapse_bulge"),
             Reid1a { over_under } => write!(formatter, "reid_1a({over_under})"),
             CollapseReid1a => write!(formatter, "collapse_reid_1a"),
@@ -756,6 +770,7 @@ impl FromStr for Move {
             "swap" => Swap,
             "wrap_around" => WrapAround,
             "change_crossing" => ChangeCrossing,
+            "rotate_90_counter_clockwise" => Rotate90CounterClockwise,
             "collapse_bulge" => CollapseBulge,
             "collapse_reid_1a" => CollapseReid1a,
             "collapse_reid_1b" => CollapseReid1b,
@@ -1184,6 +1199,76 @@ mod test {
         );
     }
 
+    fn rotate_elements(input: Vec<(u8, usize)>) -> Vec<u8> {
+        let mut diag = AbbreviatedDiagram::new_from_tuples(input).unwrap();
+        diag.try_rotate_90_ccw().unwrap();
+        diag.to_tuples().into_iter().map(|(e, _)| e).collect()
+    }
+
+    fn fmt_elements(elems: &[u8]) -> String {
+        elems.iter().map(|&e| e as char).collect::<String>()
+    }
+
+    macro_rules! assert_rotate_features {
+        ([$($input:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
+            let input: Vec<(u8, usize)> = vec![$($input,)*];
+            let expected: Vec<u8> = vec![$($expected,)*];
+            let actual = rotate_elements(input.clone());
+            assert_eq!(
+                fmt_elements(&actual),
+                fmt_elements(&expected),
+                "\noriginal:\n{}",
+                ascii_print::<false>(input),
+            );
+        };
+    }
+
+    #[test]
+    fn test_try_rotate_90_ccw_features() {
+        // unknot — rotation-invariant
+        assert_rotate_features!(
+            [(b'(', 0), (b')', 0)],
+            [b'(', b')'],
+        );
+
+        // donut — rotation-invariant
+        assert_rotate_features!(
+            [(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+            [b'(', b'(', b')', b')'],
+        );
+
+        // (0 /0 /0 )0  ->  (0 (2 (4 \1 \3 )4 )2 )0
+        assert_rotate_features!(
+            [(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
+            [b'(', b'(', b'(', b'\\', b'\\', b')', b')', b')'],
+        );
+
+        // (0 (2 /1 \0 /1 )2 )0  ->  (0 (2 /1 \0 \2 )1 )0
+        assert_rotate_features!(
+            [
+                (b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0),
+                (b'/', 1), (b')', 2), (b')', 0),
+            ],
+            [b'(', b'(', b'/', b'\\', b'\\', b')', b')'],
+        );
+
+        // (0 (2 )1 )0  ->  (0 )0  (feature reduction)
+        assert_rotate_features!(
+            [(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)],
+            [b'(', b')'],
+        );
+
+        // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  ->  (0 (1 /0 /2 \1 \1 )2 )0
+        assert_rotate_features!(
+            [
+                (b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3),
+                (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1),
+                (b')', 2), (b')', 0),
+            ],
+            [b'(', b'(', b'/', b'/', b'\\', b'\\', b')', b')'],
+        );
+    }
+
     #[test]
     fn test_try_wrap_around() {
         assert_eq_after_apply!(
@@ -1223,6 +1308,7 @@ impl AbbreviatedDiagram {
                 lean,
                 vertical_index,
             } => return self.try_bulge(lean, vertical_index, diagram_move.idx),
+            Rotate90CounterClockwise => return self.try_rotate_90_ccw(),
         })(self, diagram_move.idx)
     }
 
@@ -1337,6 +1423,124 @@ impl AbbreviatedDiagram {
 
         *item = item.try_change_crossing()?;
 
+        Ok(())
+    }
+
+    fn full_render_lines(&self) -> Result<Vec<String>, String> {
+        let verbose = VerboseDiagram::from_abbreviated(self)?;
+        Ok({
+            verbose
+                .0
+                .iter()
+                .rev()
+                .flat_map(|line| line.display::<false>())
+                .map(|mut sub| {
+                    let new_len = sub.trim_end_matches('\n').len();
+                    sub.truncate(new_len);
+                    sub
+                })
+                .collect()
+        })
+    }
+
+    pub fn try_rotate_90_ccw(&mut self) -> Result<(), String> {
+        let lines = self.full_render_lines()?;
+
+        let reversed: Vec<String> = lines
+            .iter()
+            .map(|line| line.chars().rev().collect::<String>())
+            .collect();
+
+        let mut out: Vec<(u8, usize)> = Vec::new();
+        let mut prev: Option<&str> = None;
+
+        for cur in reversed.iter().rev() {
+            let mut closes: Vec<(u8, usize)> = Vec::new();
+            let mut others: Vec<(u8, usize)> = Vec::new();
+
+            let prev_padded = prev.map(|prev_line| {
+                let mut padded = prev_line.to_string();
+                if padded.len() < cur.len() {
+                    padded.extend(std::iter::repeat(' ').take(cur.len() - padded.len()));
+                }
+                padded
+            });
+
+            let mut col = 0;
+            while col < cur.len() {
+                let cur_tail = &cur[col..];
+
+                if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        others.push((b'(', 0));
+                        col += mat.end();
+                        continue;
+                    }
+                }
+
+                if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        closes.push((b')', 0));
+                        col += mat.end();
+                        continue;
+                    }
+                }
+
+                if cur_tail.starts_with("  ") {
+                    if let Some(prev_str) = prev_padded.as_deref() {
+                        let prev_tail = &prev_str[col..];
+                        if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
+                            if prev_mat.start() == 0 {
+                                closes.push((b')', 0));
+                                col += 2;
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        if let Some(prev_str) = prev_padded.as_deref() {
+                            let prev_tail = &prev_str[col..];
+                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                                if prev_mat.start() == 0 {
+                                    others.push((b'\\', 0));
+                                    col += mat.end();
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        if let Some(prev_str) = prev_padded.as_deref() {
+                            let prev_tail = &prev_str[col..];
+                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                                if prev_mat.start() == 0 {
+                                    others.push((b'/', 0));
+                                    col += mat.end();
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                col += 1;
+            }
+
+            for close in closes.into_iter().rev() {
+                out.push(close);
+            }
+            out.extend(others);
+
+            prev = Some(cur);
+        }
+
+        *self = Self::new_from_tuples(out)?;
         Ok(())
     }
 
