@@ -696,7 +696,7 @@ pub enum Move {
 
     ChangeCrossing,
 
-    Rotate90Ccw,
+    Rotate90CounterClockwise,
 }
 
 impl fmt::Display for Move {
@@ -707,7 +707,7 @@ impl fmt::Display for Move {
             Swap => write!(formatter, "swap"),
             WrapAround => write!(formatter, "wrap_around"),
             ChangeCrossing => write!(formatter, "change_crossing"),
-            Rotate90Ccw => write!(formatter, "rotate_90_ccw"),
+            Rotate90CounterClockwise => write!(formatter, "rotate_90_ccw"),
             CollapseBulge => write!(formatter, "collapse_bulge"),
             Reid1a { over_under } => write!(formatter, "reid_1a({over_under})"),
             CollapseReid1a => write!(formatter, "collapse_reid_1a"),
@@ -770,7 +770,7 @@ impl FromStr for Move {
             "swap" => Swap,
             "wrap_around" => WrapAround,
             "change_crossing" => ChangeCrossing,
-            "rotate_90_ccw" => Rotate90Ccw,
+            "rotate_90_ccw" => Rotate90CounterClockwise,
             "collapse_bulge" => CollapseBulge,
             "collapse_reid_1a" => CollapseReid1a,
             "collapse_reid_1b" => CollapseReid1b,
@@ -1308,7 +1308,7 @@ impl AbbreviatedDiagram {
                 lean,
                 vertical_index,
             } => return self.try_bulge(lean, vertical_index, diagram_move.idx),
-            Rotate90Ccw => return self.try_rotate_90_ccw(),
+            Rotate90CounterClockwise => return self.try_rotate_90_ccw(),
         })(self, diagram_move.idx)
     }
 
@@ -1428,13 +1428,13 @@ impl AbbreviatedDiagram {
 
     fn full_render_lines(&self) -> Result<Vec<String>, String> {
         let verbose = VerboseDiagram::from_abbreviated(self)?;
-        let mut out = Vec::new();
-        for line in verbose.0.iter().rev() {
-            for sub in line.display::<false>() {
-                out.push(sub.trim_end_matches('\n').to_string());
-            }
-        }
-        Ok(out)
+        Ok(verbose
+            .0
+            .iter()
+            .rev()
+            .flat_map(|line| line.display::<false>())
+            .map(|sub| sub.trim_end_matches('\n').to_string())
+            .collect())
     }
 
     pub fn try_rotate_90_ccw(&mut self) -> Result<(), String> {
@@ -1442,7 +1442,7 @@ impl AbbreviatedDiagram {
 
         let reversed: Vec<String> = lines
             .iter()
-            .map(|l| l.chars().rev().collect::<String>())
+            .map(|line| line.chars().rev().collect::<String>())
             .collect();
 
         let mut out: Vec<(u8, usize)> = Vec::new();
@@ -1452,22 +1452,22 @@ impl AbbreviatedDiagram {
             let mut closes: Vec<(u8, usize)> = Vec::new();
             let mut others: Vec<(u8, usize)> = Vec::new();
 
-            let prev_padded = prev.map(|p| {
-                let mut s = p.to_string();
-                if s.len() < cur.len() {
-                    s.extend(std::iter::repeat(' ').take(cur.len() - s.len()));
+            let prev_padded = prev.map(|prev_line| {
+                let mut padded = prev_line.to_string();
+                if padded.len() < cur.len() {
+                    padded.extend(std::iter::repeat(' ').take(cur.len() - padded.len()));
                 }
-                s
+                padded
             });
 
-            let mut c = 0;
-            while c < cur.len() {
-                let cur_tail = &cur[c..];
+            let mut col = 0;
+            while col < cur.len() {
+                let cur_tail = &cur[col..];
 
                 if let Some(m) = ROTATE_OPEN_RE.find(cur_tail) {
                     if m.start() == 0 {
                         others.push((b'(', 0));
-                        c += m.end();
+                        col += m.end();
                         continue;
                     }
                 }
@@ -1475,18 +1475,18 @@ impl AbbreviatedDiagram {
                 if let Some(m) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
                     if m.start() == 0 {
                         closes.push((b')', 0));
-                        c += m.end();
+                        col += m.end();
                         continue;
                     }
                 }
 
                 if cur_tail.starts_with("  ") {
                     if let Some(prev_str) = prev_padded.as_deref() {
-                        let prev_tail = &prev_str[c..];
+                        let prev_tail = &prev_str[col..];
                         if let Some(pm) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
                             if pm.start() == 0 {
                                 closes.push((b')', 0));
-                                c += 2;
+                                col += 2;
                                 continue;
                             }
                         }
@@ -1496,11 +1496,11 @@ impl AbbreviatedDiagram {
                 if let Some(m) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
                     if m.start() == 0 {
                         if let Some(prev_str) = prev_padded.as_deref() {
-                            let prev_tail = &prev_str[c..];
+                            let prev_tail = &prev_str[col..];
                             if let Some(pm) = ROTATE_PREV_X_RE.find(prev_tail) {
                                 if pm.start() == 0 {
                                     others.push((b'\\', 0));
-                                    c += m.end();
+                                    col += m.end();
                                     continue;
                                 }
                             }
@@ -1511,11 +1511,11 @@ impl AbbreviatedDiagram {
                 if let Some(m) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
                     if m.start() == 0 {
                         if let Some(prev_str) = prev_padded.as_deref() {
-                            let prev_tail = &prev_str[c..];
+                            let prev_tail = &prev_str[col..];
                             if let Some(pm) = ROTATE_PREV_X_RE.find(prev_tail) {
                                 if pm.start() == 0 {
                                     others.push((b'/', 0));
-                                    c += m.end();
+                                    col += m.end();
                                     continue;
                                 }
                             }
@@ -1523,7 +1523,7 @@ impl AbbreviatedDiagram {
                     }
                 }
 
-                c += 1;
+                col += 1;
             }
 
             for close in closes.into_iter().rev() {

@@ -597,7 +597,7 @@ impl FromIterator<DiagramMove> for Moves {
                     &mut moves.complecting
                 }
 
-                Swap | WrapAround | Reid3 | Rotate90Ccw => &mut moves.rearranging,
+                Swap | WrapAround | Reid3 | Rotate90CounterClockwise => &mut moves.rearranging,
 
                 CollapseBulge | CollapseReid1a | CollapseReid1b | CollapseReid2 => {
                     &mut moves.simplifying
