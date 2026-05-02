@@ -1428,13 +1428,15 @@ impl AbbreviatedDiagram {
 
     fn full_render_lines(&self) -> Result<Vec<String>, String> {
         let verbose = VerboseDiagram::from_abbreviated(self)?;
-        Ok(verbose
-            .0
-            .iter()
-            .rev()
-            .flat_map(|line| line.display::<false>())
-            .map(|sub| sub.trim_end_matches('\n').to_string())
-            .collect())
+        Ok({
+            verbose
+                .0
+                .iter()
+                .rev()
+                .flat_map(|line| line.display::<false>())
+                .map(|sub| sub.trim_end_matches('\n').to_string())
+                .collect()
+        })
     }
 
     pub fn try_rotate_90_ccw(&mut self) -> Result<(), String> {
