@@ -1434,7 +1434,11 @@ impl AbbreviatedDiagram {
                 .iter()
                 .rev()
                 .flat_map(|line| line.display::<false>())
-                .map(|sub| sub.trim_end_matches('\n').to_string())
+                .map(|mut sub| {
+                    let new_len = sub.trim_end_matches('\n').len();
+                    sub.truncate(new_len);
+                    sub
+                })
                 .collect()
         })
     }
