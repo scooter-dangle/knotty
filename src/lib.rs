@@ -1466,18 +1466,18 @@ impl AbbreviatedDiagram {
             while col < cur.len() {
                 let cur_tail = &cur[col..];
 
-                if let Some(m) = ROTATE_OPEN_RE.find(cur_tail) {
-                    if m.start() == 0 {
+                if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+                    if mat.start() == 0 {
                         others.push((b'(', 0));
-                        col += m.end();
+                        col += mat.end();
                         continue;
                     }
                 }
 
-                if let Some(m) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
-                    if m.start() == 0 {
+                if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+                    if mat.start() == 0 {
                         closes.push((b')', 0));
-                        col += m.end();
+                        col += mat.end();
                         continue;
                     }
                 }
@@ -1485,8 +1485,8 @@ impl AbbreviatedDiagram {
                 if cur_tail.starts_with("  ") {
                     if let Some(prev_str) = prev_padded.as_deref() {
                         let prev_tail = &prev_str[col..];
-                        if let Some(pm) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
-                            if pm.start() == 0 {
+                        if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
+                            if prev_mat.start() == 0 {
                                 closes.push((b')', 0));
                                 col += 2;
                                 continue;
@@ -1495,14 +1495,14 @@ impl AbbreviatedDiagram {
                     }
                 }
 
-                if let Some(m) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
-                    if m.start() == 0 {
+                if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
                         if let Some(prev_str) = prev_padded.as_deref() {
                             let prev_tail = &prev_str[col..];
-                            if let Some(pm) = ROTATE_PREV_X_RE.find(prev_tail) {
-                                if pm.start() == 0 {
+                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                                if prev_mat.start() == 0 {
                                     others.push((b'\\', 0));
-                                    col += m.end();
+                                    col += mat.end();
                                     continue;
                                 }
                             }
@@ -1510,14 +1510,14 @@ impl AbbreviatedDiagram {
                     }
                 }
 
-                if let Some(m) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
-                    if m.start() == 0 {
+                if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
                         if let Some(prev_str) = prev_padded.as_deref() {
                             let prev_tail = &prev_str[col..];
-                            if let Some(pm) = ROTATE_PREV_X_RE.find(prev_tail) {
-                                if pm.start() == 0 {
+                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                                if prev_mat.start() == 0 {
                                     others.push((b'/', 0));
-                                    col += m.end();
+                                    col += mat.end();
                                     continue;
                                 }
                             }
