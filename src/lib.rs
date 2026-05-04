@@ -1270,6 +1270,61 @@ mod test {
     }
 
     #[test]
+    fn test_try_rotate_90_ccw_depths() {
+        macro_rules! assert_rotate_depths {
+            ([$($input:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
+                let input: Vec<(u8, usize)> = vec![$($input,)*];
+                let expected: Vec<(u8, usize)> = vec![$($expected,)*];
+                let mut diag = AbbreviatedDiagram::new_from_tuples(input.clone()).unwrap();
+                diag.try_rotate_90_ccw().unwrap();
+                let actual = diag.to_tuples();
+                assert_eq!(
+                    actual,
+                    expected,
+                    "\noriginal:\n{}",
+                    ascii_print::<false>(input),
+                );
+            };
+        }
+
+        // (0 )0  ->  (0 )0
+        assert_rotate_depths!(
+            [(b'(', 0), (b')', 0)],
+            [(b'(', 0), (b')', 0)],
+        );
+
+        // (0 (1 )1 )0  ->  (0 (1 )1 )0  — rotation-invariant including depths
+        assert_rotate_depths!(
+            [(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+            [(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+        );
+
+        // (0 /0 /0 )0  ->  (0 (2 (4 \1 \3 )4 )2 )0
+        assert_rotate_depths!(
+            [(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
+            [(b'(', 0), (b'(', 2), (b'(', 4), (b'\\', 1), (b'\\', 3), (b')', 4), (b')', 2), (b')', 0)],
+        );
+
+        // (0 (2 /1 \0 /1 )2 )0  ->  (0 (2 /1 \0 \2 )1 )0
+        assert_rotate_depths!(
+            [(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
+            [(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b')', 0)],
+        );
+
+        // (0 (2 )1 )0  ->  (0 )0  — feature reduction
+        assert_rotate_depths!(
+            [(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)],
+            [(b'(', 0), (b')', 0)],
+        );
+
+        // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  ->  (0 (1 /0 /2 \1 \1 )2 )0
+        assert_rotate_depths!(
+            [(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)],
+            [(b'(', 0), (b'(', 1), (b'/', 0), (b'/', 2), (b'\\', 1), (b'\\', 1), (b')', 2), (b')', 0)],
+        );
+    }
+
+    #[test]
     fn test_try_wrap_around() {
         assert_eq_after_apply!(
             try_wrap_around,
@@ -1467,12 +1522,14 @@ impl AbbreviatedDiagram {
             });
 
             let mut col = 0;
+            let mut depth_counter: usize = 0;
             while col < cur.len() {
                 let cur_tail = &cur[col..];
 
                 if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
                     if mat.start() == 0 {
-                        others.push((b'(', 0));
+                        others.push((b'(', depth_counter));
+                        depth_counter += 2;
                         col += mat.end();
                         continue;
                     }
@@ -1480,7 +1537,8 @@ impl AbbreviatedDiagram {
 
                 if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
                     if mat.start() == 0 {
-                        closes.push((b')', 0));
+                        closes.push((b')', depth_counter));
+                        depth_counter += 2;
                         col += mat.end();
                         continue;
                     }
@@ -1491,7 +1549,8 @@ impl AbbreviatedDiagram {
                         let prev_tail = &prev_str[col..];
                         if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
                             if prev_mat.start() == 0 {
-                                closes.push((b')', 0));
+                                closes.push((b')', depth_counter));
+                                depth_counter += 2;
                                 col += 2;
                                 continue;
                             }
@@ -1505,7 +1564,8 @@ impl AbbreviatedDiagram {
                             let prev_tail = &prev_str[col..];
                             if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
                                 if prev_mat.start() == 0 {
-                                    others.push((b'\\', 0));
+                                    others.push((b'\\', depth_counter));
+                                    depth_counter += 2;
                                     col += mat.end();
                                     continue;
                                 }
@@ -1520,7 +1580,8 @@ impl AbbreviatedDiagram {
                             let prev_tail = &prev_str[col..];
                             if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
                                 if prev_mat.start() == 0 {
-                                    others.push((b'/', 0));
+                                    others.push((b'/', depth_counter));
+                                    depth_counter += 2;
                                     col += mat.end();
                                     continue;
                                 }
@@ -1529,6 +1590,9 @@ impl AbbreviatedDiagram {
                     }
                 }
 
+                if matches!(cur.as_bytes()[col], b'(' | b')' | b'/' | b'\\') {
+                    depth_counter += 1;
+                }
                 col += 1;
             }
 
