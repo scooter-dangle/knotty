@@ -1334,25 +1334,27 @@ mod test {
 
     #[test]
     fn test_try_rotate_90_ccw_period_4() {
-        // R^4 = identity for diagrams without same-timestep independent crossings.
-        // (Independent crossings on non-overlapping strand pairs can swap order across
-        // four rotations, giving an equivalent but not byte-equal abbreviated form.)
+        // R^5(D) = R(D): one initial rotation triggers any simplifications, then
+        // four more rotations must return to the same form.
         for input in [
-            // unknot — trivially invariant under one rotation
+            // unknot
             vec![(b'(', 0), (b')', 0)],
-            // donut — invariant under one rotation
+            // donut
             vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
             // (0 /0 /0 )0
             vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
             // (0 (2 /1 \0 /1 )2 )0
             vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
+            // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  — square knot
+            vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)],
         ] {
-            let rotated_4 = rotate_n(input.clone(), 4);
+            let r1 = rotate_n(input.clone(), 1);
+            let r5 = rotate_n(input.clone(), 5);
             assert_eq!(
-                rotated_4,
-                input,
+                r5,
+                r1,
                 "\noriginal:\n{}",
-                ascii_print::<false>(input.clone()),
+                ascii_print::<false>(input),
             );
         }
     }
