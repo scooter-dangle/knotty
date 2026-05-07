@@ -1324,6 +1324,39 @@ mod test {
         );
     }
 
+    fn rotate_n(input: Vec<(u8, usize)>, n: usize) -> Vec<(u8, usize)> {
+        let mut diag = AbbreviatedDiagram::new_from_tuples(input).unwrap();
+        for _ in 0..n {
+            diag.try_rotate_90_ccw().unwrap();
+        }
+        diag.to_tuples()
+    }
+
+    #[test]
+    fn test_try_rotate_90_ccw_period_4() {
+        // R^4 = identity for diagrams without same-timestep independent crossings.
+        // (Independent crossings on non-overlapping strand pairs can swap order across
+        // four rotations, giving an equivalent but not byte-equal abbreviated form.)
+        for input in [
+            // unknot — trivially invariant under one rotation
+            vec![(b'(', 0), (b')', 0)],
+            // donut — invariant under one rotation
+            vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+            // (0 /0 /0 )0
+            vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
+            // (0 (2 /1 \0 /1 )2 )0
+            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
+        ] {
+            let rotated_4 = rotate_n(input.clone(), 4);
+            assert_eq!(
+                rotated_4,
+                input,
+                "\noriginal:\n{}",
+                ascii_print::<false>(input.clone()),
+            );
+        }
+    }
+
     #[test]
     fn test_try_wrap_around() {
         assert_eq_after_apply!(
