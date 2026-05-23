@@ -16,8 +16,7 @@ use std::{cmp::Ordering, collections::VecDeque, mem, str::FromStr, sync::LazyLoc
 use regex::Regex;
 
 static ROTATE_OPEN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"/_*\\").unwrap());
-static ROTATE_CLOSE_UNDERSCORE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r" _+ ").unwrap());
+static ROTATE_CLOSE_UNDERSCORE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" _+ ").unwrap());
 static ROTATE_CENTERED_SLASH_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" / ").unwrap());
 static ROTATE_CENTERED_BACKSLASH_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r" \\ ").unwrap());
@@ -145,11 +144,11 @@ impl Horiz {
     pub const fn display_transfer_depth_neutral(&self) -> [&'static str; DISPLAY_LINES] {
         use Horiz::*;
         match self {
-            TransferUpStart =>   ["__|", "   ", "   "],
-            TransferUp =>        ["  |", " | ", "|  "],
-            TransferUpFinish =>  ["  _", " | ", "|  "],
+            TransferUpStart => ["__|", "   ", "   "],
+            TransferUp => ["  |", " | ", "|  "],
+            TransferUpFinish => ["  _", " | ", "|  "],
             TransferDownStart => ["_  ", " | ", "  |"],
-            TransferDown =>      ["|  ", " | ", "  |"],
+            TransferDown => ["|  ", " | ", "  |"],
             TransferDownFinish => ["|__", "   ", "   "],
             _ => self.display(),
         }
@@ -1239,10 +1238,7 @@ mod test {
     #[test]
     fn test_try_rotate_90_ccw_features() {
         // unknot — rotation-invariant
-        assert_rotate_features!(
-            [(b'(', 0), (b')', 0)],
-            [b'(', b')'],
-        );
+        assert_rotate_features!([(b'(', 0), (b')', 0)], [b'(', b')'],);
 
         // donut — rotation-invariant
         assert_rotate_features!(
@@ -1259,24 +1255,33 @@ mod test {
         // (0 (2 /1 \0 /1 )2 )0  ->  (0 (2 /1 \0 \2 )1 )0
         assert_rotate_features!(
             [
-                (b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0),
-                (b'/', 1), (b')', 2), (b')', 0),
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
             ],
             [b'(', b'(', b'/', b'\\', b'\\', b')', b')'],
         );
 
         // (0 (2 )1 )0  ->  (0 )0  (feature reduction)
-        assert_rotate_features!(
-            [(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)],
-            [b'(', b')'],
-        );
+        assert_rotate_features!([(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)], [b'(', b')'],);
 
         // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  ->  (0 (1 /0 /2 \1 \1 )2 )0
         assert_rotate_features!(
             [
-                (b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3),
-                (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1),
-                (b')', 2), (b')', 0),
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 1),
+                (b'(', 3),
+                (b'/', 2),
+                (b'/', 4),
+                (b')', 3),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0),
             ],
             [b'(', b'(', b'/', b'/', b'\\', b'\\', b')', b')'],
         );
@@ -1301,10 +1306,7 @@ mod test {
         }
 
         // (0 )0  ->  (0 )0
-        assert_rotate_depths!(
-            [(b'(', 0), (b')', 0)],
-            [(b'(', 0), (b')', 0)],
-        );
+        assert_rotate_depths!([(b'(', 0), (b')', 0)], [(b'(', 0), (b')', 0)],);
 
         // (0 (1 )1 )0  ->  (0 (1 )1 )0  — rotation-invariant including depths
         assert_rotate_depths!(
@@ -1315,13 +1317,38 @@ mod test {
         // (0 /0 /0 )0  ->  (0 (2 (4 \1 \3 )4 )2 )0
         assert_rotate_depths!(
             [(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
-            [(b'(', 0), (b'(', 2), (b'(', 4), (b'\\', 1), (b'\\', 3), (b')', 4), (b')', 2), (b')', 0)],
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'(', 4),
+                (b'\\', 1),
+                (b'\\', 3),
+                (b')', 4),
+                (b')', 2),
+                (b')', 0)
+            ],
         );
 
         // (0 (2 /1 \0 /1 )2 )0  ->  (0 (2 /1 \0 \2 )1 )0
         assert_rotate_depths!(
-            [(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
-            [(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b')', 0)],
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0)
+            ],
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'\\', 2),
+                (b')', 1),
+                (b')', 0)
+            ],
         );
 
         // (0 (2 )1 )0  ->  (0 )0  — feature reduction
@@ -1332,8 +1359,28 @@ mod test {
 
         // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  ->  (0 (1 /0 /2 \1 \1 )2 )0
         assert_rotate_depths!(
-            [(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)],
-            [(b'(', 0), (b'(', 1), (b'/', 0), (b'/', 2), (b'\\', 1), (b'\\', 1), (b')', 2), (b')', 0)],
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 1),
+                (b'(', 3),
+                (b'/', 2),
+                (b'/', 4),
+                (b')', 3),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0)
+            ],
+            [
+                (b'(', 0),
+                (b'(', 1),
+                (b'/', 0),
+                (b'/', 2),
+                (b'\\', 1),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0)
+            ],
         );
     }
 
@@ -1357,24 +1404,73 @@ mod test {
             // (0 /0 /0 )0
             vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
             // (0 (2 /1 \0 /1 )2 )0
-            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
             // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  — square knot
-            vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)],
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 1),
+                (b'(', 3),
+                (b'/', 2),
+                (b'/', 4),
+                (b')', 3),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
             // (0 (2 /0 /1 /1 )2 )0  — rando link
-            vec![(b'(', 0), (b'(', 2), (b'/', 0), (b'/', 1), (b'/', 1), (b')', 2), (b')', 0)],
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 0),
+                (b'/', 1),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
             // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
-            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'\\', 0), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
             // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
-            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 2), (b'\\', 0), (b'\\', 0), (b'(', 1), (b'\\', 2), (b'/', 3), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b'/', 1), (b')', 2), (b')', 0)],
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 2),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'(', 1),
+                (b'\\', 2),
+                (b'/', 3),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
         ] {
             let r1 = rotate_n(input.clone(), 1);
             let r5 = rotate_n(input.clone(), 5);
-            assert_eq!(
-                r5,
-                r1,
-                "\noriginal:\n{}",
-                ascii_print::<false>(input),
-            );
+            assert_eq!(r5, r1, "\noriginal:\n{}", ascii_print::<false>(input),);
         }
     }
 
@@ -3277,21 +3373,34 @@ fn snapshot_ascii_print() {
 #[cfg(test)]
 mod dbg_depth {
     use super::*;
-    #[test] fn show_donut_scan() {
-        let donut = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)]
-        ).unwrap();
+    #[test]
+    fn show_donut_scan() {
+        let donut =
+            AbbreviatedDiagram::new_from_tuples(vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)])
+                .unwrap();
         let lines = donut.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("Donut scan rows:");
         for (i, cur) in reversed.iter().rev().enumerate() {
-            if !cur.trim().is_empty() { eprintln!("  row{i:2}: {:?}", cur); }
+            if !cur.trim().is_empty() {
+                eprintln!("  row{i:2}: {:?}", cur);
+            }
         }
     }
-    #[test] fn show_r3_features() {
-        let r3 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)]
-        ).unwrap();
+    #[test]
+    fn show_r3_features() {
+        let r3 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 1),
+            (b'\\', 0),
+            (b'\\', 2),
+            (b')', 1),
+            (b'(', 0),
+            (b'\\', 1),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let lines = r3.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("Scan rows for R^3:");
@@ -3299,17 +3408,93 @@ mod dbg_depth {
             eprintln!("  row{i:2}: {:?}", cur);
         }
     }
-    #[test] fn show_period4_debug() {
+    #[test]
+    fn show_period4_debug() {
         let cases: &[(&str, Vec<(u8, usize)>)] = &[
             ("unknot", vec![(b'(', 0), (b')', 0)]),
             ("donut", vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)]),
-            ("(0 /0 /0 )0", vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)]),
-            ("case4", vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)]),
-            ("(0 (2 )1 )0", vec![(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)]),
-            ("complex", vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)]),
-            ("rando_link", vec![(b'(', 0), (b'(', 2), (b'/', 0), (b'/', 1), (b'/', 1), (b')', 2), (b')', 0)]),
-            ("5_1", vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'\\', 0), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)]),
-            ("rando_annoying", vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 2), (b'\\', 0), (b'\\', 0), (b'(', 1), (b'\\', 2), (b'/', 3), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b'/', 1), (b')', 2), (b')', 0)]),
+            (
+                "(0 /0 /0 )0",
+                vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
+            ),
+            (
+                "case4",
+                vec![
+                    (b'(', 0),
+                    (b'(', 2),
+                    (b'/', 1),
+                    (b'\\', 0),
+                    (b'/', 1),
+                    (b')', 2),
+                    (b')', 0),
+                ],
+            ),
+            (
+                "(0 (2 )1 )0",
+                vec![(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)],
+            ),
+            (
+                "complex",
+                vec![
+                    (b'(', 0),
+                    (b'(', 2),
+                    (b'\\', 1),
+                    (b'(', 3),
+                    (b'/', 2),
+                    (b'/', 4),
+                    (b')', 3),
+                    (b'\\', 1),
+                    (b')', 2),
+                    (b')', 0),
+                ],
+            ),
+            (
+                "rando_link",
+                vec![
+                    (b'(', 0),
+                    (b'(', 2),
+                    (b'/', 0),
+                    (b'/', 1),
+                    (b'/', 1),
+                    (b')', 2),
+                    (b')', 0),
+                ],
+            ),
+            (
+                "5_1",
+                vec![
+                    (b'(', 0),
+                    (b'(', 2),
+                    (b'/', 1),
+                    (b'\\', 0),
+                    (b'\\', 0),
+                    (b'\\', 0),
+                    (b'/', 1),
+                    (b')', 2),
+                    (b')', 0),
+                ],
+            ),
+            (
+                "rando_annoying",
+                vec![
+                    (b'(', 0),
+                    (b'(', 2),
+                    (b'/', 1),
+                    (b'\\', 2),
+                    (b'\\', 0),
+                    (b'\\', 0),
+                    (b'(', 1),
+                    (b'\\', 2),
+                    (b'/', 3),
+                    (b'/', 1),
+                    (b'\\', 0),
+                    (b'/', 1),
+                    (b')', 2),
+                    (b'/', 1),
+                    (b')', 2),
+                    (b')', 0),
+                ],
+            ),
         ];
         for (name, input) in cases {
             eprintln!("=== Testing {name} ===");
@@ -3325,15 +3510,27 @@ mod dbg_depth {
                 let rn = d.to_tuples();
                 eprintln!("  R^{n} = {rn:?}");
                 if n == 5 {
-                    if rn == r1 { eprintln!("  R^5 == R^1 ✓"); } else { eprintln!("  R^5 != R^1 ✗"); }
+                    if rn == r1 {
+                        eprintln!("  R^5 == R^1 ✓");
+                    } else {
+                        eprintln!("  R^5 != R^1 ✗");
+                    }
                 }
             }
         }
     }
-    #[test] fn show_case4_scan() {
-        let diag = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)]
-        ).unwrap();
+    #[test]
+    fn show_case4_scan() {
+        let diag = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 2),
+            (b'/', 1),
+            (b'\\', 0),
+            (b'/', 1),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let lines = diag.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("Scan rows for (0 (2 /1 \\0 /1 )2 )0:");
@@ -3341,10 +3538,21 @@ mod dbg_depth {
             eprintln!("  row{i:2}: {:?}", cur);
         }
     }
-    #[test] fn show_complex_scan() {
-        let diag = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)]
-        ).unwrap();
+    #[test]
+    fn show_complex_scan() {
+        let diag = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 2),
+            (b'\\', 1),
+            (b'(', 3),
+            (b'/', 2),
+            (b'/', 4),
+            (b')', 3),
+            (b'\\', 1),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let lines = diag.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("Scan rows for (0 (2 \\1 (3 /2 /4 )3 \\1 )2 )0:");
@@ -3352,22 +3560,42 @@ mod dbg_depth {
             eprintln!("  row{i:2}: {:?}", cur);
         }
     }
-    #[test] fn show_r2_verbose_lines() {
+    #[test]
+    fn show_r2_verbose_lines() {
         // R^2 for rando_link = (0 (2 /1 (3 /4 /1 )4 )2 )0
-        let r2 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'(', 3), (b'/', 4), (b'/', 1), (b')', 4), (b')', 2), (b')', 0)]
-        ).unwrap();
+        let r2 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 2),
+            (b'/', 1),
+            (b'(', 3),
+            (b'/', 4),
+            (b'/', 1),
+            (b')', 4),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let verbose = VerboseDiagram::from_abbreviated(&r2).unwrap();
         eprintln!("VerboseDiagram for R^2 ({} lines):", verbose.0.len());
         for (i, vline) in verbose.0.iter().enumerate() {
             eprintln!("  VL[{}] ({} elements): {:?}", i, vline.0.len(), vline.0);
         }
     }
-    #[test] fn show_r2_scan() {
+    #[test]
+    fn show_r2_scan() {
         // R^2 for rando_link = (0 (2 /1 (3 /4 /1 )4 )2 )0
-        let r2 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'(', 3), (b'/', 4), (b'/', 1), (b')', 4), (b')', 2), (b')', 0)]
-        ).unwrap();
+        let r2 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 2),
+            (b'/', 1),
+            (b'(', 3),
+            (b'/', 4),
+            (b'/', 1),
+            (b')', 4),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let lines = r2.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("R^2 scan rows:");
@@ -3380,16 +3608,23 @@ mod dbg_depth {
                     if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
                         if mat.start() == 0 {
                             let ml = mat.end();
-                            eprintln!("    col{col:2}: OPEN len={} %3={}", ml, ml%3);
-                            col += ml; continue;
+                            eprintln!("    col{col:2}: OPEN len={} %3={}", ml, ml % 3);
+                            col += ml;
+                            continue;
                         }
                     }
                     if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
                         if mat.start() == 0 {
                             let ml = mat.end();
                             let spurious = ml == 3 && (col + 1) % 3 == 0;
-                            eprintln!("    col{col:2}: CLOSE len={} (col+1)%3={} spurious={}", ml, (col+1)%3, spurious);
-                            col += ml; continue;
+                            eprintln!(
+                                "    col{col:2}: CLOSE len={} (col+1)%3={} spurious={}",
+                                ml,
+                                (col + 1) % 3,
+                                spurious
+                            );
+                            col += ml;
+                            continue;
                         }
                     }
                     col += 1;
@@ -3397,21 +3632,41 @@ mod dbg_depth {
             }
         }
     }
-    #[test] fn show_r3_verbose_lines() {
-        let r3 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)]
-        ).unwrap();
+    #[test]
+    fn show_r3_verbose_lines() {
+        let r3 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 1),
+            (b'\\', 0),
+            (b'\\', 2),
+            (b')', 1),
+            (b'(', 0),
+            (b'\\', 1),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let verbose = VerboseDiagram::from_abbreviated(&r3).unwrap();
         eprintln!("VerboseDiagram for R^3 ({} lines):", verbose.0.len());
         for (i, vline) in verbose.0.iter().enumerate() {
             eprintln!("  VL[{}] ({} elements): {:?}", i, vline.0.len(), vline.0);
         }
     }
-    #[test] fn show_r3_actual_scan() {
+    #[test]
+    fn show_r3_actual_scan() {
         // R^3 for rando_link = (0 (1 \0 \2 )1 (0 \1 )2 )0
-        let r3 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)]
-        ).unwrap();
+        let r3 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 1),
+            (b'\\', 0),
+            (b'\\', 2),
+            (b')', 1),
+            (b'(', 0),
+            (b'\\', 1),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let lines = r3.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("R^3 scan rows (with match_len annotations):");
@@ -3424,7 +3679,11 @@ mod dbg_depth {
                     let cur_tail = &cur[col..];
                     if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
                         if mat.start() == 0 {
-                            eprintln!("    col{col:2}: CLOSE_UNDERSCORE match={:?} len={}", &cur[col..col+mat.end()], mat.end());
+                            eprintln!(
+                                "    col{col:2}: CLOSE_UNDERSCORE match={:?} len={}",
+                                &cur[col..col + mat.end()],
+                                mat.end()
+                            );
                             col += mat.end();
                             continue;
                         }
@@ -3432,7 +3691,12 @@ mod dbg_depth {
                     if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
                         if mat.start() == 0 {
                             let match_len = mat.end();
-                            eprintln!("    col{col:2}: OPEN match={:?} len={} %3={}", &cur[col..col+match_len], match_len, match_len%3);
+                            eprintln!(
+                                "    col{col:2}: OPEN match={:?} len={} %3={}",
+                                &cur[col..col + match_len],
+                                match_len,
+                                match_len % 3
+                            );
                             col += match_len;
                             continue;
                         }
@@ -3442,11 +3706,21 @@ mod dbg_depth {
             }
         }
     }
-    #[test] fn show_r4_scan() {
+    #[test]
+    fn show_r4_scan() {
         // R^4 for rando_link = (0 (2 (4 /3 /0 /3 )4 )2 )0
-        let r4 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 2), (b'(', 4), (b'/', 3), (b'/', 0), (b'/', 3), (b')', 4), (b')', 2), (b')', 0)]
-        ).unwrap();
+        let r4 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 2),
+            (b'(', 4),
+            (b'/', 3),
+            (b'/', 0),
+            (b'/', 3),
+            (b')', 4),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let lines = r4.full_render_lines().unwrap();
         let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
         eprintln!("R^4 scan (using scan_row):");
@@ -3463,14 +3737,28 @@ mod dbg_depth {
         }
     }
 
-    #[test] fn show_r4_verbose_lines() {
-        let r4 = AbbreviatedDiagram::new_from_tuples(
-            vec![(b'(', 0), (b'(', 2), (b'(', 4), (b'/', 3), (b'/', 0), (b'/', 3), (b')', 4), (b')', 2), (b')', 0)]
-        ).unwrap();
+    #[test]
+    fn show_r4_verbose_lines() {
+        let r4 = AbbreviatedDiagram::new_from_tuples(vec![
+            (b'(', 0),
+            (b'(', 2),
+            (b'(', 4),
+            (b'/', 3),
+            (b'/', 0),
+            (b'/', 3),
+            (b')', 4),
+            (b')', 2),
+            (b')', 0),
+        ])
+        .unwrap();
         let verbose = VerboseDiagram::from_abbreviated(&r4).unwrap();
         eprintln!("R^4 VerboseLines ({} lines):", verbose.0.len());
         for (i, vl) in verbose.0.iter().enumerate() {
-            let [l0, l1, l2] = vl.display::<false>().collect::<Vec<_>>().try_into().unwrap();
+            let [l0, l1, l2] = vl
+                .display::<false>()
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
             let [rl0, rl1, rl2]: [String; 3] = [
                 l0.trim_end_matches('\n').chars().rev().collect(),
                 l1.trim_end_matches('\n').chars().rev().collect(),
@@ -3483,5 +3771,3 @@ mod dbg_depth {
         }
     }
 }
-
-
