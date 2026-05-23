@@ -1483,6 +1483,135 @@ mod test {
             [(b'(', 0), (b'(', 1), (b'/', 0), (b')', 2), (b')', 0)],
         );
     }
+
+    #[test]
+    fn test_scan_row() {
+        // All rows from scanning R^4 of rando_link = (0 (2 (4 /3 /0 /3 )4 )2 )0.
+        // 18 rows total: 6 VerboseLines × 3 rows each, scanned bottom-to-top.
+        // row N = VL[N/3].l{2 - N%3} reversed.
+
+        // row 2 = VL[0].l0 reversed — two legitimate arc opens
+        assert_eq!(
+            scan_row("  /_________\\ /_________\\  ", Some("")),
+            vec![(b'(', 0), (b'(', 2)],
+        );
+
+        // row 3 = VL[1].l2 reversed — one crossing
+        assert_eq!(
+            scan_row(
+                " )           /           ( ",
+                Some("  /_________\\ /_________\\  "),
+            ),
+            vec![(b'\\', 1)],
+        );
+
+        // row 4 = VL[1].l1 reversed — no features
+        assert_eq!(
+            scan_row(
+                "  \\         / \\         /  ",
+                Some(" )           /           ( "),
+            ),
+            vec![],
+        );
+
+        // row 5 = VL[1].l0 reversed — CURRENTLY WRONG
+        // Current output: [(b')', 2), (b')', 0)] — spurious )0 must be dropped
+        assert_eq!(
+            scan_row(
+                "   _________   _________   ",
+                Some("  \\         / \\         /  "),
+            ),
+            vec![(b')', 2)],
+        );
+
+        // row 8 = VL[2].l0 reversed — CURRENTLY WRONG
+        // Current output: [(b'(', 0)] — fully spurious, must be empty
+        assert_eq!(
+            scan_row("     /_______________\\     ", Some("")),
+            vec![],
+        );
+
+        // row 9 = VL[3].l2 reversed — no features
+        assert_eq!(
+            scan_row(
+                "    )                 (    ",
+                Some("     /_______________\\     "),
+            ),
+            vec![],
+        );
+
+        // row 10 = VL[3].l1 reversed — no features
+        assert_eq!(
+            scan_row(
+                "     \\               /     ",
+                Some("    )                 (    "),
+            ),
+            vec![],
+        );
+
+        // row 11 = VL[3].l0 reversed — one arc open at depth 1
+        assert_eq!(
+            scan_row(
+                "      ___\\ /___\\ /___      ",
+                Some("     \\               /     "),
+            ),
+            vec![(b'(', 1)],
+        );
+
+        // row 12 = VL[4].l2 reversed — two crossings
+        assert_eq!(
+            scan_row(
+                "          /     /          ",
+                Some("      ___\\ /___\\ /___      "),
+            ),
+            vec![(b'\\', 0), (b'\\', 2)],
+        );
+
+        // row 13 = VL[4].l1 reversed — no features
+        assert_eq!(
+            scan_row(
+                "         / \\   / \\         ",
+                Some("          /     /          "),
+            ),
+            vec![],
+        );
+
+        // row 14 = VL[4].l0 reversed — one arc close at depth 1
+        assert_eq!(
+            scan_row(
+                "        /   ___   \\        ",
+                Some("         / \\   / \\         "),
+            ),
+            vec![(b')', 1)],
+        );
+
+        // row 15 = VL[5].l2 reversed — no features
+        assert_eq!(
+            scan_row(
+                "       )           (       ",
+                Some("        /   ___   \\        "),
+            ),
+            vec![],
+        );
+
+        // row 16 = VL[5].l1 reversed — no features
+        assert_eq!(
+            scan_row(
+                "        \\         /        ",
+                Some("       )           (       "),
+            ),
+            vec![],
+        );
+
+        // row 17 = VL[5].l0 reversed — legitimate arc close at depth 0
+        assert_eq!(
+            scan_row(
+                "         _________         ",
+                Some("        \\         /        "),
+            ),
+            vec![(b')', 0)],
+        );
+    }
 }
 
 fn scan_row(cur: &str, prev: Option<&str>) -> Vec<(u8, usize)> {
