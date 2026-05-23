@@ -142,6 +142,19 @@ impl Horiz {
         }
     }
 
+    pub const fn display_transfer_depth_neutral(&self) -> [&'static str; DISPLAY_LINES] {
+        use Horiz::*;
+        match self {
+            TransferUpStart =>   ["__|", "   ", "   "],
+            TransferUp =>        ["  |", " | ", "|  "],
+            TransferUpFinish =>  ["  _", " | ", "|  "],
+            TransferDownStart => ["_  ", " | ", "  |"],
+            TransferDown =>      ["|  ", " | ", "  |"],
+            TransferDownFinish => ["|__", "   ", "   "],
+            _ => self.display(),
+        }
+    }
+
     #[rustfmt::skip]
     pub const fn display_with_borders(&self) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
         use Horiz::*;
@@ -1347,6 +1360,12 @@ mod test {
             vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
             // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  — square knot
             vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)],
+            // (0 (2 /0 /1 /1 )2 )0  — rando link
+            vec![(b'(', 0), (b'(', 2), (b'/', 0), (b'/', 1), (b'/', 1), (b')', 2), (b')', 0)],
+            // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
+            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'\\', 0), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)],
+            // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
+            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 2), (b'\\', 0), (b'\\', 0), (b'(', 1), (b'\\', 2), (b'/', 3), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b'/', 1), (b')', 2), (b')', 0)],
         ] {
             let r1 = rotate_n(input.clone(), 1);
             let r5 = rotate_n(input.clone(), 5);
@@ -1368,6 +1387,118 @@ mod test {
             [(b'(', 0), (b'(', 1), (b'/', 0), (b')', 2), (b')', 0)],
         );
     }
+}
+
+fn scan_row(cur: &str, prev: Option<&str>) -> Vec<(u8, usize)> {
+    let prev_padded = prev.map(|p| {
+        let mut s = p.to_string();
+        if s.len() < cur.len() {
+            s.extend(std::iter::repeat(' ').take(cur.len() - s.len()));
+        }
+        s
+    });
+
+    let mut closes: Vec<(u8, usize)> = Vec::new();
+    let mut others: Vec<(u8, usize)> = Vec::new();
+    let mut col = 0;
+    let mut other_depth: usize = 0;
+    let mut close_depth: usize = 0;
+
+    while col < cur.len() {
+        let cur_tail = &cur[col..];
+
+        if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                let match_len = mat.end();
+                // match_len % 3 == 0: TUS→TDF (always spurious; suppress)
+                // match_len % 3 != 0: legitimate arc base
+                if match_len % 3 != 0 {
+                    others.push((b'(', other_depth));
+                    other_depth += 2;
+                }
+                col += match_len;
+                continue;
+            }
+        }
+
+        if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                let match_len = mat.end();
+                // A single-underscore match (" _ ", len=3) where the '_' is at
+                // scan (col+1)%3==0 can be a spurious TransferUpFinish artifact.
+                // Legitimate arc closes always land at even close_depth; odd means
+                // a non-arc char (e.g. ClosedAbove's '/' in l0) shifted the counter.
+                let spurious = match_len == 3 && (col + 1) % 3 == 0 && close_depth % 2 == 1;
+                if !spurious {
+                    closes.push((b')', close_depth));
+                    close_depth += 2;
+                    other_depth += 2;
+                }
+                col += match_len;
+                continue;
+            }
+        }
+
+        if cur_tail.starts_with("  ") {
+            if let Some(prev_str) = prev_padded.as_deref() {
+                let prev_tail = &prev_str[col..];
+                if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
+                    if prev_mat.start() == 0 {
+                        closes.push((b')', close_depth));
+                        close_depth += 2;
+                        other_depth += 2;
+                        col += 2;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                if let Some(prev_str) = prev_padded.as_deref() {
+                    let prev_tail = &prev_str[col..];
+                    if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                        if prev_mat.start() == 0 {
+                            others.push((b'\\', other_depth));
+                            other_depth += 2;
+                            col += mat.end();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                if let Some(prev_str) = prev_padded.as_deref() {
+                    let prev_tail = &prev_str[col..];
+                    if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                        if prev_mat.start() == 0 {
+                            others.push((b'/', other_depth));
+                            other_depth += 2;
+                            col += mat.end();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        if matches!(cur.as_bytes()[col], b'(' | b')' | b'/' | b'\\') {
+            other_depth += 1;
+            close_depth += 1;
+        }
+        col += 1;
+    }
+
+    let mut out = Vec::with_capacity(closes.len() + others.len());
+    for close in closes.into_iter().rev() {
+        out.push(close);
+    }
+    out.extend(others);
+    out
 }
 
 impl AbbreviatedDiagram {
@@ -1533,6 +1664,36 @@ impl AbbreviatedDiagram {
         })
     }
 
+    fn full_render_lines_for_rotation(&self) -> Result<Vec<String>, String> {
+        let verbose = VerboseDiagram::from_abbreviated(self)?;
+        let horiz_len = Horiz::Empty.display()[0].len();
+        Ok(verbose
+            .0
+            .iter()
+            .rev()
+            .flat_map(|vline| {
+                let width = vline.0.len() * horiz_len;
+                let blank = " ".repeat(width) + "\n";
+                let mut l0 = blank.clone();
+                let mut l1 = blank.clone();
+                let mut l2 = blank;
+                for (idx, horiz) in vline.0.iter().enumerate() {
+                    let [h0, h1, h2] = horiz.display_transfer_depth_neutral();
+                    let range = (idx * horiz_len)..((idx + 1) * horiz_len);
+                    l0.replace_range(range.clone(), h0);
+                    l1.replace_range(range.clone(), h1);
+                    l2.replace_range(range, h2);
+                }
+                [l0, l1, l2]
+            })
+            .map(|mut sub| {
+                let new_len = sub.trim_end_matches('\n').len();
+                sub.truncate(new_len);
+                sub
+            })
+            .collect())
+    }
+
     pub fn try_rotate_90_ccw(&mut self) -> Result<(), String> {
         let lines = self.full_render_lines()?;
 
@@ -1545,97 +1706,7 @@ impl AbbreviatedDiagram {
         let mut prev: Option<&str> = None;
 
         for cur in reversed.iter().rev() {
-            let mut closes: Vec<(u8, usize)> = Vec::new();
-            let mut others: Vec<(u8, usize)> = Vec::new();
-
-            let prev_padded = prev.map(|prev_line| {
-                let mut padded = prev_line.to_string();
-                if padded.len() < cur.len() {
-                    padded.extend(std::iter::repeat(' ').take(cur.len() - padded.len()));
-                }
-                padded
-            });
-
-            let mut col = 0;
-            let mut depth_counter: usize = 0;
-            while col < cur.len() {
-                let cur_tail = &cur[col..];
-
-                if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        others.push((b'(', depth_counter));
-                        depth_counter += 2;
-                        col += mat.end();
-                        continue;
-                    }
-                }
-
-                if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        closes.push((b')', depth_counter));
-                        depth_counter += 2;
-                        col += mat.end();
-                        continue;
-                    }
-                }
-
-                if cur_tail.starts_with("  ") {
-                    if let Some(prev_str) = prev_padded.as_deref() {
-                        let prev_tail = &prev_str[col..];
-                        if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
-                            if prev_mat.start() == 0 {
-                                closes.push((b')', depth_counter));
-                                depth_counter += 2;
-                                col += 2;
-                                continue;
-                            }
-                        }
-                    }
-                }
-
-                if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        if let Some(prev_str) = prev_padded.as_deref() {
-                            let prev_tail = &prev_str[col..];
-                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
-                                if prev_mat.start() == 0 {
-                                    others.push((b'\\', depth_counter));
-                                    depth_counter += 2;
-                                    col += mat.end();
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        if let Some(prev_str) = prev_padded.as_deref() {
-                            let prev_tail = &prev_str[col..];
-                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
-                                if prev_mat.start() == 0 {
-                                    others.push((b'/', depth_counter));
-                                    depth_counter += 2;
-                                    col += mat.end();
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if matches!(cur.as_bytes()[col], b'(' | b')' | b'/' | b'\\') {
-                    depth_counter += 1;
-                }
-                col += 1;
-            }
-
-            for close in closes.into_iter().rev() {
-                out.push(close);
-            }
-            out.extend(others);
-
+            out.extend(scan_row(cur, prev));
             prev = Some(cur);
         }
 
@@ -3202,3 +3273,386 @@ fn snapshot_ascii_print() {
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(weird_thing_that_broke_once));
 }
+
+#[cfg(test)]
+mod dbg_depth {
+    use super::*;
+    fn trace_rotation_features_verbose(diag: &AbbreviatedDiagram) {
+        let lines = diag.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        let mut prev: Option<&str> = None;
+        for (row_idx, cur) in reversed.iter().rev().enumerate() {
+            let prev_padded = prev.map(|p| {
+                let mut s = p.to_string();
+                if s.len() < cur.len() { s.extend(std::iter::repeat(' ').take(cur.len() - s.len())); }
+                s
+            });
+            let mut col = 0;
+            let mut other_depth: usize = 0;
+            let mut close_depth: usize = 0;
+            while col < cur.len() {
+                let cur_tail = &cur[col..];
+                let c = cur.as_bytes()[col] as char;
+                if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        eprintln!("  row{row_idx:2} col{col:2}: OPEN({other_depth}/{close_depth})");
+                        other_depth += 2; col += mat.end(); continue;
+                    }
+                }
+                if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        eprintln!("  row{row_idx:2} col{col:2}: CLOSE({close_depth})");
+                        close_depth += 2; other_depth += 2; col += mat.end(); continue;
+                    }
+                }
+                if cur_tail.starts_with("  ") {
+                    if let Some(prev_str) = prev_padded.as_deref() {
+                        if let Some(pm) = ROTATE_PREV_CLOSE_RE.find(&prev_str[col..]) {
+                            if pm.start() == 0 {
+                                eprintln!("  row{row_idx:2} col{col:2}: CLOSE_PREV({close_depth})");
+                                close_depth += 2; other_depth += 2; col += 2; continue;
+                            }
+                        }
+                    }
+                }
+                if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        if let Some(prev_str) = prev_padded.as_deref() {
+                            if let Some(pm) = ROTATE_PREV_X_RE.find(&prev_str[col..]) {
+                                if pm.start() == 0 {
+                                    eprintln!("  row{row_idx:2} col{col:2}: X_SLASH({other_depth}/{close_depth})");
+                                    other_depth += 2; col += mat.end(); continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        if let Some(prev_str) = prev_padded.as_deref() {
+                            if let Some(pm) = ROTATE_PREV_X_RE.find(&prev_str[col..]) {
+                                if pm.start() == 0 {
+                                    eprintln!("  row{row_idx:2} col{col:2}: X_BACKSLASH({other_depth}/{close_depth})");
+                                    other_depth += 2; col += mat.end(); continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                if matches!(cur.as_bytes()[col], b'(' | b')' | b'/' | b'\\') {
+                    eprintln!("  row{row_idx:2} col{col:2}: FALLTHROUGH '{c}' other+={other_depth}+1 close+={close_depth}+1");
+                    other_depth += 1; close_depth += 1;
+                }
+                col += 1;
+            }
+            prev = Some(cur);
+        }
+    }
+
+    fn trace_rotation_features(diag: &AbbreviatedDiagram) {
+        let lines = diag.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        let mut prev: Option<&str> = None;
+        for (row_idx, cur) in reversed.iter().rev().enumerate() {
+            let prev_padded = prev.map(|p| {
+                let mut s = p.to_string();
+                if s.len() < cur.len() { s.extend(std::iter::repeat(' ').take(cur.len() - s.len())); }
+                s
+            });
+            let mut col = 0;
+            let mut other_depth: usize = 0;
+            let mut close_depth: usize = 0;
+            while col < cur.len() {
+                let cur_tail = &cur[col..];
+                if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        eprintln!("  row{row_idx:2} col{col:2}: OPEN({other_depth}) match={:?}", &cur[col..col+mat.end()]);
+                        other_depth += 2; col += mat.end(); continue;
+                    }
+                }
+                if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        eprintln!("  row{row_idx:2} col{col:2}: CLOSE({close_depth})");
+                        close_depth += 2; other_depth += 2; col += mat.end(); continue;
+                    }
+                }
+                if cur_tail.starts_with("  ") {
+                    if let Some(prev_str) = prev_padded.as_deref() {
+                        if let Some(pm) = ROTATE_PREV_CLOSE_RE.find(&prev_str[col..]) {
+                            if pm.start() == 0 {
+                                eprintln!("  row{row_idx:2} col{col:2}: CLOSE_PREV({close_depth})");
+                                close_depth += 2; other_depth += 2; col += 2; continue;
+                            }
+                        }
+                    }
+                }
+                if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        if let Some(prev_str) = prev_padded.as_deref() {
+                            if let Some(pm) = ROTATE_PREV_X_RE.find(&prev_str[col..]) {
+                                if pm.start() == 0 {
+                                    eprintln!("  row{row_idx:2} col{col:2}: X_SLASH({other_depth})");
+                                    other_depth += 2; col += mat.end(); continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
+                    if mat.start() == 0 {
+                        if let Some(prev_str) = prev_padded.as_deref() {
+                            if let Some(pm) = ROTATE_PREV_X_RE.find(&prev_str[col..]) {
+                                if pm.start() == 0 {
+                                    eprintln!("  row{row_idx:2} col{col:2}: X_BACKSLASH({other_depth})");
+                                    other_depth += 2; col += mat.end(); continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                if matches!(cur.as_bytes()[col], b'(' | b')' | b'/' | b'\\') {
+                    other_depth += 1; close_depth += 1;
+                }
+                col += 1;
+            }
+            prev = Some(cur);
+        }
+    }
+
+    #[test] fn show_donut_scan() {
+        let donut = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)]
+        ).unwrap();
+        let lines = donut.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("Donut scan rows:");
+        for (i, cur) in reversed.iter().rev().enumerate() {
+            if !cur.trim().is_empty() { eprintln!("  row{i:2}: {:?}", cur); }
+        }
+        eprintln!("Donut (0 (1 )1 )0 scan verbose:");
+        trace_rotation_features_verbose(&donut);
+    }
+    #[test] fn show_r1_features() {
+        let r1 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b')', 2), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b')', 0)]
+        ).unwrap();
+        eprintln!("Features detected in R^1 scan (for computing R^2):");
+        trace_rotation_features(&r1);
+    }
+    #[test] fn show_original_verbose() {
+        let orig = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'/', 0), (b'/', 1), (b'/', 1), (b')', 2), (b')', 0)]
+        ).unwrap();
+        eprintln!("Original scan row5 verbose:");
+        trace_rotation_features_verbose(&orig);
+    }
+    #[test] fn show_r1_verbose2() {
+        let r1 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b')', 2), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b')', 0)]
+        ).unwrap();
+        eprintln!("R1 scan row5 verbose:");
+        trace_rotation_features_verbose(&r1);
+    }
+    #[test] fn show_r3_features() {
+        let r3 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let lines = r3.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("Scan rows for R^3:");
+        for (i, cur) in reversed.iter().rev().enumerate() {
+            eprintln!("  row{i:2}: {:?}", cur);
+        }
+        eprintln!("Features detected in R^3 scan (for computing R^4):");
+        trace_rotation_features(&r3);
+    }
+    #[test] fn show_period4_debug() {
+        let cases: &[(&str, Vec<(u8, usize)>)] = &[
+            ("unknot", vec![(b'(', 0), (b')', 0)]),
+            ("donut", vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)]),
+            ("(0 /0 /0 )0", vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)]),
+            ("case4", vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)]),
+            ("(0 (2 )1 )0", vec![(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)]),
+            ("complex", vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)]),
+            ("rando_link", vec![(b'(', 0), (b'(', 2), (b'/', 0), (b'/', 1), (b'/', 1), (b')', 2), (b')', 0)]),
+            ("5_1", vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'\\', 0), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)]),
+            ("rando_annoying", vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 2), (b'\\', 0), (b'\\', 0), (b'(', 1), (b'\\', 2), (b'/', 3), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b'/', 1), (b')', 2), (b')', 0)]),
+        ];
+        for (name, input) in cases {
+            eprintln!("=== Testing {name} ===");
+            let r1 = {
+                let mut d = AbbreviatedDiagram::new_from_tuples(input.clone()).unwrap();
+                d.try_rotate_90_ccw().unwrap();
+                d.to_tuples()
+            };
+            let mut d = AbbreviatedDiagram::new_from_tuples(input.clone()).unwrap();
+            for n in 1..=5 {
+                eprintln!("  Computing R^{n} for {name}...");
+                d.try_rotate_90_ccw().unwrap();
+                let rn = d.to_tuples();
+                eprintln!("  R^{n} = {rn:?}");
+                if n == 5 {
+                    if rn == r1 { eprintln!("  R^5 == R^1 ✓"); } else { eprintln!("  R^5 != R^1 ✗"); }
+                }
+            }
+        }
+    }
+    #[test] fn show_case4_scan() {
+        let diag = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0), (b'/', 1), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let lines = diag.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("Scan rows for (0 (2 /1 \\0 /1 )2 )0:");
+        for (i, cur) in reversed.iter().rev().enumerate() {
+            eprintln!("  row{i:2}: {:?}", cur);
+        }
+        eprintln!("Verbose scan:");
+        trace_rotation_features_verbose(&diag);
+    }
+    #[test] fn show_complex_scan() {
+        let diag = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3), (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let lines = diag.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("Scan rows for (0 (2 \\1 (3 /2 /4 )3 \\1 )2 )0:");
+        for (i, cur) in reversed.iter().rev().enumerate() {
+            eprintln!("  row{i:2}: {:?}", cur);
+        }
+        eprintln!("Verbose scan:");
+        trace_rotation_features_verbose(&diag);
+    }
+    #[test] fn show_r2_verbose_lines() {
+        // R^2 for rando_link = (0 (2 /1 (3 /4 /1 )4 )2 )0
+        let r2 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'(', 3), (b'/', 4), (b'/', 1), (b')', 4), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let verbose = VerboseDiagram::from_abbreviated(&r2).unwrap();
+        eprintln!("VerboseDiagram for R^2 ({} lines):", verbose.0.len());
+        for (i, vline) in verbose.0.iter().enumerate() {
+            eprintln!("  VL[{}] ({} elements): {:?}", i, vline.0.len(), vline.0);
+        }
+    }
+    #[test] fn show_r2_scan() {
+        // R^2 for rando_link = (0 (2 /1 (3 /4 /1 )4 )2 )0
+        let r2 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'/', 1), (b'(', 3), (b'/', 4), (b'/', 1), (b')', 4), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let lines = r2.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("R^2 scan rows:");
+        for (row_idx, cur) in reversed.iter().rev().enumerate() {
+            if !cur.trim().is_empty() {
+                eprintln!("  row{row_idx:2}: {:?}", cur);
+                let mut col = 0;
+                while col < cur.len() {
+                    let cur_tail = &cur[col..];
+                    if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+                        if mat.start() == 0 {
+                            let ml = mat.end();
+                            eprintln!("    col{col:2}: OPEN len={} %3={}", ml, ml%3);
+                            col += ml; continue;
+                        }
+                    }
+                    if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+                        if mat.start() == 0 {
+                            let ml = mat.end();
+                            let spurious = ml == 3 && (col + 1) % 3 == 0;
+                            eprintln!("    col{col:2}: CLOSE len={} (col+1)%3={} spurious={}", ml, (col+1)%3, spurious);
+                            col += ml; continue;
+                        }
+                    }
+                    col += 1;
+                }
+            }
+        }
+    }
+    #[test] fn show_r3_verbose_lines() {
+        let r3 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let verbose = VerboseDiagram::from_abbreviated(&r3).unwrap();
+        eprintln!("VerboseDiagram for R^3 ({} lines):", verbose.0.len());
+        for (i, vline) in verbose.0.iter().enumerate() {
+            eprintln!("  VL[{}] ({} elements): {:?}", i, vline.0.len(), vline.0);
+        }
+    }
+    #[test] fn show_r3_actual_scan() {
+        // R^3 for rando_link = (0 (1 \0 \2 )1 (0 \1 )2 )0
+        let r3 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 1), (b'\\', 0), (b'\\', 2), (b')', 1), (b'(', 0), (b'\\', 1), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let lines = r3.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("R^3 scan rows (with match_len annotations):");
+        for (row_idx, cur) in reversed.iter().rev().enumerate() {
+            if !cur.trim().is_empty() {
+                eprintln!("  row{row_idx:2}: {:?}", cur);
+                // Show what CLOSE_UNDERSCORE_RE matches
+                let mut col = 0;
+                while col < cur.len() {
+                    let cur_tail = &cur[col..];
+                    if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+                        if mat.start() == 0 {
+                            eprintln!("    col{col:2}: CLOSE_UNDERSCORE match={:?} len={}", &cur[col..col+mat.end()], mat.end());
+                            col += mat.end();
+                            continue;
+                        }
+                    }
+                    if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+                        if mat.start() == 0 {
+                            let match_len = mat.end();
+                            eprintln!("    col{col:2}: OPEN match={:?} len={} %3={}", &cur[col..col+match_len], match_len, match_len%3);
+                            col += match_len;
+                            continue;
+                        }
+                    }
+                    col += 1;
+                }
+            }
+        }
+    }
+    #[test] fn show_r4_scan() {
+        // R^4 for rando_link = (0 (2 (4 /3 /0 /3 )4 )2 )0
+        let r4 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'(', 4), (b'/', 3), (b'/', 0), (b'/', 3), (b')', 4), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let lines = r4.full_render_lines().unwrap();
+        let reversed: Vec<String> = lines.iter().map(|l| l.chars().rev().collect()).collect();
+        eprintln!("R^4 scan (using scan_row):");
+        let mut prev: Option<&str> = None;
+        for (row_idx, cur) in reversed.iter().rev().enumerate() {
+            let features = scan_row(cur, prev);
+            if !features.is_empty() || !cur.trim().is_empty() {
+                eprintln!("  row{row_idx:2}: {:?}", cur);
+                if !features.is_empty() {
+                    eprintln!("    features: {:?}", features);
+                }
+            }
+            prev = Some(cur);
+        }
+    }
+
+    #[test] fn show_r4_verbose_lines() {
+        let r4 = AbbreviatedDiagram::new_from_tuples(
+            vec![(b'(', 0), (b'(', 2), (b'(', 4), (b'/', 3), (b'/', 0), (b'/', 3), (b')', 4), (b')', 2), (b')', 0)]
+        ).unwrap();
+        let verbose = VerboseDiagram::from_abbreviated(&r4).unwrap();
+        eprintln!("R^4 VerboseLines ({} lines):", verbose.0.len());
+        for (i, vl) in verbose.0.iter().enumerate() {
+            let [l0, l1, l2] = vl.display::<false>().collect::<Vec<_>>().try_into().unwrap();
+            let [rl0, rl1, rl2]: [String; 3] = [
+                l0.trim_end_matches('\n').chars().rev().collect(),
+                l1.trim_end_matches('\n').chars().rev().collect(),
+                l2.trim_end_matches('\n').chars().rev().collect(),
+            ];
+            eprintln!("  VL[{i}] horiz: {:?}", vl.0);
+            eprintln!("    l0={:?}  reversed={:?}", l0.trim_end_matches('\n'), rl0);
+            eprintln!("    l1={:?}  reversed={:?}", l1.trim_end_matches('\n'), rl1);
+            eprintln!("    l2={:?}  reversed={:?}", l2.trim_end_matches('\n'), rl2);
+        }
+    }
+}
+
+
