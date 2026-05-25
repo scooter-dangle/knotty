@@ -141,19 +141,6 @@ impl Horiz {
         }
     }
 
-    pub const fn display_transfer_depth_neutral(&self) -> [&'static str; DISPLAY_LINES] {
-        use Horiz::*;
-        match self {
-            TransferUpStart => ["__|", "   ", "   "],
-            TransferUp => ["  |", " | ", "|  "],
-            TransferUpFinish => ["  _", " | ", "|  "],
-            TransferDownStart => ["_  ", " | ", "  |"],
-            TransferDown => ["|  ", " | ", "  |"],
-            TransferDownFinish => ["|__", "   ", "   "],
-            _ => self.display(),
-        }
-    }
-
     #[rustfmt::skip]
     pub const fn display_with_borders(&self) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
         use Horiz::*;
