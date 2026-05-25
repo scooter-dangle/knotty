@@ -1283,11 +1283,21 @@ mod test {
                 let mut diag = AbbreviatedDiagram::new_from_tuples(input.clone()).unwrap();
                 diag.try_rotate_90_ccw().unwrap();
                 let actual = diag.to_tuples();
+                let expected_diagram = match try_ascii_print::<false>(expected.clone()) {
+                    Ok(s) => format!("expected:\n{s}"),
+                    Err(e) => format!("expected: error rendering diagram: {e}"),
+                };
+                let actual_diagram = match try_ascii_print::<false>(actual.clone()) {
+                    Ok(s) => format!("actual:\n{s}"),
+                    Err(e) => format!("actual: error rendering diagram: {e}"),
+                };
                 assert_eq!(
                     actual,
                     expected,
-                    "\noriginal:\n{}",
+                    "\noriginal:\n{}\n{}\n{}",
                     ascii_print::<false>(input),
+                    expected_diagram,
+                    actual_diagram,
                 );
             };
         }
