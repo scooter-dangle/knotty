@@ -16,8 +16,7 @@ use std::{cmp::Ordering, collections::VecDeque, mem, str::FromStr, sync::LazyLoc
 use regex::Regex;
 
 static ROTATE_OPEN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"/_*\\").unwrap());
-static ROTATE_CLOSE_UNDERSCORE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r" _+ ").unwrap());
+static ROTATE_CLOSE_UNDERSCORE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" _+ ").unwrap());
 static ROTATE_CENTERED_SLASH_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" / ").unwrap());
 static ROTATE_CENTERED_BACKSLASH_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r" \\ ").unwrap());
@@ -1214,11 +1213,15 @@ mod test {
             let input: Vec<(u8, usize)> = vec![$($input,)*];
             let expected: Vec<u8> = vec![$($expected,)*];
             let actual = rotate_elements(input.clone());
+            let expected_diagram = format!("expected: {}", fmt_elements(&expected));
+            let actual_diagram = format!("actual: {}", fmt_elements(&actual));
             assert_eq!(
                 fmt_elements(&actual),
                 fmt_elements(&expected),
-                "\noriginal:\n{}",
+                "\noriginal:\n{}\n{}\n{}",
                 ascii_print::<false>(input),
+                expected_diagram,
+                actual_diagram,
             );
         };
     }
@@ -1226,10 +1229,7 @@ mod test {
     #[test]
     fn test_try_rotate_90_ccw_features() {
         // unknot — rotation-invariant
-        assert_rotate_features!(
-            [(b'(', 0), (b')', 0)],
-            [b'(', b')'],
-        );
+        assert_rotate_features!([(b'(', 0), (b')', 0)], [b'(', b')'],);
 
         // donut — rotation-invariant
         assert_rotate_features!(
@@ -1246,27 +1246,248 @@ mod test {
         // (0 (2 /1 \0 /1 )2 )0  ->  (0 (2 /1 \0 \2 )1 )0
         assert_rotate_features!(
             [
-                (b'(', 0), (b'(', 2), (b'/', 1), (b'\\', 0),
-                (b'/', 1), (b')', 2), (b')', 0),
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
             ],
             [b'(', b'(', b'/', b'\\', b'\\', b')', b')'],
         );
 
         // (0 (2 )1 )0  ->  (0 )0  (feature reduction)
-        assert_rotate_features!(
-            [(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)],
-            [b'(', b')'],
-        );
+        assert_rotate_features!([(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)], [b'(', b')'],);
 
         // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  ->  (0 (1 /0 /2 \1 \1 )2 )0
         assert_rotate_features!(
             [
-                (b'(', 0), (b'(', 2), (b'\\', 1), (b'(', 3),
-                (b'/', 2), (b'/', 4), (b')', 3), (b'\\', 1),
-                (b')', 2), (b')', 0),
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 1),
+                (b'(', 3),
+                (b'/', 2),
+                (b'/', 4),
+                (b')', 3),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0),
             ],
             [b'(', b'(', b'/', b'/', b'\\', b'\\', b')', b')'],
         );
+    }
+
+    #[test]
+    fn test_try_rotate_90_ccw_depths() {
+        macro_rules! assert_rotate_depths {
+            ([$($input:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {
+                let input: Vec<(u8, usize)> = vec![$($input,)*];
+                let expected: Vec<(u8, usize)> = vec![$($expected,)*];
+                let mut diag = AbbreviatedDiagram::new_from_tuples(input.clone()).unwrap();
+                diag.try_rotate_90_ccw().unwrap();
+                let actual = diag.to_tuples();
+                let expected_diagram = match try_ascii_print::<false>(expected.clone()) {
+                    Ok(s) => format!("expected:\n{s}"),
+                    Err(e) => format!("expected: error rendering diagram: {e}"),
+                };
+                let actual_diagram = match try_ascii_print::<false>(actual.clone()) {
+                    Ok(s) => format!("actual:\n{s}"),
+                    Err(e) => format!("actual: error rendering diagram: {e}"),
+                };
+                assert_eq!(
+                    actual,
+                    expected,
+                    "\noriginal:\n{}\n{}\n{}",
+                    ascii_print::<false>(input),
+                    expected_diagram,
+                    actual_diagram,
+                );
+            };
+        }
+
+        // (0 )0  ->  (0 )0
+        assert_rotate_depths!([(b'(', 0), (b')', 0)], [(b'(', 0), (b')', 0)],);
+
+        // (0 (1 )1 )0  ->  (0 (1 )1 )0  — rotation-invariant including depths
+        assert_rotate_depths!(
+            [(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+            [(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+        );
+
+        // (0 /0 /0 )0  ->  (0 (2 (4 \1 \3 )4 )2 )0
+        assert_rotate_depths!(
+            [(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'(', 4),
+                (b'\\', 1),
+                (b'\\', 3),
+                (b')', 4),
+                (b')', 2),
+                (b')', 0)
+            ],
+        );
+
+        // (0 (2 /1 \0 /1 )2 )0  ->  (0 (2 /1 \0 \2 )1 )0
+        assert_rotate_depths!(
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0)
+            ],
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'\\', 2),
+                (b')', 1),
+                (b')', 0)
+            ],
+        );
+
+        // (0 (2 )1 )0  ->  (0 )0  — feature reduction
+        assert_rotate_depths!(
+            [(b'(', 0), (b'(', 2), (b')', 1), (b')', 0)],
+            [(b'(', 0), (b')', 0)],
+        );
+
+        // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  ->  (0 (1 /0 /2 \1 \1 )2 )0
+        assert_rotate_depths!(
+            [
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 1),
+                (b'(', 3),
+                (b'/', 2),
+                (b'/', 4),
+                (b')', 3),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0)
+            ],
+            [
+                (b'(', 0),
+                (b'(', 1),
+                (b'/', 0),
+                (b'/', 2),
+                (b'\\', 1),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0)
+            ],
+        );
+    }
+
+    fn rotate_n(input: Vec<(u8, usize)>, n: usize) -> Vec<(u8, usize)> {
+        let mut diag = AbbreviatedDiagram::new_from_tuples(input).unwrap();
+        for _ in 0..n {
+            diag.try_rotate_90_ccw().unwrap();
+        }
+        diag.to_tuples()
+    }
+
+    #[test]
+    fn test_try_rotate_90_ccw_period_4() {
+        // R^5(D) = R(D): one initial rotation triggers any simplifications, then
+        // four more rotations must return to the same form.
+        for input in [
+            // unknot
+            vec![(b'(', 0), (b')', 0)],
+            // donut
+            vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)],
+            // (0 /0 /0 )0
+            vec![(b'(', 0), (b'/', 0), (b'/', 0), (b')', 0)],
+            // (0 (2 /1 \0 /1 )2 )0
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+            // (0 (2 \1 (3 /2 /4 )3 \1 )2 )0  — square knot
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'\\', 1),
+                (b'(', 3),
+                (b'/', 2),
+                (b'/', 4),
+                (b')', 3),
+                (b'\\', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+            // (0 (2 /0 /1 /1 )2 )0  — rando link
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 0),
+                (b'/', 1),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+            // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+            // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 2),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'(', 1),
+                (b'\\', 2),
+                (b'/', 3),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ] {
+            let r1 = rotate_n(input.clone(), 1);
+            let r5 = rotate_n(input.clone(), 5);
+            let expected_diagram = match try_ascii_print::<false>(r1.clone()) {
+                Ok(s) => format!("expected:\n{s}"),
+                Err(e) => format!("expected: error rendering diagram: {e}"),
+            };
+            let actual_diagram = match try_ascii_print::<false>(r5.clone()) {
+                Ok(s) => format!("actual:\n{s}"),
+                Err(e) => format!("actual: error rendering diagram: {e}"),
+            };
+            assert_eq!(
+                r5,
+                r1,
+                "\noriginal:\n{}\n{}\n{}",
+                ascii_print::<false>(input),
+                expected_diagram,
+                actual_diagram,
+            );
+        }
     }
 
     #[test]
@@ -1278,6 +1499,226 @@ mod test {
             [(b'(', 0), (b'(', 1), (b'/', 0), (b')', 2), (b')', 0)],
         );
     }
+}
+
+#[cfg(test)]
+mod test_scan_row {
+    use super::scan_row;
+
+    fn reverse_line(line: &str) -> String {
+        line.chars().rev().collect()
+    }
+
+    macro_rules! test {
+        ($name:ident($line1:literal $line2:literal, $output:expr $(,)?)) => {
+            #[test]
+            fn $name() {
+                let cur: String = reverse_line($line1);
+                let prev: String = reverse_line($line2);
+                assert_eq!(scan_row(&cur, Some(prev.as_str())), $output);
+            }
+        };
+    }
+
+    // All rows from R^4 of rando_link = (0 (2 (4 /3 /0 /3 )4 )2 )0.
+    // Each test shows a diagram snippet with cur on top, prev on bottom,
+    // in natural left-to-right reading order (the macro reverses them for scan_row).
+
+    test!(row_02(
+        r"  \_________/ \_________/  "
+        r"",
+        vec![(b'(', 0), (b'(', 2)],
+    ));
+
+    test!(row_03(
+        r" (           /           ) "
+        r"  \_________/ \_________/  ",
+        vec![(b'\\', 1)],
+    ));
+
+    test!(row_04(
+        r"  /         \ /         \  "
+        r" (           /           ) ",
+        vec![],
+    ));
+
+    test!(row_05(
+        r"   _________   _________   "
+        r"  /         \ /         \  ",
+        vec![(b')', 2), (b')', 0)],
+    ));
+
+    test!(row_08(
+        r"     \_______________/     "
+        r"",
+        vec![(b'(', 0)],
+    ));
+
+    test!(row_09(
+        r"    (                 )    "
+        r"     \_______________/     ",
+        vec![],
+    ));
+
+    test!(row_10(
+        r"     /               \     "
+        r"    (                 )    ",
+        vec![],
+    ));
+
+    test!(row_11(
+        r"      ___/ \___/ \___      "
+        r"     /               \     ",
+        vec![(b'(', 1)],
+    ));
+
+    test!(row_12(
+        r"          /     /          "
+        r"      ___/ \___/ \___      ",
+        vec![(b'\\', 0), (b'\\', 2)],
+    ));
+
+    test!(row_13(
+        r"         \ /   \ /         "
+        r"          /     /          ",
+        vec![],
+    ));
+
+    test!(row_14(
+        r"        \   ___   /        "
+        r"         \ /   \ /         ",
+        vec![(b')', 1)],
+    ));
+
+    test!(row_15(
+        r"       (           )       "
+        r"        \   ___   /        ",
+        vec![],
+    ));
+
+    test!(row_16(
+        r"        /         \        "
+        r"       (           )       ",
+        vec![],
+    ));
+
+    test!(row_17(
+        r"         _________         "
+        r"        /         \        ",
+        vec![(b')', 0)],
+    ));
+}
+
+fn scan_row(cur: &str, prev: Option<&str>) -> Vec<(u8, usize)> {
+    let prev_padded = prev.map(|p| {
+        let mut s = p.to_string();
+        if s.len() < cur.len() {
+            s.extend(std::iter::repeat(' ').take(cur.len() - s.len()));
+        }
+        s
+    });
+
+    let mut closes: Vec<(u8, usize)> = Vec::new();
+    let mut others: Vec<(u8, usize)> = Vec::new();
+    let mut col = 0;
+    let mut other_depth: usize = 0;
+    let mut close_depth: usize = 0;
+
+    while col < cur.len() {
+        let cur_tail = &cur[col..];
+
+        if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                let match_len = mat.end();
+                // match_len % 3 == 0: TUS→TDF (always spurious; suppress)
+                // match_len % 3 != 0: legitimate arc base
+                if match_len % 3 != 0 {
+                    others.push((b'(', other_depth));
+                    other_depth += 2;
+                }
+                col += match_len;
+                continue;
+            }
+        }
+
+        if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                let match_len = mat.end();
+                // A single-underscore match (" _ ", len=3) where the '_' is at
+                // scan (col+1)%3==0 can be a spurious TransferUpFinish artifact.
+                // Legitimate arc closes always land at even close_depth; odd means
+                // a non-arc char (e.g. ClosedAbove's '/' in l0) shifted the counter.
+                let spurious = match_len == 3 && (col + 1) % 3 == 0 && close_depth % 2 == 1;
+                if !spurious {
+                    closes.push((b')', close_depth));
+                    close_depth += 2;
+                    other_depth += 2;
+                }
+                col += match_len;
+                continue;
+            }
+        }
+
+        if cur_tail.starts_with("  ") {
+            if let Some(prev_str) = prev_padded.as_deref() {
+                let prev_tail = &prev_str[col..];
+                if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
+                    if prev_mat.start() == 0 {
+                        closes.push((b')', close_depth));
+                        close_depth += 2;
+                        other_depth += 2;
+                        col += 2;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                if let Some(prev_str) = prev_padded.as_deref() {
+                    let prev_tail = &prev_str[col..];
+                    if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                        if prev_mat.start() == 0 {
+                            others.push((b'\\', other_depth));
+                            other_depth += 2;
+                            col += mat.end();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
+            if mat.start() == 0 {
+                if let Some(prev_str) = prev_padded.as_deref() {
+                    let prev_tail = &prev_str[col..];
+                    if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
+                        if prev_mat.start() == 0 {
+                            others.push((b'/', other_depth));
+                            other_depth += 2;
+                            col += mat.end();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        if matches!(cur.as_bytes()[col], b'(' | b')' | b'/' | b'\\') {
+            other_depth += 1;
+            close_depth += 1;
+        }
+        col += 1;
+    }
+
+    let mut out = Vec::with_capacity(closes.len() + others.len());
+    for close in closes.into_iter().rev() {
+        out.push(close);
+    }
+    out.extend(others);
+    out
 }
 
 impl AbbreviatedDiagram {
@@ -1455,88 +1896,7 @@ impl AbbreviatedDiagram {
         let mut prev: Option<&str> = None;
 
         for cur in reversed.iter().rev() {
-            let mut closes: Vec<(u8, usize)> = Vec::new();
-            let mut others: Vec<(u8, usize)> = Vec::new();
-
-            let prev_padded = prev.map(|prev_line| {
-                let mut padded = prev_line.to_string();
-                if padded.len() < cur.len() {
-                    padded.extend(std::iter::repeat(' ').take(cur.len() - padded.len()));
-                }
-                padded
-            });
-
-            let mut col = 0;
-            while col < cur.len() {
-                let cur_tail = &cur[col..];
-
-                if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        others.push((b'(', 0));
-                        col += mat.end();
-                        continue;
-                    }
-                }
-
-                if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        closes.push((b')', 0));
-                        col += mat.end();
-                        continue;
-                    }
-                }
-
-                if cur_tail.starts_with("  ") {
-                    if let Some(prev_str) = prev_padded.as_deref() {
-                        let prev_tail = &prev_str[col..];
-                        if let Some(prev_mat) = ROTATE_PREV_CLOSE_RE.find(prev_tail) {
-                            if prev_mat.start() == 0 {
-                                closes.push((b')', 0));
-                                col += 2;
-                                continue;
-                            }
-                        }
-                    }
-                }
-
-                if let Some(mat) = ROTATE_CENTERED_SLASH_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        if let Some(prev_str) = prev_padded.as_deref() {
-                            let prev_tail = &prev_str[col..];
-                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
-                                if prev_mat.start() == 0 {
-                                    others.push((b'\\', 0));
-                                    col += mat.end();
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if let Some(mat) = ROTATE_CENTERED_BACKSLASH_RE.find(cur_tail) {
-                    if mat.start() == 0 {
-                        if let Some(prev_str) = prev_padded.as_deref() {
-                            let prev_tail = &prev_str[col..];
-                            if let Some(prev_mat) = ROTATE_PREV_X_RE.find(prev_tail) {
-                                if prev_mat.start() == 0 {
-                                    others.push((b'/', 0));
-                                    col += mat.end();
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                col += 1;
-            }
-
-            for close in closes.into_iter().rev() {
-                out.push(close);
-            }
-            out.extend(others);
-
+            out.extend(scan_row(cur, prev));
             prev = Some(cur);
         }
 
