@@ -1497,98 +1497,98 @@ mod test_scan_row {
         ($name:ident($line1:literal $line2:literal, $output:expr $(,)?)) => {
             #[test]
             fn $name() {
-                let prev: String = reverse_line($line1);
-                let cur: String = reverse_line($line2);
+                let cur: String = reverse_line($line1);
+                let prev: String = reverse_line($line2);
                 assert_eq!(scan_row(&cur, Some(prev.as_str())), $output);
             }
         };
     }
 
     // All rows from R^4 of rando_link = (0 (2 (4 /3 /0 /3 )4 )2 )0.
-    // Each test shows a diagram snippet with prev on top, cur on bottom,
+    // Each test shows a diagram snippet with cur on top, prev on bottom,
     // in natural left-to-right reading order (the macro reverses them for scan_row).
 
     test!(row_02(
-        ""
-        r#"  \_________/ \_________/  "#,
+        r#"  \_________/ \_________/  "#
+        "",
         vec![(b'(', 0), (b'(', 2)],
     ));
 
     test!(row_03(
-        r#"  \_________/ \_________/  "#
-        " (           /           ) ",
+        " (           /           ) "
+        r#"  \_________/ \_________/  "#,
         vec![(b'\\', 1)],
     ));
 
     test!(row_04(
-        " (           /           ) "
-        r#"  /         \ /         \  "#,
+        r#"  /         \ /         \  "#
+        " (           /           ) ",
         vec![],
     ));
 
     test!(row_05(
-        r#"  /         \ /         \  "#
-        "   _________   _________   ",
+        "   _________   _________   "
+        r#"  /         \ /         \  "#,
         vec![(b')', 2)],
     ));
 
     test!(row_08(
-        ""
-        r#"     \_______________/     "#,
+        r#"     \_______________/     "#
+        "",
         vec![],
     ));
 
     test!(row_09(
-        r#"     \_______________/     "#
-        "    (                 )    ",
+        "    (                 )    "
+        r#"     \_______________/     "#,
         vec![],
     ));
 
     test!(row_10(
-        "    (                 )    "
-        r#"     /               \     "#,
+        r#"     /               \     "#
+        "    (                 )    ",
         vec![],
     ));
 
     test!(row_11(
-        r#"     /               \     "#
-        r#"      ___/ \___/ \___      "#,
+        r#"      ___/ \___/ \___      "#
+        r#"     /               \     "#,
         vec![(b'(', 1)],
     ));
 
     test!(row_12(
-        r#"      ___/ \___/ \___      "#
-        "          /     /          ",
+        "          /     /          "
+        r#"      ___/ \___/ \___      "#,
         vec![(b'\\', 0), (b'\\', 2)],
     ));
 
     test!(row_13(
-        "          /     /          "
-        r#"         \ /   \ /         "#,
+        r#"         \ /   \ /         "#
+        "          /     /          ",
         vec![],
     ));
 
     test!(row_14(
-        r#"         \ /   \ /         "#
-        r#"        \   ___   /        "#,
+        r#"        \   ___   /        "#
+        r#"         \ /   \ /         "#,
         vec![(b')', 1)],
     ));
 
     test!(row_15(
-        r#"        \   ___   /        "#
-        "       (           )       ",
+        "       (           )       "
+        r#"        \   ___   /        "#,
         vec![],
     ));
 
     test!(row_16(
-        "       (           )       "
-        r#"        /         \        "#,
+        r#"        /         \        "#
+        "       (           )       ",
         vec![],
     ));
 
     test!(row_17(
-        r#"        /         \        "#
-        "         _________         ",
+        "         _________         "
+        r#"        /         \        "#,
         vec![(b')', 0)],
     ));
 }
