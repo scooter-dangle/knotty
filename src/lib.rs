@@ -1855,36 +1855,6 @@ impl AbbreviatedDiagram {
         })
     }
 
-    fn full_render_lines_for_rotation(&self) -> Result<Vec<String>, String> {
-        let verbose = VerboseDiagram::from_abbreviated(self)?;
-        let horiz_len = Horiz::Empty.display()[0].len();
-        Ok(verbose
-            .0
-            .iter()
-            .rev()
-            .flat_map(|vline| {
-                let width = vline.0.len() * horiz_len;
-                let blank = " ".repeat(width) + "\n";
-                let mut l0 = blank.clone();
-                let mut l1 = blank.clone();
-                let mut l2 = blank;
-                for (idx, horiz) in vline.0.iter().enumerate() {
-                    let [h0, h1, h2] = horiz.display_transfer_depth_neutral();
-                    let range = (idx * horiz_len)..((idx + 1) * horiz_len);
-                    l0.replace_range(range.clone(), h0);
-                    l1.replace_range(range.clone(), h1);
-                    l2.replace_range(range, h2);
-                }
-                [l0, l1, l2]
-            })
-            .map(|mut sub| {
-                let new_len = sub.trim_end_matches('\n').len();
-                sub.truncate(new_len);
-                sub
-            })
-            .collect())
-    }
-
     pub fn try_rotate_90_ccw(&mut self) -> Result<(), String> {
         let lines = self.full_render_lines()?;
 
