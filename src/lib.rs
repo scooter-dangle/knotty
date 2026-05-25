@@ -1535,7 +1535,7 @@ mod test_scan_row {
     test!(row_08(
         r"     \_______________/     "
         r"",
-        vec![],
+        vec![(b'(', 0)],
     ));
 
     test!(row_09(
