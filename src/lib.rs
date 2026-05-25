@@ -1213,11 +1213,15 @@ mod test {
             let input: Vec<(u8, usize)> = vec![$($input,)*];
             let expected: Vec<u8> = vec![$($expected,)*];
             let actual = rotate_elements(input.clone());
+            let expected_diagram = format!("expected: {}", fmt_elements(&expected));
+            let actual_diagram = format!("actual: {}", fmt_elements(&actual));
             assert_eq!(
                 fmt_elements(&actual),
                 fmt_elements(&expected),
-                "\noriginal:\n{}",
+                "\noriginal:\n{}\n{}\n{}",
                 ascii_print::<false>(input),
+                expected_diagram,
+                actual_diagram,
             );
         };
     }
@@ -1467,7 +1471,22 @@ mod test {
         ] {
             let r1 = rotate_n(input.clone(), 1);
             let r5 = rotate_n(input.clone(), 5);
-            assert_eq!(r5, r1, "\noriginal:\n{}", ascii_print::<false>(input),);
+            let expected_diagram = match try_ascii_print::<false>(r1.clone()) {
+                Ok(s) => format!("expected:\n{s}"),
+                Err(e) => format!("expected: error rendering diagram: {e}"),
+            };
+            let actual_diagram = match try_ascii_print::<false>(r5.clone()) {
+                Ok(s) => format!("actual:\n{s}"),
+                Err(e) => format!("actual: error rendering diagram: {e}"),
+            };
+            assert_eq!(
+                r5,
+                r1,
+                "\noriginal:\n{}\n{}\n{}",
+                ascii_print::<false>(input),
+                expected_diagram,
+                actual_diagram,
+            );
         }
     }
 
