@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
-use crate::rendering::Horiz;
+use crate::render::Horiz;
 
-pub(crate) fn raw_lines_is_empty_above(lines: &[Vec<Horiz>], idx: usize) -> bool {
+pub(crate) fn is_empty_above(lines: &[Vec<Horiz>], idx: usize) -> bool {
     lines.get(idx..).unwrap_or_default().iter().all(|line| {
         line.last()
             .cloned()
@@ -12,16 +12,16 @@ pub(crate) fn raw_lines_is_empty_above(lines: &[Vec<Horiz>], idx: usize) -> bool
     })
 }
 
-pub(crate) fn raw_lines_continue(lines: &mut [Vec<Horiz>]) {
+pub(crate) fn advance(lines: &mut [Vec<Horiz>]) {
     lines
         .iter_mut()
         .for_each(|line| line.push(line.last().unwrap_or(&Horiz::Empty).subsequent()));
 }
 
-pub(crate) fn raw_lines_expand_above(lines: &mut [Vec<Horiz>], idx: usize) {
+pub(crate) fn expand_above(lines: &mut [Vec<Horiz>], idx: usize) {
     let (lower, upper) = lines.split_at_mut(idx);
     for _ in 0..3 {
-        raw_lines_continue(lower);
+        advance(lower);
     }
 
     let mut indexes: VecDeque<_> = upper
@@ -71,10 +71,10 @@ pub(crate) fn raw_lines_expand_above(lines: &mut [Vec<Horiz>], idx: usize) {
         });
 }
 
-pub(crate) fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
+pub(crate) fn contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
     let (lower, upper) = lines.split_at_mut(idx);
     for _ in 0..3 {
-        raw_lines_continue(lower);
+        advance(lower);
     }
 
     let mut indexes: VecDeque<_> = upper
@@ -132,35 +132,35 @@ pub(crate) fn raw_lines_contract_above(lines: &mut [Vec<Horiz>], idx: usize) {
         });
 }
 
-pub(crate) fn raw_lines_append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
+pub(crate) fn append(lines: &mut [Vec<Horiz>], element: u8, idx: usize) {
     match element {
         b'(' => {
-            if raw_lines_is_empty_above(&*lines, idx) {
-                raw_lines_continue(lines);
+            if is_empty_above(&*lines, idx) {
+                advance(lines);
             } else {
-                raw_lines_expand_above(lines, idx);
+                expand_above(lines, idx);
             }
             *lines[idx].last_mut().unwrap() = Horiz::OpenedAbove;
             *lines[idx + 1].last_mut().unwrap() = Horiz::OpenedBelow;
         }
         b')' => {
-            let is_empty_above = raw_lines_is_empty_above(&*lines, idx + 2);
+            let is_empty_above = is_empty_above(&*lines, idx + 2);
             if is_empty_above {
-                raw_lines_continue(lines);
+                advance(lines);
                 *lines[idx].last_mut().unwrap() = Horiz::ClosedAbove;
                 *lines[idx + 1].last_mut().unwrap() = Horiz::ClosedBelow;
             } else {
-                raw_lines_contract_above(lines, idx);
+                contract_above(lines, idx);
             }
         }
         b'\\' => {
-            raw_lines_continue(lines);
+            advance(lines);
 
             *lines[idx].last_mut().unwrap() = Horiz::CrossUpUnder;
             *lines[idx + 1].last_mut().unwrap() = Horiz::CrossDownOver;
         }
         b'/' => {
-            raw_lines_continue(lines);
+            advance(lines);
 
             *lines[idx].last_mut().unwrap() = Horiz::CrossUpOver;
             *lines[idx + 1].last_mut().unwrap() = Horiz::CrossDownUnder;
@@ -180,13 +180,13 @@ mod tests {
         let mut lines = vec![vec![Line], vec![Line], vec![Line], vec![Empty], vec![Empty]];
         let original_lines = lines.clone();
 
-        raw_lines_expand_above(&mut lines, 1);
+        expand_above(&mut lines, 1);
         insta::assert_debug_snapshot!(lines);
 
-        raw_lines_contract_above(&mut lines, 1);
+        contract_above(&mut lines, 1);
         insta::assert_debug_snapshot!(lines);
 
-        raw_lines_continue(&mut lines);
+        advance(&mut lines);
         let final_column = lines
             .iter()
             .map(|line| vec![line.last().cloned().unwrap()])
@@ -198,16 +198,16 @@ mod tests {
     fn snapshot_raw_lines_append() {
         let mut lines = vec![vec![]; 4];
 
-        raw_lines_append(&mut lines, b'(', 0);
+        append(&mut lines, b'(', 0);
         insta::assert_debug_snapshot!(lines);
 
-        raw_lines_append(&mut lines, b'(', 1);
+        append(&mut lines, b'(', 1);
         insta::assert_debug_snapshot!(lines);
 
-        raw_lines_append(&mut lines, b')', 0);
+        append(&mut lines, b')', 0);
         insta::assert_debug_snapshot!(lines);
 
-        raw_lines_append(&mut lines, b')', 0);
+        append(&mut lines, b')', 0);
         insta::assert_debug_snapshot!(lines);
     }
 }
