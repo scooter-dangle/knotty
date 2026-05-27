@@ -2,9 +2,9 @@ use core::fmt;
 use std::{cmp::Ordering, mem, str::FromStr};
 
 use crate::moves::{CommentLines, DiagramMove, Lean, Move, OverUnder, UpDown};
-use crate::raw_lines::raw_lines_append;
-use crate::rendering::{Horiz, VerboseDiagram, VerboseLine};
-use crate::rotation::scan_row;
+use crate::raw_lines::append;
+use crate::render::{Horiz, VerboseDiagram, VerboseLine};
+use crate::rotate::scan_row;
 
 macro_rules! try_opt {
     ($expr:expr) => {
@@ -121,7 +121,7 @@ impl VerboseDiagram {
         let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
         for AbbreviatedItem { element, index } in knot.0.iter() {
-            raw_lines_append(&mut lines, *element, *index);
+            append(&mut lines, *element, *index);
         }
 
         Ok(Self(lines.into_iter().map(VerboseLine).collect()))
