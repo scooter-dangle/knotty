@@ -240,7 +240,7 @@ mod test_scan_row {
     test!(rando_link_rotated_row_01(
         r"        ____   _            ____    "
         r"       /    \ / \          /    \   ",
-        vec![],
+        vec![(b')', 4), (b')', 2), (b')', 0)],
     ));
 
     test!(rando_link_rotated_row_02(
