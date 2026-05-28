@@ -1560,21 +1560,6 @@ impl AbbreviatedDiagram {
     }
 }
 
-fn non_adjacent(iter: impl Iterator<Item = usize>) -> impl Iterator<Item = usize> {
-    let mut iter = iter.peekable();
-    let mut last = iter.peek().copied();
-
-    iter.filter(move |&num| {
-        let non_adjacent = num.checked_sub(1) != last;
-
-        if non_adjacent {
-            last = Some(num);
-        }
-
-        non_adjacent
-    })
-}
-
 pub fn try_ascii_print<const GRID_BORDERS: bool>(
     tuples: Vec<(u8, usize)>,
 ) -> Result<String, String> {
