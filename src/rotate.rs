@@ -294,6 +294,6 @@ mod test_scan_row {
     test!(rando_link_rotated_row_10(
         r" \_______/ \__________/     \_____/ "
         r"",
-        vec![(b'(', 0)],
+        vec![(b'(', 0), (b'(', 2), (b'(', 4)],
     ));
 }
