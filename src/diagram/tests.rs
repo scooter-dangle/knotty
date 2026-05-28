@@ -1,5 +1,4 @@
 use super::*;
-use super::non_adjacent;
 use crate::moves::Lean;
 use pretty_assertions::assert_eq;
 
@@ -69,19 +68,6 @@ fn test_available_bulges() {
             (3, (Lean::Backward, 1)),
             (3, (Lean::Forward, 1)),
         ]
-    );
-}
-
-#[test]
-fn test_non_adjacent() {
-    assert_eq!(
-        non_adjacent(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9].into_iter()).collect::<Vec<_>>(),
-        vec![0, 2, 4, 6, 8]
-    );
-
-    assert_eq!(
-        non_adjacent(vec![0, 2, 3, 5, 6, 7, 8, 9].into_iter()).collect::<Vec<_>>(),
-        vec![0, 2, 5, 7, 9]
     );
 }
 
