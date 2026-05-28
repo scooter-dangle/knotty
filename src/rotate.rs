@@ -232,62 +232,62 @@ mod test_scan_row {
     // All rows from rando_link rotated diagram (rows 0–9).
 
     test!(rando_link_rotated_row_00(
-        r"        ____   _            ____    "
-        r"",
-        vec![],
-    ));
-
-    test!(rando_link_rotated_row_01(
-        r"       /    \ / \          /    \   "
+        r""
         r"        ____   _            ____    ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_02(
-        r"      /      \   \        /      )  "
+    test!(rando_link_rotated_row_01(
+        r"        ____   _            ____    "
         r"       /    \ / \          /    \   ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_03(
-        r"     /   ___/ \   \      /  _   /   "
+    test!(rando_link_rotated_row_02(
+        r"       /    \ / \          /    \   "
         r"      /      \   \        /      )  ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_04(
-        r"    /   /      \   \    /  / \ /    "
+    test!(rando_link_rotated_row_03(
+        r"      /      \   \        /      )  "
         r"     /   ___/ \   \      /  _   /   ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_05(
-        r"   /   (        )   \  /  /   \     "
+    test!(rando_link_rotated_row_04(
+        r"     /   ___/ \   \      /  _   /   "
         r"    /   /      \   \    /  / \ /    ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_06(
-        r"  /     \   ___/     \/  /   / \__  "
+    test!(rando_link_rotated_row_05(
+        r"    /   /      \   \    /  / \ /    "
         r"   /   (        )   \  /  /   \     ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_07(
-        r" /       \ /            /   /     \ "
+    test!(rando_link_rotated_row_06(
+        r"   /   (        )   \  /  /   \     "
         r"  /     \   ___/     \/  /   / \__  ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_08(
-        r"(         \            /   (       )"
+    test!(rando_link_rotated_row_07(
+        r"  /     \   ___/     \/  /   / \__  "
         r" /       \ /            /   /     \ ",
         vec![],
     ));
 
-    test!(rando_link_rotated_row_09(
-        r" \_______/ \__________/     \_____/ "
+    test!(rando_link_rotated_row_08(
+        r" /       \ /            /   /     \ "
         r"(         \            /   (       )",
+        vec![],
+    ));
+
+    test!(rando_link_rotated_row_09(
+        r"(         \            /   (       )"
+        r" \_______/ \__________/     \_____/ ",
         vec![],
     ));
 }
