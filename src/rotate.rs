@@ -30,32 +30,19 @@ pub(crate) fn scan_row(cur: &str, prev: Option<&str>) -> Vec<(u8, usize)> {
 
         if let Some(mat) = ROTATE_OPEN_RE.find(cur_tail) {
             if mat.start() == 0 {
-                let match_len = mat.end();
-                // match_len % 3 == 0: TUS→TDF (always spurious; suppress)
-                // match_len % 3 != 0: legitimate arc base
-                if match_len % 3 != 0 {
-                    others.push((b'(', other_depth));
-                    other_depth += 2;
-                }
-                col += match_len;
+                others.push((b'(', other_depth));
+                other_depth += 2;
+                col += mat.end();
                 continue;
             }
         }
 
         if let Some(mat) = ROTATE_CLOSE_UNDERSCORE_RE.find(cur_tail) {
             if mat.start() == 0 {
-                let match_len = mat.end();
-                // A single-underscore match (" _ ", len=3) where the '_' is at
-                // scan (col+1)%3==0 can be a spurious TransferUpFinish artifact.
-                // Legitimate arc closes always land at even close_depth; odd means
-                // a non-arc char (e.g. ClosedAbove's '/' in l0) shifted the counter.
-                let spurious = match_len == 3 && (col + 1) % 3 == 0 && close_depth % 2 == 1;
-                if !spurious {
-                    closes.push((b')', close_depth));
-                    close_depth += 2;
-                    other_depth += 2;
-                }
-                col += match_len;
+                closes.push((b')', close_depth));
+                close_depth += 2;
+                other_depth += 2;
+                col += mat.end();
                 continue;
             }
         }
