@@ -544,6 +544,11 @@ impl Component for Model {
                 }
 
                 <br/>
+                <button
+                    disabled={!self.parsed_moves_valid}
+                    onclick={link.callback(|_| Msg::AddMove("rotate_90_counter_clockwise@0".to_string()))}
+                >{ "rotate 90° CCW" }</button>
+                <br/>
                 <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
                 <br/>
 
