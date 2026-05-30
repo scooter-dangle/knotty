@@ -484,6 +484,21 @@ fn test_try_rotate_90_ccw_period_4() {
     }
 }
 
+// Regression: rotating this diagram yields a result that new_from_tuples
+// accepts but renders out of bounds in raw_lines::append. A successful
+// rotation should always produce a renderable diagram; until try_rotate_90_ccw
+// is fixed, rendering the rotated diagram panics with an out-of-bounds index.
+// Once fixed, drop #[should_panic] and assert try_ascii_print returns Ok.
+#[test]
+#[should_panic(expected = "index out of bounds")]
+fn rotate_then_render_out_of_bounds_regression() {
+    let mut diagram = "(0 (2 (1 (5 \\4 (8 (7 \\4 )3 (8 /9 )8 )2 (7 /7 )8 )6 )2 )1 \\0 )0"
+        .parse::<AbbreviatedDiagram>()
+        .unwrap();
+    diagram.try_rotate_90_ccw().unwrap();
+    let _ = diagram.try_ascii_print::<false>();
+}
+
 #[test]
 fn test_try_wrap_around() {
     assert_eq_after_apply!(
