@@ -421,47 +421,6 @@ fn test_try_rotate_90_ccw_period_4() {
             (b')', 2),
             (b')', 0),
         ],
-        // (0 (2 /0 /1 /1 )2 )0  — rando link
-        vec![
-            (b'(', 0),
-            (b'(', 2),
-            (b'/', 0),
-            (b'/', 1),
-            (b'/', 1),
-            (b')', 2),
-            (b')', 0),
-        ],
-        // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
-        vec![
-            (b'(', 0),
-            (b'(', 2),
-            (b'/', 1),
-            (b'\\', 0),
-            (b'\\', 0),
-            (b'\\', 0),
-            (b'/', 1),
-            (b')', 2),
-            (b')', 0),
-        ],
-        // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
-        vec![
-            (b'(', 0),
-            (b'(', 2),
-            (b'/', 1),
-            (b'\\', 2),
-            (b'\\', 0),
-            (b'\\', 0),
-            (b'(', 1),
-            (b'\\', 2),
-            (b'/', 3),
-            (b'/', 1),
-            (b'\\', 0),
-            (b'/', 1),
-            (b')', 2),
-            (b'/', 1),
-            (b')', 2),
-            (b')', 0),
-        ],
     ] {
         let r1 = rotate_n(input.clone(), 1);
         let r5 = rotate_n(input.clone(), 5);
@@ -484,19 +443,100 @@ fn test_try_rotate_90_ccw_period_4() {
     }
 }
 
-// Regression: rotating this diagram yields a result that new_from_tuples
-// accepts but renders out of bounds in raw_lines::append. A successful
-// rotation should always produce a renderable diagram; until try_rotate_90_ccw
-// is fixed, rendering the rotated diagram panics with an out-of-bounds index.
-// Once fixed, drop #[should_panic] and assert try_ascii_print returns Ok.
+// Regression: these knots do not yet satisfy the period-4 identity
+// (R^5 == R^1) because try_rotate_90_ccw's reconstruction is still incorrect
+// for them. They were pulled out of test_try_rotate_90_ccw_period_4 so it can
+// pass. This test passes only while ALL of them still fail; once rotate is
+// fixed it stops panicking — move the now-passing knots back into the identity
+// test.
 #[test]
-#[should_panic(expected = "index out of bounds")]
+#[should_panic(expected = "not yet period-4")]
+fn test_try_rotate_90_ccw_period_4_regressions() {
+    let regressions: [(&str, Vec<(u8, usize)>); 3] = [
+        // (0 (2 /0 /1 /1 )2 )0  — rando link
+        (
+            "rando link",
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 0),
+                (b'/', 1),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ),
+        // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
+        (
+            "5_1 knot",
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ),
+        // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
+        (
+            "rando annoying knot",
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 2),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'(', 1),
+                (b'\\', 2),
+                (b'/', 3),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ),
+    ];
+
+    let failing: Vec<&str> = regressions
+        .iter()
+        .filter(|(_, input)| rotate_n(input.clone(), 5) != rotate_n(input.clone(), 1))
+        .map(|(name, _)| *name)
+        .collect();
+
+    // Verify every listed knot still fails — not merely that at least one does.
+    assert_eq!(
+        failing.len(),
+        regressions.len(),
+        "expected all {} knots to still fail the period-4 identity; these now pass: {:?}",
+        regressions.len(),
+        regressions
+            .iter()
+            .map(|(name, _)| *name)
+            .filter(|name| !failing.contains(name))
+            .collect::<Vec<_>>(),
+    );
+
+    panic!("rotate is not yet period-4; still fails for: {failing:?}");
+}
+
+// Regression: rotating this diagram once produced a result that
+// new_from_tuples accepted but rendered out of bounds in raw_lines::append.
+// A successful rotation must always produce a renderable diagram.
+#[test]
 fn rotate_then_render_out_of_bounds_regression() {
     let mut diagram = r"(0 (2 (1 (5 \4 (8 (7 \4 )3 (8 /9 )8 )2 (7 /7 )8 )6 )2 )1 \0 )0"
         .parse::<AbbreviatedDiagram>()
         .unwrap();
     diagram.try_rotate_90_ccw().unwrap();
-    let _ = diagram.try_ascii_print::<false>();
+    assert!(diagram.try_ascii_print::<false>().is_ok());
 }
 
 #[test]
