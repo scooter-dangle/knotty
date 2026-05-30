@@ -41,7 +41,6 @@ pub(crate) fn scan_row(cur: &str, prev: Option<&str>) -> Vec<(u8, usize)> {
             if mat.start() == 0 {
                 closes.push((b')', close_depth));
                 close_depth += 2;
-                other_depth += 2;
                 col += mat.end();
                 continue;
             }
@@ -54,7 +53,6 @@ pub(crate) fn scan_row(cur: &str, prev: Option<&str>) -> Vec<(u8, usize)> {
                     if prev_mat.start() == 0 {
                         closes.push((b')', close_depth));
                         close_depth += 2;
-                        other_depth += 2;
                         col += 2;
                         continue;
                     }
