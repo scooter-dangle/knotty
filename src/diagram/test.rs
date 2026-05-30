@@ -527,19 +527,16 @@ fn test_try_rotate_90_ccw_period_4_regressions() {
     panic!("rotate is not yet period-4; still fails for: {failing:?}");
 }
 
-// Regression: rotating this diagram yields a result that new_from_tuples
-// accepts but renders out of bounds in raw_lines::append. A successful
-// rotation should always produce a renderable diagram; until try_rotate_90_ccw
-// is fixed, rendering the rotated diagram panics with an out-of-bounds index.
-// Once fixed, drop #[should_panic] and assert try_ascii_print returns Ok.
+// Regression: rotating this diagram once produced a result that
+// new_from_tuples accepted but rendered out of bounds in raw_lines::append.
+// A successful rotation must always produce a renderable diagram.
 #[test]
-#[should_panic(expected = "index out of bounds")]
 fn rotate_then_render_out_of_bounds_regression() {
     let mut diagram = r"(0 (2 (1 (5 \4 (8 (7 \4 )3 (8 /9 )8 )2 (7 /7 )8 )6 )2 )1 \0 )0"
         .parse::<AbbreviatedDiagram>()
         .unwrap();
     diagram.try_rotate_90_ccw().unwrap();
-    let _ = diagram.try_ascii_print::<false>();
+    assert!(diagram.try_ascii_print::<false>().is_ok());
 }
 
 #[test]
