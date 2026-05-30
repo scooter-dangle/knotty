@@ -492,7 +492,7 @@ fn test_try_rotate_90_ccw_period_4() {
 #[test]
 #[should_panic(expected = "index out of bounds")]
 fn rotate_then_render_out_of_bounds_regression() {
-    let mut diagram = "(0 (2 (1 (5 \\4 (8 (7 \\4 )3 (8 /9 )8 )2 (7 /7 )8 )6 )2 )1 \\0 )0"
+    let mut diagram = r"(0 (2 (1 (5 \4 (8 (7 \4 )3 (8 /9 )8 )2 (7 /7 )8 )6 )2 )1 \0 )0"
         .parse::<AbbreviatedDiagram>()
         .unwrap();
     diagram.try_rotate_90_ccw().unwrap();
