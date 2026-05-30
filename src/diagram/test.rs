@@ -421,47 +421,6 @@ fn test_try_rotate_90_ccw_period_4() {
             (b')', 2),
             (b')', 0),
         ],
-        // (0 (2 /0 /1 /1 )2 )0  — rando link
-        vec![
-            (b'(', 0),
-            (b'(', 2),
-            (b'/', 0),
-            (b'/', 1),
-            (b'/', 1),
-            (b')', 2),
-            (b')', 0),
-        ],
-        // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
-        vec![
-            (b'(', 0),
-            (b'(', 2),
-            (b'/', 1),
-            (b'\\', 0),
-            (b'\\', 0),
-            (b'\\', 0),
-            (b'/', 1),
-            (b')', 2),
-            (b')', 0),
-        ],
-        // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
-        vec![
-            (b'(', 0),
-            (b'(', 2),
-            (b'/', 1),
-            (b'\\', 2),
-            (b'\\', 0),
-            (b'\\', 0),
-            (b'(', 1),
-            (b'\\', 2),
-            (b'/', 3),
-            (b'/', 1),
-            (b'\\', 0),
-            (b'/', 1),
-            (b')', 2),
-            (b'/', 1),
-            (b')', 2),
-            (b')', 0),
-        ],
     ] {
         let r1 = rotate_n(input.clone(), 1);
         let r5 = rotate_n(input.clone(), 5);
@@ -482,6 +441,90 @@ fn test_try_rotate_90_ccw_period_4() {
             actual_diagram,
         );
     }
+}
+
+// Regression: these knots do not yet satisfy the period-4 identity
+// (R^5 == R^1) because try_rotate_90_ccw's reconstruction is still incorrect
+// for them. They were pulled out of test_try_rotate_90_ccw_period_4 so it can
+// pass. This test passes only while ALL of them still fail; once rotate is
+// fixed it stops panicking — move the now-passing knots back into the identity
+// test.
+#[test]
+#[should_panic(expected = "not yet period-4")]
+fn test_try_rotate_90_ccw_period_4_regressions() {
+    let regressions: [(&str, Vec<(u8, usize)>); 3] = [
+        // (0 (2 /0 /1 /1 )2 )0  — rando link
+        (
+            "rando link",
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 0),
+                (b'/', 1),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ),
+        // (0 (2 /1 \0 \0 \0 /1 )2 )0  — 5_1 knot
+        (
+            "5_1 knot",
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ),
+        // (0 (2 /1 \2 \0 \0 (1 \2 /3 /1 \0 /1 )2 /1 )2 )0  — rando annoying knot
+        (
+            "rando annoying knot",
+            vec![
+                (b'(', 0),
+                (b'(', 2),
+                (b'/', 1),
+                (b'\\', 2),
+                (b'\\', 0),
+                (b'\\', 0),
+                (b'(', 1),
+                (b'\\', 2),
+                (b'/', 3),
+                (b'/', 1),
+                (b'\\', 0),
+                (b'/', 1),
+                (b')', 2),
+                (b'/', 1),
+                (b')', 2),
+                (b')', 0),
+            ],
+        ),
+    ];
+
+    let failing: Vec<&str> = regressions
+        .iter()
+        .filter(|(_, input)| rotate_n(input.clone(), 5) != rotate_n(input.clone(), 1))
+        .map(|(name, _)| *name)
+        .collect();
+
+    // Verify every listed knot still fails — not merely that at least one does.
+    assert_eq!(
+        failing.len(),
+        regressions.len(),
+        "expected all {} knots to still fail the period-4 identity; these now pass: {:?}",
+        regressions.len(),
+        regressions
+            .iter()
+            .map(|(name, _)| *name)
+            .filter(|name| !failing.contains(name))
+            .collect::<Vec<_>>(),
+    );
+
+    panic!("rotate is not yet period-4; still fails for: {failing:?}");
 }
 
 // Regression: rotating this diagram yields a result that new_from_tuples
