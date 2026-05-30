@@ -283,4 +283,92 @@ mod test_scan_row {
         r"",
         vec![(b'(', 0), (b'(', 2), (b'(', 4)],
     ));
+
+    // All rows from knot_5_1_rotated diagram (rows 0–15).
+
+    test!(knot_5_1_rotated_row_00(
+        r""
+        r"                    _____                          ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_01(
+        r"                    _____                          "
+        r"                   /     \                         ",
+        vec![(b')', 0)],
+    ));
+    test!(knot_5_1_rotated_row_02(
+        r"                   /     \                         "
+        r"                  /       \                        ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_03(
+        r"                  /       \                        "
+        r"                 /  _____  \                       ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_04(
+        r"                 /  _____  \                       "
+        r"                /  /     \  \                      ",
+        vec![(b')', 1)],
+    ));
+    test!(knot_5_1_rotated_row_05(
+        r"                /  /     \  \                      "
+        r"               /  /       \  \                     ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_06(
+        r"               /  /       \  \                     "
+        r"      ___   __/  /   ____  \  \__      _           ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_07(
+        r"      ___   __/  /   ____  \  \__      _           "
+        r"     /   \ /    /   /    \  \    \ /\ / \          ",
+        vec![(b')', 10), (b')', 6), (b')', 2), (b')', 0)],
+    ));
+    test!(knot_5_1_rotated_row_08(
+        r"     /   \ /    /   /    \  \    \ /\ / \          "
+        r"    (     \    /   (      \  \    \  \   \         ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_09(
+        r"    (     \    /   (      \  \    \  \   \         "
+        r"     \   / \__/     \   _  \  \__/ \/ \   \        ",
+        vec![(b'/', 1), (b'/', 3), (b'/', 9)],
+    ));
+    test!(knot_5_1_rotated_row_10(
+        r"     \   / \__/     \   _  \  \__/ \/ \   \        "
+        r"      \ /            \ / \  \          \   \       ",
+        vec![(b')', 3), (b'(', 2), (b'(', 4), (b'(', 10)],
+    ));
+    test!(knot_5_1_rotated_row_11(
+        r"      \ /            \ / \  \          \   \       "
+        r"       /              /   \  \          )   \      ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_12(
+        r"       /              /   \  \          )   \      "
+        r"   ___/ \____________/ \   \  \________/     \__   ",
+        vec![(b'\\', 4), (b'\\', 6)],
+    ));
+    test!(knot_5_1_rotated_row_13(
+        r"   ___/ \____________/ \   \  \________/     \__   "
+        r"  /                     \   \                   \  ",
+        vec![(b'(', 1), (b'(', 5)],
+    ));
+    test!(knot_5_1_rotated_row_14(
+        r"  /                     \   \                   \  "
+        r" (                       )   \                   ) ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_15(
+        r" (                       )   \                   ) "
+        r"  \_____________________/     \_________________/  ",
+        vec![],
+    ));
+    test!(knot_5_1_rotated_row_16(
+        r"  \_____________________/     \_________________/  "
+        r"",
+        vec![(b'(', 0), (b'(', 2)],
+    ));
 }
