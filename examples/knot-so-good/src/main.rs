@@ -352,7 +352,8 @@ impl Component for Model {
                 self.update_modified();
                 true
             }
-            AddMove(moove) => self.update(
+            AddMove(moove) => <Self as Component>::update(
+                self,
                 ctx,
                 Moves(Some(format!(
                     "{}{}{moove}",
