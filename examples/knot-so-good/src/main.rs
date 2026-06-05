@@ -1,7 +1,7 @@
 use knotty::DiagramMove;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{EventTarget, HtmlTextAreaElement, Node};
-use yew::{prelude::*, virtual_dom::VNode};
+use web_sys::{EventTarget, HtmlTextAreaElement};
+use yew::prelude::*;
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
@@ -352,7 +352,8 @@ impl Component for Model {
                 self.update_modified();
                 true
             }
-            AddMove(moove) => self.update(
+            AddMove(moove) => <Self as Component>::update(
+                self,
                 ctx,
                 Moves(Some(format!(
                     "{}{}{moove}",
@@ -524,13 +525,13 @@ impl Component for Model {
                 <br/>
                 <textarea
                     value={self.raw_base_diagram.clone()}
-                    oninput={diagram_oninput}>
-                </textarea>
+                    oninput={diagram_oninput}
+                />
                 <br/>
                 <textarea
                     value={self.raw_moves.clone()}
-                    oninput={moves_oninput}>
-                </textarea>
+                    oninput={moves_oninput}
+                />
 
                 {
                     [
@@ -677,51 +678,23 @@ struct RawHtmlProps {
     pub inner_html: String,
 }
 
-#[derive(Default)]
-struct RawHtml {
-    props: RawHtmlProps,
-}
+struct RawHtml;
 
 impl Component for RawHtml {
-    type Message = Msg;
+    type Message = ();
     type Properties = RawHtmlProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        RawHtml {
-            props: ctx.props().clone(),
-        }
+    fn create(_ctx: &Context<Self>) -> Self {
+        RawHtml
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, _: Self::Message) -> bool {
-        true
-    }
-
-    fn changed(&mut self, ctx: &Context<Self>) -> bool {
-        if self.props != *ctx.props() {
-            self.props = (&*ctx.props()).clone();
-            true
-        } else {
-            false
-        }
-    }
-
-    fn view(&self, _ctx: &Context<Self>) -> Html {
-        let span = web_sys::window()
-            .unwrap()
-            .document()
-            .unwrap()
-            .create_element("span")
-            .unwrap();
-        span.set_inner_html(&self.props.inner_html[..]);
-
-        let node = Node::from(span);
-        let vnode = VNode::VRef(node);
-        vnode
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        Html::from_html_unchecked(ctx.props().inner_html.clone().into())
     }
 }
 
 fn main() {
-    yew::start_app::<Model>();
+    yew::Renderer::<Model>::new().render();
 }
 
 #[cfg(test)]
