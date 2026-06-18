@@ -13,6 +13,7 @@
 ### Session 2026-06-18
 
 - Q: Should the new mode apply max-row placement unconditionally, or weigh crossing-alignment cost against displacement savings? → A: Unconditional max-row placement — always open each strand at its precalculated maximum row, accepting that crossing-heavy diagrams may net out with equal-or-more total transfers (open/close displacement is still strictly reduced).
+- Q: How should the rotation benefit be stated, given that not every transfer inflates scanned features? → A: Only transfers later reversed by an opposite-direction transfer (the avoidable up-then-down open/close displacement) inflate the scanned feature count; many transfers scan to nothing, and the crossing-alignment transfers the new mode adds are scanned but do not increase the feature count. Therefore rotating in the new mode never increases scanned features and strictly reduces them for diagrams containing such reversed-direction displacement, with knot equivalence always preserved.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -29,11 +30,16 @@
 
   Primary motivation (diagram rotation): the rotation move is performed by
   scanning the *rendered* diagram grid and re-deriving the notation from it.
-  Transfer diagonals introduced by today's renderer are themselves scanned as
-  diagram features, so each rotation re-encodes them and the diagram grows
-  progressively more complicated (more features) the more it is rotated, even
-  though the underlying knot is unchanged. Reducing avoidable transfers keeps
-  the scanned feature count stable across repeated rotations.
+  Not every transfer diagonal becomes an extra feature when scanned — many
+  scan to nothing. The transfers that DO inflate the scanned feature count are
+  (especially, perhaps only) those where a strand transfers one direction and
+  is later transferred back the opposite direction: the avoidable up-then-down
+  open/close displacement this feature removes. Because those reversed-direction
+  transfers re-encode as extra features, today's renderer makes a diagram grow
+  progressively more complicated the more it is rotated, even though the knot is
+  unchanged. Removing them keeps the scanned feature count stable across
+  rotations. (Crossing-alignment transfers the new mode adds are scanned but do
+  not increase the resulting feature count.)
 -->
 
 ### User Story 1 - Render with reduced up-and-down strand movement (Priority: P1)
@@ -54,7 +60,7 @@ A person rendering a knot diagram chooses the height-precalculated rendering mod
 
 ### User Story 2 - Keep diagram complexity stable under repeated rotation (Priority: P2)
 
-A person repeatedly applies the rotation move to a diagram. Because rotation re-derives the diagram by scanning the rendered grid, transfer diagonals in the render are picked up as additional diagram features and accumulate with each rotation, making the diagram progressively more complicated even though the knot is unchanged. Using the height-precalculated rendering mode for the scan removes those avoidable transfers, so the scanned feature count stays stable across rotations.
+A person repeatedly applies the rotation move to a diagram. Because rotation re-derives the diagram by scanning the rendered grid, transfers that reverse direction (a strand pushed up then later pulled back down) are re-encoded as additional diagram features and accumulate with each rotation, making the diagram progressively more complicated even though the knot is unchanged. (Many transfers scan to nothing and do not inflate the count.) Using the height-precalculated rendering mode for the scan removes those avoidable reversed-direction transfers, so the scanned feature count stays stable across rotations.
 
 **Why this priority**: This is the motivating use case for the feature. Without it, repeated rotation inflates the feature count and degrades usability of the rotation move; it is the primary real-world payoff of reduced transfers. It is independently testable against the existing rotation move.
 
@@ -62,8 +68,8 @@ A person repeatedly applies the rotation move to a diagram. Because rotation re-
 
 **Acceptance Scenarios**:
 
-1. **Given** a diagram whose default rendering contains avoidable transfers, **When** it is rotated using the height-precalculated rendering for the scan, **Then** the resulting diagram has no more scanned features than before the rotation (no artificial inflation from transfers).
-2. **Given** a diagram, **When** it is rotated through a full cycle back to its original orientation using the new mode, **Then** the feature count does not grow monotonically across the cycle and the final diagram represents the same knot as the original.
+1. **Given** a diagram whose default rendering contains reversed-direction (up-then-down) transfers, **When** it is rotated using the height-precalculated rendering for the scan, **Then** the resulting diagram has fewer scanned features than the default-mode rotation and no more than before the rotation.
+2. **Given** a diagram, **When** it is rotated through a full cycle back to its original orientation using the new mode, **Then** the scanned feature count does not grow across the cycle and the final diagram represents the same knot as the original.
 
 ---
 
@@ -107,7 +113,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **Crossing partners no longer adjacent**: the default mode keeps any two strands that can cross directly above/below each other at a uniform distance, so a crossing is always between neighboring rows. Placing strands at their overall maximum row can separate two crossing partners; the new mode must then transfer them together to be adjacent for the crossing (and back afterward). This is a *new* class of transfer the default mode never needs, and it is an accepted cost of the new mode — see FR-011 and SC-002.
 - **Interleaved openings and closings at the same indices**: placement remains consistent and non-overlapping.
 - **Closings at the very bottom row**: handled without error and without forcing avoidable movement on strands above.
-- **Repeated rotation**: rotating a diagram many times using the new mode for the scan must not accumulate transfer-induced features; the scanned feature count stays bounded by the knot's actual complexity rather than growing per rotation.
+- **Repeated rotation**: rotating a diagram many times using the new mode for the scan must not accumulate features from reversed-direction transfers; the scanned feature count stays bounded by the knot's actual complexity rather than growing per rotation. (Transfers that scan to nothing, and crossing-alignment transfers, do not contribute to growth.)
 
 ## Requirements *(mandatory)*
 
@@ -132,7 +138,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **Maximum strand row (precalculated height)**: the highest vertical row a given strand pair occupies at any point between its opening and closing — the target placement row for the new mode.
 - **Diagonal transfer segment**: a rendered segment that moves a strand up or down between rows. Two kinds matter here: *open/close displacement transfers*, caused by openings/closings beneath a passing strand (the kind this feature reduces); and *crossing-alignment transfers*, needed to bring two crossing partners adjacent when precalculated placement has separated them (a new cost the default mode never incurs).
 - **Crossing-alignment transfer**: a transfer the new mode adds to make two crossing strands adjacent at the moment they cross (and to restore placement afterward), because the default mode's guarantee that crossing partners are always adjacent no longer holds once strands sit at their maximum rows.
-- **Scanned diagram feature**: an element the rotation move recovers by reading the rendered grid (openings, closings, crossings, and transfers). Transfers that exist only because of avoidable strand movement inflate this count without changing the knot, which is what the new mode aims to prevent.
+- **Scanned diagram feature**: an element the rotation move recovers by reading the rendered grid (openings, closings, crossings). Not every transfer becomes one — many scan to nothing. The transfers that inflate this count are (especially, perhaps only) those later reversed by an opposite-direction transfer, i.e. the avoidable up-then-down displacement the new mode removes; crossing-alignment transfers are scanned but do not add features. Reducing the reversed-direction transfers lowers the count without changing the knot, which is what the new mode aims for.
 
 ## Success Criteria *(mandatory)*
 
@@ -143,7 +149,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **SC-003**: 100% of valid diagrams render to the same knot in the new mode as in the default mode (verified by round-trip / equivalence checks).
 - **SC-004**: Default-mode output remains byte-for-byte identical to current output for every existing example and snapshot.
 - **SC-005**: Rendering is deterministic — rendering the same diagram twice in the new mode yields identical output every time.
-- **SC-006**: When a diagram is rotated using the new mode for the scan, the number of scanned diagram features does not increase due to transfers; rotating through a full cycle back to the original orientation yields a feature count no greater than the original, and the diagram still represents the same knot.
+- **SC-006**: When a diagram is rotated using the new mode for the scan, the scanned feature count never increases relative to the original (crossing-alignment transfers the mode adds are scanned but do not add features), and for diagrams whose default rendering contains reversed-direction (up-then-down) transfers it is strictly lower than the default-mode rotation. Rotating through a full cycle back to the original orientation yields a feature count no greater than the original, and the diagram still represents the same knot.
 
 ## Assumptions
 
