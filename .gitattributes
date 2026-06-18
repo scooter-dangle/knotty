@@ -1,0 +1,4 @@
+# Exclude spec-kit scaffolding from GitHub Linguist language detection
+.specify/**  linguist-vendored
+.claude/**   linguist-vendored
+specs/**     linguist-documentation
