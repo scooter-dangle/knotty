@@ -8,6 +8,12 @@
 
 **Input**: User description: "Diagram rendering mode that precalculates diagram max heights for strands so that it can place the opening features for those strand openings at a diagram height that reduces the need for strands to be moved up and down via diagonals as other strands are opened and closed, respectively, below them in the diagram"
 
+## Clarifications
+
+### Session 2026-06-18
+
+- Q: Should the new mode apply max-row placement unconditionally, or weigh crossing-alignment cost against displacement savings? → A: Unconditional max-row placement — always open each strand at its precalculated maximum row, accepting that crossing-heavy diagrams may net out with equal-or-more total transfers (open/close displacement is still strictly reduced).
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -84,7 +90,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 ### Functional Requirements
 
 - **FR-001**: System MUST provide a selectable rendering mode (distinct from the default) that, before placing strands, precalculates for each opening the maximum vertical row the resulting strand will occupy between its opening and its matching closing.
-- **FR-002**: System MUST place each opening feature at its precalculated target row rather than always at the lowest free row.
+- **FR-002**: System MUST place each opening feature unconditionally at its precalculated maximum row rather than at the lowest free row, without weighing crossing-alignment cost against displacement savings.
 - **FR-003**: In the new mode, a strand that does not change rows between its opening and closing MUST render as a straight horizontal line with no diagonal transfer segments, wherever the precalculated placement makes that possible.
 - **FR-004**: In the new mode, the number of *open/close displacement* transfer segments (those caused by a strand being pushed up by an opening beneath it and later pulled back down by a closing beneath it) MUST be reduced versus the default mode for any diagram exhibiting such displacement.
 - **FR-005**: System MUST leave the default rendering behavior unchanged; the height-precalculated behavior MUST be opt-in.
@@ -117,7 +123,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 
 - The height-precalculated behavior is an additive, opt-in rendering path; the existing default rendering and its public output remain unchanged (per Constitution: Library-First, and to protect existing `insta` snapshots).
 - "Reduce the need for strands to be moved up and down" means minimizing avoidable open/close displacement, not necessarily computing a globally optimal placement; a placement at each strand's maximum occupied row is the intended heuristic.
-- The default mode's invariant that any two crossing strands are always vertically adjacent at a uniform distance does not survive max-row placement. The new mode therefore accepts crossing-alignment transfers (FR-011) as a tradeoff: it optimizes for fewer open/close displacement transfers, not for the global minimum of all transfers, and a crossing-heavy diagram could net out with a similar or larger total transfer count. Whether to further refine the placement heuristic to weigh crossing-alignment cost is deferred to planning.
+- The default mode's invariant that any two crossing strands are always vertically adjacent at a uniform distance does not survive max-row placement. The new mode therefore accepts crossing-alignment transfers (FR-011) as a tradeoff: it optimizes for fewer open/close displacement transfers, not for the global minimum of all transfers, and a crossing-heavy diagram could net out with a similar or larger total transfer count. Per the 2026-06-18 clarification, placement is unconditional (max row always) — the heuristic does not weigh crossing-alignment cost against displacement savings; that refinement is explicitly out of scope for this feature.
 - The ASCII rendering is the target surface for this mode; the abbreviated knot notation remains the source of truth (per Constitution: Notation Fidelity), so example abbreviated-notation inputs and expected rendered outputs will accompany the implementation as snapshot tests.
 - Expected outputs for the new mode will be captured via `insta` snapshot tests (per Constitution: Test-First), reviewed and accepted before commit.
 - All new code lands in the core `knotty` crate and must compile for `wasm32-unknown-unknown` (per Constitution: WASM-Compatible).
