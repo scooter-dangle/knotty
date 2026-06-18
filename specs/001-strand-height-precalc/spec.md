@@ -26,6 +26,14 @@
   pulled back down, drawing diagonal "transfer" segments (a staircase) instead
   of a straight horizontal line. This feature adds a rendering mode that opens
   each strand directly at the highest row it will ever need, so it can run flat.
+
+  Primary motivation (diagram rotation): the rotation move is performed by
+  scanning the *rendered* diagram grid and re-deriving the notation from it.
+  Transfer diagonals introduced by today's renderer are themselves scanned as
+  diagram features, so each rotation re-encodes them and the diagram grows
+  progressively more complicated (more features) the more it is rotated, even
+  though the underlying knot is unchanged. Reducing avoidable transfers keeps
+  the scanned feature count stable across repeated rotations.
 -->
 
 ### User Story 1 - Render with reduced up-and-down strand movement (Priority: P1)
@@ -44,7 +52,22 @@ A person rendering a knot diagram chooses the height-precalculated rendering mod
 
 ---
 
-### User Story 2 - Opt in without changing existing output (Priority: P2)
+### User Story 2 - Keep diagram complexity stable under repeated rotation (Priority: P2)
+
+A person repeatedly applies the rotation move to a diagram. Because rotation re-derives the diagram by scanning the rendered grid, transfer diagonals in the render are picked up as additional diagram features and accumulate with each rotation, making the diagram progressively more complicated even though the knot is unchanged. Using the height-precalculated rendering mode for the scan removes those avoidable transfers, so the scanned feature count stays stable across rotations.
+
+**Why this priority**: This is the motivating use case for the feature. Without it, repeated rotation inflates the feature count and degrades usability of the rotation move; it is the primary real-world payoff of reduced transfers. It is independently testable against the existing rotation move.
+
+**Independent Test**: Take a diagram, render/scan it for rotation in the new mode, rotate it through a full cycle (e.g., four 90° rotations back to the original orientation), and confirm the number of scanned diagram features does not grow across rotations and the final diagram represents the same knot as the original.
+
+**Acceptance Scenarios**:
+
+1. **Given** a diagram whose default rendering contains avoidable transfers, **When** it is rotated using the height-precalculated rendering for the scan, **Then** the resulting diagram has no more scanned features than before the rotation (no artificial inflation from transfers).
+2. **Given** a diagram, **When** it is rotated through a full cycle back to its original orientation using the new mode, **Then** the feature count does not grow monotonically across the cycle and the final diagram represents the same knot as the original.
+
+---
+
+### User Story 3 - Opt in without changing existing output (Priority: P3)
 
 A downstream consumer of the library (or example app) selects between the existing default rendering and the new height-precalculated rendering. Existing renders, snapshots, and example outputs are unaffected unless the new mode is explicitly chosen.
 
@@ -59,7 +82,7 @@ A downstream consumer of the library (or example app) selects between the existi
 
 ---
 
-### User Story 3 - Fidelity preserved across all element types (Priority: P3)
+### User Story 4 - Fidelity preserved across all element types (Priority: P4)
 
 A person renders diagrams that contain crossings as well as openings and closings. The new mode places strands at precalculated heights while still aligning crossings with their partner strands, so the rendered diagram remains a faithful representation of the abbreviated notation.
 
@@ -84,6 +107,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **Crossing partners no longer adjacent**: the default mode keeps any two strands that can cross directly above/below each other at a uniform distance, so a crossing is always between neighboring rows. Placing strands at their overall maximum row can separate two crossing partners; the new mode must then transfer them together to be adjacent for the crossing (and back afterward). This is a *new* class of transfer the default mode never needs, and it is an accepted cost of the new mode — see FR-011 and SC-002.
 - **Interleaved openings and closings at the same indices**: placement remains consistent and non-overlapping.
 - **Closings at the very bottom row**: handled without error and without forcing avoidable movement on strands above.
+- **Repeated rotation**: rotating a diagram many times using the new mode for the scan must not accumulate transfer-induced features; the scanned feature count stays bounded by the knot's actual complexity rather than growing per rotation.
 
 ## Requirements *(mandatory)*
 
@@ -108,6 +132,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **Maximum strand row (precalculated height)**: the highest vertical row a given strand pair occupies at any point between its opening and closing — the target placement row for the new mode.
 - **Diagonal transfer segment**: a rendered segment that moves a strand up or down between rows. Two kinds matter here: *open/close displacement transfers*, caused by openings/closings beneath a passing strand (the kind this feature reduces); and *crossing-alignment transfers*, needed to bring two crossing partners adjacent when precalculated placement has separated them (a new cost the default mode never incurs).
 - **Crossing-alignment transfer**: a transfer the new mode adds to make two crossing strands adjacent at the moment they cross (and to restore placement afterward), because the default mode's guarantee that crossing partners are always adjacent no longer holds once strands sit at their maximum rows.
+- **Scanned diagram feature**: an element the rotation move recovers by reading the rendered grid (openings, closings, crossings, and transfers). Transfers that exist only because of avoidable strand movement inflate this count without changing the knot, which is what the new mode aims to prevent.
 
 ## Success Criteria *(mandatory)*
 
@@ -118,6 +143,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **SC-003**: 100% of valid diagrams render to the same knot in the new mode as in the default mode (verified by round-trip / equivalence checks).
 - **SC-004**: Default-mode output remains byte-for-byte identical to current output for every existing example and snapshot.
 - **SC-005**: Rendering is deterministic — rendering the same diagram twice in the new mode yields identical output every time.
+- **SC-006**: When a diagram is rotated using the new mode for the scan, the number of scanned diagram features does not increase due to transfers; rotating through a full cycle back to the original orientation yields a feature count no greater than the original, and the diagram still represents the same knot.
 
 ## Assumptions
 
@@ -126,4 +152,5 @@ A person renders diagrams that contain crossings as well as openings and closing
 - The default mode's invariant that any two crossing strands are always vertically adjacent at a uniform distance does not survive max-row placement. The new mode therefore accepts crossing-alignment transfers (FR-011) as a tradeoff: it optimizes for fewer open/close displacement transfers, not for the global minimum of all transfers, and a crossing-heavy diagram could net out with a similar or larger total transfer count. Per the 2026-06-18 clarification, placement is unconditional (max row always) — the heuristic does not weigh crossing-alignment cost against displacement savings; that refinement is explicitly out of scope for this feature.
 - The ASCII rendering is the target surface for this mode; the abbreviated knot notation remains the source of truth (per Constitution: Notation Fidelity), so example abbreviated-notation inputs and expected rendered outputs will accompany the implementation as snapshot tests.
 - Expected outputs for the new mode will be captured via `insta` snapshot tests (per Constitution: Test-First), reviewed and accepted before commit.
+- The rotation move (re-deriving notation by scanning the rendered grid) is the motivating consumer; this feature does not change rotation's semantics, only the rendering it scans, so rotation continues to produce an equivalent knot.
 - All new code lands in the core `knotty` crate and must compile for `wasm32-unknown-unknown` (per Constitution: WASM-Compatible).
