@@ -14,6 +14,7 @@
 
 - Q: Should the new mode apply max-row placement unconditionally, or weigh crossing-alignment cost against displacement savings? → A: Unconditional max-row placement — always open each strand at its precalculated maximum row, accepting that crossing-heavy diagrams may net out with equal-or-more total transfers (open/close displacement is still strictly reduced).
 - Q: How should the rotation benefit be stated, given that not every transfer inflates scanned features? → A: Only transfers later reversed by an opposite-direction transfer (the avoidable up-then-down open/close displacement) inflate the scanned feature count; many transfers scan to nothing, and the crossing-alignment transfers the new mode adds are scanned but do not increase the feature count. Therefore rotating in the new mode never increases scanned features and strictly reduces them for diagrams containing such reversed-direction displacement, with knot equivalence always preserved.
+- Q: Which operations carry the rendering mode, and how is it supplied? → A: The user selects a single rendering mode to work in and all operations run under that active mode (mode is an operating context/state, not a per-call argument). Only rotation's produced notation actually changes with the mode; notation-only moves (swap, wrap-around, change-crossing, Reidemeister, bulge/collapse) yield identical results regardless. The existing mode stays the default for now (it is trusted as correct); the new mode is opt-in and is expected to become the default later once proven — no immediate migration.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -75,16 +76,17 @@ A person repeatedly applies the rotation move to a diagram. Because rotation re-
 
 ### User Story 3 - Opt in without changing existing output (Priority: P3)
 
-A downstream consumer of the library (or example app) selects between the existing default rendering and the new height-precalculated rendering. Existing renders, snapshots, and example outputs are unaffected unless the new mode is explicitly chosen.
+A downstream consumer of the library (or example app) selects a single rendering mode to work in — the existing default rendering or the new height-precalculated rendering — and all subsequent operations run under that active mode. The mode is an operating context, not just a display option: rotation's produced notation depends on it. Existing renders, snapshots, and example outputs are unaffected unless the new mode is explicitly chosen.
 
-**Why this priority**: Protects existing behavior and consumers. The feature must be additive; changing the default would break existing snapshots and downstream expectations.
+**Why this priority**: Protects existing behavior and consumers. The feature must be additive; the existing mode stays the default so current snapshots and downstream expectations are unchanged, while the new mode is opt-in until proven and expected to become the default later.
 
 **Independent Test**: Render a set of diagrams in the default mode and confirm output is byte-for-byte identical to today's output; render the same diagrams in the new mode and confirm the precalculated placement is used.
 
 **Acceptance Scenarios**:
 
-1. **Given** any diagram, **When** rendered in the default mode, **Then** the output is identical to the current rendering.
-2. **Given** the same diagram, **When** rendered in the height-precalculated mode, **Then** opening features are placed at their precalculated rows rather than the lowest free row.
+1. **Given** any diagram, **When** operated on in the default mode, **Then** rendering and rotation results are identical to the current behavior.
+2. **Given** the same diagram, **When** operated on in the height-precalculated mode, **Then** opening features are placed at their precalculated rows rather than the lowest free row.
+3. **Given** a working context with one mode selected, **When** a notation-only move (e.g., swap, Reidemeister, wrap-around) is applied, **Then** the result is identical regardless of which mode is active.
 
 ---
 
@@ -130,6 +132,8 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **FR-009**: The new mode MUST still emit diagonal transfer segments that are intrinsic to a strand entering at its opening index or leaving at its closing index; only avoidable up-then-down movement is removed.
 - **FR-010**: The new mode MUST handle empty and degenerate diagrams without error, producing output equivalent to the default mode where no avoidable movement exists.
 - **FR-011**: When a crossing's two participating strands are not on adjacent rows under the precalculated placement, the new mode MUST insert the transfer segments needed to bring them adjacent for the crossing and to restore their placement afterward. These crossing-alignment transfers are permitted even though they are not open/close displacement transfers, and the rendering MUST never draw a crossing between non-adjacent rows.
+- **FR-012**: The rendering mode MUST be a single operating context a user selects to work in; all diagram operations run under the active mode. Because rotation re-derives notation from the rendered grid, the rotation result MUST reflect the active mode; notation-only moves (swap, wrap-around, change-crossing, Reidemeister, bulge/collapse) MUST produce identical results regardless of the active mode.
+- **FR-013**: The active rendering mode MUST default to the existing (legacy) mode so that current behavior — including rotation results and snapshots — is unchanged unless the user opts into the new mode. (Making the new mode the default, and any migration away from the legacy mode, is out of scope for this feature.)
 
 ### Key Entities *(include if feature involves data)*
 
@@ -139,6 +143,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **Diagonal transfer segment**: a rendered segment that moves a strand up or down between rows. Two kinds matter here: *open/close displacement transfers*, caused by openings/closings beneath a passing strand (the kind this feature reduces); and *crossing-alignment transfers*, needed to bring two crossing partners adjacent when precalculated placement has separated them (a new cost the default mode never incurs).
 - **Crossing-alignment transfer**: a transfer the new mode adds to make two crossing strands adjacent at the moment they cross (and to restore placement afterward), because the default mode's guarantee that crossing partners are always adjacent no longer holds once strands sit at their maximum rows.
 - **Scanned diagram feature**: an element the rotation move recovers by reading the rendered grid (openings, closings, crossings). Not every transfer becomes one — many scan to nothing. The transfers that inflate this count are (especially, perhaps only) those later reversed by an opposite-direction transfer, i.e. the avoidable up-then-down displacement the new mode removes; crossing-alignment transfers are scanned but do not add features. Reducing the reversed-direction transfers lowers the count without changing the knot, which is what the new mode aims for.
+- **Active rendering mode (operating context)**: the single mode a user has selected to work in. It governs all operations; rotation's produced notation depends on it, while notation-only moves are independent of it. Defaults to the legacy mode; selecting the new mode is opt-in.
 
 ## Success Criteria *(mandatory)*
 
@@ -158,5 +163,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - The default mode's invariant that any two crossing strands are always vertically adjacent at a uniform distance does not survive max-row placement. The new mode therefore accepts crossing-alignment transfers (FR-011) as a tradeoff: it optimizes for fewer open/close displacement transfers, not for the global minimum of all transfers, and a crossing-heavy diagram could net out with a similar or larger total transfer count. Per the 2026-06-18 clarification, placement is unconditional (max row always) — the heuristic does not weigh crossing-alignment cost against displacement savings; that refinement is explicitly out of scope for this feature.
 - The ASCII rendering is the target surface for this mode; the abbreviated knot notation remains the source of truth (per Constitution: Notation Fidelity), so example abbreviated-notation inputs and expected rendered outputs will accompany the implementation as snapshot tests.
 - Expected outputs for the new mode will be captured via `insta` snapshot tests (per Constitution: Test-First), reviewed and accepted before commit.
-- The rotation move (re-deriving notation by scanning the rendered grid) is the motivating consumer; this feature does not change rotation's semantics, only the rendering it scans, so rotation continues to produce an equivalent knot.
+- The rotation move (re-deriving notation by scanning the rendered grid) is the motivating consumer; the rotation algorithm itself is unchanged, but because it scans the rendered grid the notation it produces depends on the active mode. The two modes can therefore yield different — but equivalent — rotation results, which is why a working context fixes one mode.
+- A working context (a diagram and the sequence of operations applied to it) uses a single active mode consistently. Mixing modes within one operation sequence is not a supported scenario; results are only defined relative to the active mode.
+- Migration stance: the legacy mode is trusted and remains the default; the new mode is opt-in until validated in real use. Promoting the new mode to default (and any deprecation of the legacy mode) is explicitly out of scope for this feature.
 - All new code lands in the core `knotty` crate and must compile for `wasm32-unknown-unknown` (per Constitution: WASM-Compatible).
