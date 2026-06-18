@@ -34,4 +34,4 @@
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
 - Domain terms (strand pair, opening/closing feature, diagonal transfer) are described in plain language in the spec's User Scenarios background note so non-technical stakeholders can follow.
 - The new mode is specified as opt-in and additive to protect existing rendering output and snapshots (FR-005, SC-004).
-- Motivating use case (added 2026-06-18): the rotation move scans the rendered grid, so avoidable transfers inflate scanned features and compound across rotations; captured as User Story 2 (P2), SC-006, and a repeated-rotation edge case.
+- Motivating use case (added 2026-06-18): the rotation move scans the rendered grid; only reversed-direction (up-then-down) transfers re-encode as extra scanned features and compound across rotations (many transfers scan to nothing; crossing-alignment transfers don't add features). Captured as User Story 2 (P2), SC-006, and a repeated-rotation edge case.
