@@ -25,3 +25,8 @@
 - Remove redundant/hacky commits rather than piling on fixes; force-push with lease to clean history
 - Don't add comments, docstrings, or type annotations to code that wasn't changed
 - Don't introduce extra abstractions or error handling beyond what's needed
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
