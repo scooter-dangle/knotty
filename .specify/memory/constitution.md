@@ -1,5 +1,8 @@
 # Knotty Constitution
 
+> Principles adapted from the [Spec-Driven Development methodology](https://github.com/github/spec-kit/blob/main/spec-driven.md).
+> Articles II (CLI interface) and IX (integration databases) are not applicable to this library project and are omitted.
+
 ## Core Principles
 
 ### I. Library-First
@@ -11,8 +14,9 @@ All code in `src/` must compile for `wasm32-unknown-unknown`.
 No `std`-only crate dependencies may be added without explicit justification.
 Verify with `cargo check --target wasm32-unknown-unknown` before marking a task done.
 
-### III. Snapshot-Tested
-New diagram operations require `insta` snapshot tests.
+### III. Test-First
+New behaviour in `src/` requires `#[test]` coverage before or alongside the implementation — no untested public API.
+New diagram operations require `insta` snapshot tests specifically.
 Run `cargo insta review` to accept new snapshots before committing.
 Regression tests must be added for any bug fix in `diagram.rs`, `rotate.rs`, or `moves.rs`.
 
