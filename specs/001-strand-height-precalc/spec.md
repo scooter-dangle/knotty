@@ -42,7 +42,7 @@ A person rendering a knot diagram chooses the height-precalculated rendering mod
 
 A downstream consumer of the library (or example app) selects between the existing default rendering and the new height-precalculated rendering. Existing renders, snapshots, and example outputs are unaffected unless the new mode is explicitly chosen.
 
-**Why this priority**: Protects existing behaviour and consumers. The feature must be additive; changing the default would break existing snapshots and downstream expectations.
+**Why this priority**: Protects existing behavior and consumers. The feature must be additive; changing the default would break existing snapshots and downstream expectations.
 
 **Independent Test**: Render a set of diagrams in the default mode and confirm output is byte-for-byte identical to today's output; render the same diagrams in the new mode and confirm the precalculated placement is used.
 
@@ -85,7 +85,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **FR-002**: System MUST place each opening feature at its precalculated target row rather than always at the lowest free row.
 - **FR-003**: In the new mode, a strand that does not change rows between its opening and closing MUST render as a straight horizontal line with no diagonal transfer segments, wherever the precalculated placement makes that possible.
 - **FR-004**: In the new mode, the number of diagonal transfer segments MUST be reduced (versus the default mode) for any diagram in which a strand is pushed up by an opening beneath it and later pulled back down by a closing beneath it.
-- **FR-005**: System MUST leave the default rendering behaviour unchanged; the height-precalculated behaviour MUST be opt-in.
+- **FR-005**: System MUST leave the default rendering behavior unchanged; the height-precalculated behavior MUST be opt-in.
 - **FR-006**: For every valid diagram, the new mode's rendering MUST represent the same knot as the default mode's rendering (notation fidelity preserved).
 - **FR-007**: The new mode MUST support all existing diagram elements — openings, closings, and crossings — and MUST keep each crossing aligned with its correct partner strand.
 - **FR-008**: The new mode MUST produce deterministic output: the same diagram always renders identically.
@@ -111,7 +111,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 
 ## Assumptions
 
-- The height-precalculated behaviour is an additive, opt-in rendering path; the existing default rendering and its public output remain unchanged (per Constitution: Library-First, and to protect existing `insta` snapshots).
+- The height-precalculated behavior is an additive, opt-in rendering path; the existing default rendering and its public output remain unchanged (per Constitution: Library-First, and to protect existing `insta` snapshots).
 - "Reduce the need for strands to be moved up and down" means minimizing avoidable up-then-down displacement, not necessarily computing a globally optimal placement; a placement at each strand's maximum occupied row is the intended heuristic.
 - The ASCII rendering is the target surface for this mode; the abbreviated knot notation remains the source of truth (per Constitution: Notation Fidelity), so example abbreviated-notation inputs and expected rendered outputs will accompany the implementation as snapshot tests.
 - Expected outputs for the new mode will be captured via `insta` snapshot tests (per Constitution: Test-First), reviewed and accepted before commit.
