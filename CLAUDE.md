@@ -27,6 +27,8 @@
 - Don't introduce extra abstractions or error handling beyond what's needed
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+Active feature plan: `specs/001-strand-height-precalc/plan.md`
+(height-precalculated strand placement rendering mode). See also its
+`research.md`, `data-model.md`, `contracts/public-api.md`, and `quickstart.md`
+for technical context, the `RenderMode` design, and validation steps.
 <!-- SPECKIT END -->
