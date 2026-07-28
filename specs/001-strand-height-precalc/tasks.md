@@ -61,19 +61,19 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 ### Tests for User Story 1 ⚠️ Write FIRST, ensure they FAIL
 
-- [ ] T011 [P] [US1] Add unit test for the peak-row precalculation pass (open/close stack simulation, expected peak row per opening) in the `#[cfg(test)] mod tests` of `src/raw_lines.rs`
-- [ ] T012 [P] [US1] Add `insta` snapshot test rendering `terrace` in `RenderMode::PrecalculatedHeights` in `src/diagram/tests.rs`
-- [ ] T013 [P] [US1] Add test asserting the `terrace` precalc render contains strictly fewer transfer glyphs (`TransferUp*`/`TransferDown*`) than the legacy render, and that a strand whose row is unchanged between open and close renders flat, in `src/diagram/tests.rs`
-- [ ] T014 [P] [US1] Add edge-case tests for empty and single-pair diagrams producing legacy-equivalent output in the new mode (FR-010) in `src/diagram/tests.rs`
+- [X] T011 [P] [US1] Add unit test for the peak-row precalculation pass (open/close stack simulation, expected peak row per opening) in the `#[cfg(test)] mod tests` of `src/raw_lines.rs`
+- [X] T012 [P] [US1] Add `insta` snapshot test rendering `terrace` in `RenderMode::PrecalculatedHeights` in `src/diagram/tests.rs`
+- [X] T013 [P] [US1] Add test asserting the `terrace` precalc render contains strictly fewer transfer glyphs (`TransferUp*`/`TransferDown*`) than the legacy render, and that a strand whose row is unchanged between open and close renders flat, in `src/diagram/tests.rs`
+- [X] T014 [P] [US1] Add edge-case tests for empty and single-pair diagrams producing legacy-equivalent output in the new mode (FR-010) in `src/diagram/tests.rs`
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement the peak-row precalculation pass (linear walk of the abbreviated sequence maintaining the open-pair stack, folding each pair's maximum bottom row) in `src/raw_lines.rs` per research.md R2 (depends on T011)
-- [ ] T016 [US1] Implement the max-height placement path — opening each pair directly at its peak row and keeping placed strands flat — as new `append`/`expand`/`contract` variants in `src/raw_lines.rs` per research.md R3 (depends on T015)
-- [ ] T017 [US1] Wire `VerboseDiagram::from_abbreviated` in `src/render.rs` to dispatch to the max-height path when the mode is `PrecalculatedHeights` (depends on T016, T008)
-- [ ] T018 [US1] Preserve the boundary diagonals intrinsic to a pair entering at its opening index and leaving at its closing index in `src/raw_lines.rs` (FR-009) (depends on T016)
-- [ ] T019 [US1] Add a temporary legacy fallback in `src/render.rs` so diagrams containing crossings still render via the legacy path in `PrecalculatedHeights` mode, keeping knot fidelity (FR-006) correct at this checkpoint; removed in US4 (depends on T017)
-- [ ] T020 [US1] Run `cargo insta review` to accept the new `PrecalculatedHeights` snapshots and confirm no legacy snapshot changed, then `cargo check --target wasm32-unknown-unknown` (depends on T017, T018, T019)
+- [X] T015 [US1] Implement the peak-row precalculation pass (linear walk of the abbreviated sequence maintaining the open-pair stack, folding each pair's maximum bottom row) in `src/raw_lines.rs` per research.md R2 (depends on T011)
+- [X] T016 [US1] Implement the max-height placement path — opening each pair directly at its peak row and keeping placed strands flat — as new `append`/`expand`/`contract` variants in `src/raw_lines.rs` per research.md R3 (depends on T015)
+- [X] T017 [US1] Wire `VerboseDiagram::from_abbreviated` in `src/render.rs` to dispatch to the max-height path when the mode is `PrecalculatedHeights` (depends on T016, T008)
+- [X] T018 [US1] Preserve the boundary diagonals intrinsic to a pair entering at its opening index and leaving at its closing index in `src/raw_lines.rs` (FR-009) (depends on T016)
+- [X] T019 [US1] Add a temporary legacy fallback in `src/render.rs` so diagrams containing crossings still render via the legacy path in `PrecalculatedHeights` mode, keeping knot fidelity (FR-006) correct at this checkpoint; removed in US4 (depends on T017)
+- [X] T020 [US1] Run `cargo insta review` to accept the new `PrecalculatedHeights` snapshots and confirm no legacy snapshot changed, then `cargo check --target wasm32-unknown-unknown` (depends on T017, T018, T019)
 
 **Checkpoint**: Crossing-free diagrams render flat in the new mode; legacy output untouched; MVP demonstrable
 

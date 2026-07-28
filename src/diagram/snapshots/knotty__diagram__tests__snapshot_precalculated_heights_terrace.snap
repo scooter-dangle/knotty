@@ -1,0 +1,27 @@
+---
+source: src/diagram/tests.rs
+assertion_line: 205
+expression: "terrace().with_mode(RenderMode::PrecalculatedHeights).ascii_print_compact::<false>()"
+---
+        ____________        
+       /            \       
+      (              )      
+       \            /       
+        \          /        
+         )        (         
+      __/          \__      
+     /                \     
+    (                  )    
+     \____        ____/     
+          \      /          
+           )    (           
+    ______/      \______    
+   /                    \   
+  (                      )  
+   \________    ________/   
+            \  /            
+             )(             
+  __________/  \__________  
+ /                        \ 
+(                          )
+ \________________________/

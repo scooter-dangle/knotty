@@ -173,3 +173,93 @@ fn snapshot_ascii_print() {
     ];
     insta::assert_snapshot!(ascii_print_compact::<false>(weird_thing_that_broke_once));
 }
+
+fn transfer_count(diagram: &AbbreviatedDiagram) -> usize {
+    VerboseDiagram::from_abbreviated(diagram)
+        .unwrap()
+        .0
+        .iter()
+        .flat_map(|line| line.0.iter())
+        .filter(|horiz| {
+            matches!(
+                horiz,
+                Horiz::TransferUpStart
+                    | Horiz::TransferUp
+                    | Horiz::TransferUpFinish
+                    | Horiz::TransferDownStart
+                    | Horiz::TransferDown
+                    | Horiz::TransferDownFinish
+            )
+        })
+        .count()
+}
+
+fn terrace() -> AbbreviatedDiagram {
+    "(0 (2 (4 (6 )5 )3 )1 (1 (3 (5 )6 )4 )2 )0"
+        .parse::<AbbreviatedDiagram>()
+        .unwrap()
+}
+
+#[test]
+fn snapshot_precalculated_heights_terrace() {
+    insta::assert_snapshot!(terrace()
+        .with_mode(RenderMode::PrecalculatedHeights)
+        .ascii_print_compact::<false>());
+}
+
+#[test]
+fn precalculated_heights_removes_avoidable_transfers() {
+    let legacy = terrace();
+    let precalc = legacy.clone().with_mode(RenderMode::PrecalculatedHeights);
+
+    assert!(
+        transfer_count(&legacy) > 0,
+        "terrace should zig-zag under the legacy renderer",
+    );
+    assert_eq!(
+        transfer_count(&precalc),
+        0,
+        "every terrace strand should run flat under precalculated heights",
+    );
+}
+
+#[test]
+fn precalculated_heights_never_adds_transfers() {
+    // Includes diagrams that fall back to the legacy placement, which must
+    // still never render worse than legacy.
+    for source in [
+        "(0 )0",
+        "(0 (1 )1 )0",
+        "(0 (1 )2 )0",
+        "(0 (2 (4 )4 )2 )0",
+        "(0 (2 \\1 /0 \\1 )2 )0",
+        "(0 (0 \\1 /0 \\1 )0 )0",
+        "(0 (1 (1 \\3 \\2 \\4 \\3 )1 )1 )0",
+    ] {
+        let legacy = source.parse::<AbbreviatedDiagram>().unwrap();
+        let precalc = legacy.clone().with_mode(RenderMode::PrecalculatedHeights);
+
+        assert!(
+            transfer_count(&precalc) <= transfer_count(&legacy),
+            "{source} rendered more transfers under precalculated heights",
+        );
+    }
+}
+
+#[test]
+fn precalculated_heights_handles_degenerate_diagrams() {
+    let empty = AbbreviatedDiagram::default().with_mode(RenderMode::PrecalculatedHeights);
+    assert_eq!(empty.try_ascii_print_compact::<false>().unwrap(), "");
+
+    let unknot = "(0 )0"
+        .parse::<AbbreviatedDiagram>()
+        .unwrap()
+        .with_mode(RenderMode::PrecalculatedHeights);
+    assert_eq!(
+        unknot.ascii_print_compact::<false>(),
+        "(0 )0"
+            .parse::<AbbreviatedDiagram>()
+            .unwrap()
+            .ascii_print_compact::<false>(),
+    );
+}

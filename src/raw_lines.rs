@@ -295,6 +295,47 @@ mod tests {
     }
 
     #[test]
+    fn precalculated_rows_places_stacked_openings_at_their_peaks() {
+        // Stacked openings: each pair sits above the previous one, so nothing
+        // needs to move. Every pair is placed at the row it already occupies.
+        let stacked = [
+            (b'(', 0),
+            (b'(', 2),
+            (b'(', 4),
+            (b')', 4),
+            (b')', 2),
+            (b')', 0),
+        ];
+        assert_eq!(precalculated_rows(&stacked), Some(vec![0, 2, 4, 4, 2, 0]));
+    }
+
+    #[test]
+    fn precalculated_rows_uses_peak_not_opening_row() {
+        // `(0` twice: the first pair is pushed up to rows 2/3 when the second
+        // opens beneath it, so its peak — and therefore its placement — is 2.
+        // Legacy would open it at 0 and transfer it up.
+        let pushed_up = [(b'(', 0), (b'(', 0), (b')', 0), (b')', 0)];
+        assert_eq!(precalculated_rows(&pushed_up), Some(vec![2, 0, 0, 2]));
+    }
+
+    #[test]
+    fn precalculated_rows_declines_when_a_pair_is_split() {
+        // Nesting separates a pair's two lines, so the enclosing loop cannot be
+        // drawn flat; the caller falls back to the legacy placement.
+        let donut = [(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)];
+        assert_eq!(precalculated_rows(&donut), None);
+    }
+
+    #[test]
+    fn precalculated_rows_handles_empty_and_single_pair() {
+        assert_eq!(precalculated_rows(&[]), Some(vec![]));
+        assert_eq!(
+            precalculated_rows(&[(b'(', 0), (b')', 0)]),
+            Some(vec![0, 0])
+        );
+    }
+
+    #[test]
     fn snapshot_raw_lines_append() {
         let mut lines = vec![vec![]; 4];
 
