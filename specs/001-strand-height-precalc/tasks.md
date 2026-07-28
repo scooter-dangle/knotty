@@ -29,8 +29,8 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 **Purpose**: Establish the pre-change baseline that the parity gate (SC-004) is measured against
 
-- [ ] T001 Record baseline by running `cargo test` and confirming all existing snapshots in `src/snapshots/` and `src/diagram/snapshots/` pass unmodified
-- [ ] T002 [P] Confirm WASM gate passes pre-change with `cargo check --target wasm32-unknown-unknown` (Constitution Principle II)
+- [X] T001 Record baseline by running `cargo test` and confirming all existing snapshots in `src/snapshots/` and `src/diagram/snapshots/` pass unmodified
+- [X] T002 [P] Confirm WASM gate passes pre-change with `cargo check --target wasm32-unknown-unknown` (Constitution Principle II)
 
 ---
 
@@ -40,14 +40,14 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Add `pub enum RenderMode { Legacy (default), PrecalculatedHeights }` deriving `Clone, Copy, PartialEq, Eq, Debug, Default` in `src/render.rs` per data-model.md
-- [ ] T004 Convert `AbbreviatedDiagram` from tuple struct to named struct `{ items: Vec<AbbreviatedItem>, mode: RenderMode }` in `src/diagram.rs`, performing the mechanical `self.0` → `self.items` rename across all ~40 access sites (depends on T003)
-- [ ] T005 Update all `AbbreviatedDiagram` constructors in `src/diagram.rs` (`FromStr`, `new_from_tuples`, `to_tuples`) so they default `mode` to `RenderMode::Legacy` (depends on T004)
-- [ ] T006 Add `mode()`, `set_mode()`, and `with_mode()` accessors to `impl AbbreviatedDiagram` in `src/diagram.rs` (depends on T004)
-- [ ] T007 Re-export `RenderMode` from `src/lib.rs` alongside the existing `render` re-exports (depends on T003)
-- [ ] T008 Update `VerboseDiagram::from_abbreviated` in `src/render.rs` to read the diagram's mode and dispatch to the legacy placement path (behavior unchanged at this point) (depends on T004, T003)
-- [ ] T009 Audit and re-accept any `assert_debug_snapshot!` snapshots that shifted due to the struct change, running `cargo insta review` for `src/diagram/snapshots/` (depends on T005)
-- [ ] T010 **Parity gate**: verify `cargo test` passes with every pre-existing ASCII snapshot byte-for-byte unchanged and re-run `cargo check --target wasm32-unknown-unknown` (depends on T009)
+- [X] T003 Add `pub enum RenderMode { Legacy (default), PrecalculatedHeights }` deriving `Clone, Copy, PartialEq, Eq, Debug, Default` in `src/render.rs` per data-model.md
+- [X] T004 Convert `AbbreviatedDiagram` from tuple struct to named struct `{ items: Vec<AbbreviatedItem>, mode: RenderMode }` in `src/diagram.rs`, performing the mechanical `self.0` → `self.items` rename across all ~40 access sites (depends on T003)
+- [X] T005 Update all `AbbreviatedDiagram` constructors in `src/diagram.rs` (`FromStr`, `new_from_tuples`, `to_tuples`) so they default `mode` to `RenderMode::Legacy` (depends on T004)
+- [X] T006 Add `mode()`, `set_mode()`, and `with_mode()` accessors to `impl AbbreviatedDiagram` in `src/diagram.rs` (depends on T004)
+- [X] T007 Re-export `RenderMode` from `src/lib.rs` alongside the existing `render` re-exports (depends on T003)
+- [X] T008 Update `VerboseDiagram::from_abbreviated` in `src/render.rs` to read the diagram's mode and dispatch to the legacy placement path (behavior unchanged at this point) (depends on T004, T003)
+- [X] T009 Audit and re-accept any `assert_debug_snapshot!` snapshots that shifted due to the struct change, running `cargo insta review` for `src/diagram/snapshots/` (depends on T005)
+- [X] T010 **Parity gate**: verify `cargo test` passes with every pre-existing ASCII snapshot byte-for-byte unchanged and re-run `cargo check --target wasm32-unknown-unknown` (depends on T009)
 
 **Checkpoint**: `RenderMode` exists, defaults to `Legacy`, and all existing behavior is provably unchanged — user stories can now begin
 

@@ -2,8 +2,8 @@ use core::fmt;
 use std::{cmp::Ordering, mem, str::FromStr};
 
 use crate::moves::{CommentLines, DiagramMove, Lean, Move, OverUnder, UpDown};
-use crate::raw_lines::append;
-use crate::render::{Horiz, VerboseDiagram, VerboseLine};
+use crate::raw_lines::{append, append_flat, precalculated_rows};
+use crate::render::{Horiz, RenderMode, VerboseDiagram, VerboseLine};
 use crate::rotate::scan_row;
 
 macro_rules! try_opt {
@@ -112,7 +112,7 @@ impl fmt::Display for AbbreviatedItem {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>);
+pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>, pub(crate) RenderMode);
 
 impl VerboseDiagram {
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
@@ -120,8 +120,24 @@ impl VerboseDiagram {
 
         let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
-        for AbbreviatedItem { element, index } in knot.0.iter() {
-            append(&mut lines, *element, *index);
+        match knot.mode() {
+            RenderMode::Legacy => {
+                for AbbreviatedItem { element, index } in knot.0.iter() {
+                    append(&mut lines, *element, *index);
+                }
+            }
+            RenderMode::PrecalculatedHeights => {
+                let items = knot.to_tuples();
+
+                match precalculated_rows(&items) {
+                    Some(rows) => append_flat(&mut lines, &items, &rows),
+                    None => {
+                        for AbbreviatedItem { element, index } in knot.0.iter() {
+                            append(&mut lines, *element, *index);
+                        }
+                    }
+                }
+            }
         }
 
         Ok(Self(lines.into_iter().map(VerboseLine).collect()))
@@ -733,7 +749,7 @@ impl FromStr for AbbreviatedDiagram {
             inner_delimiter: Some(" "),
             comment_start: "#",
         }
-        .parse(Self, string)
+        .parse(|items| Self(items, RenderMode::default()), string)
     }
 }
 
@@ -1480,8 +1496,23 @@ impl AbbreviatedDiagram {
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?,
+                RenderMode::default(),
             )
         })
+    }
+
+    /// The rendering mode this diagram is currently operating under.
+    pub fn mode(&self) -> RenderMode {
+        self.1
+    }
+
+    pub fn set_mode(&mut self, mode: RenderMode) {
+        self.1 = mode;
+    }
+
+    pub fn with_mode(mut self, mode: RenderMode) -> Self {
+        self.set_mode(mode);
+        self
     }
 
     pub fn len(&self) -> usize {

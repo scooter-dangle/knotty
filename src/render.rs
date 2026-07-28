@@ -1,3 +1,20 @@
+/// The active rendering mode for a diagram.
+///
+/// This is an operating context rather than a display flag: because the
+/// rotation move re-derives the notation by scanning the rendered grid, the
+/// mode a diagram is in affects the result of rotating it. Notation-only moves
+/// are unaffected.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderMode {
+    /// Each opening is placed at the lowest free row, pushing the strands
+    /// above it up (and pulling them back down when it closes).
+    #[default]
+    Legacy,
+    /// Each opening is placed at the maximum row its strands will ever
+    /// occupy, so strands passing over later openings/closings stay flat.
+    PrecalculatedHeights,
+}
+
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
     #[default]
