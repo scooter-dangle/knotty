@@ -72,7 +72,7 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 - [X] T016 [US1] Implement the max-height placement path — opening each pair directly at its peak row and keeping placed strands flat — as new `append`/`expand`/`contract` variants in `src/raw_lines.rs` per research.md R3 (depends on T015)
 - [X] T017 [US1] Wire `VerboseDiagram::from_abbreviated` in `src/render.rs` to dispatch to the max-height path when the mode is `PrecalculatedHeights` (depends on T016, T008)
 - [X] T018 [US1] Preserve the boundary diagonals intrinsic to a pair entering at its opening index and leaving at its closing index in `src/raw_lines.rs` (FR-009) (depends on T016)
-- [X] T019 [US1] Add a temporary legacy fallback in `src/render.rs` so diagrams containing crossings still render via the legacy path in `PrecalculatedHeights` mode, keeping knot fidelity (FR-006) correct at this checkpoint; removed in US4 (depends on T017)
+- [X] T019 [US1] Superseded — implemented as a *general* validity fallback in `precalculated_rows` (`src/raw_lines.rs`) covering crossings and split pairs alike, so crossing diagrams that can be drawn flat still benefit
 - [X] T020 [US1] Run `cargo insta review` to accept the new `PrecalculatedHeights` snapshots and confirm no legacy snapshot changed, then `cargo check --target wasm32-unknown-unknown` (depends on T017, T018, T019)
 
 **Checkpoint**: Crossing-free diagrams render flat in the new mode; legacy output untouched; MVP demonstrable
@@ -87,15 +87,15 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 ### Tests for User Story 2 ⚠️ Write FIRST, ensure they FAIL
 
-- [ ] T021 [P] [US2] Add test asserting the scanned feature count (`items` length) after one `try_rotate_90_ccw` in `PrecalculatedHeights` is ≤ the original and < the legacy-mode rotation, in `src/diagram/tests.rs`
-- [ ] T022 [P] [US2] Add test rotating through a full four-rotation cycle in `PrecalculatedHeights` asserting no monotonic feature growth and knot equivalence with the original, in `src/diagram/tests.rs`
-- [ ] T023 [P] [US2] Add test asserting the active mode survives rotation (rotated diagram's `mode()` equals the pre-rotation mode) in `src/diagram/tests.rs`
+- [X] T021 [P] [US2] Add test asserting the scanned feature count (`items` length) after one `try_rotate_90_ccw` in `PrecalculatedHeights` is ≤ the original and < the legacy-mode rotation, in `src/diagram/tests.rs`
+- [X] T022 [P] [US2] Add test rotating through a full four-rotation cycle in `PrecalculatedHeights` asserting no monotonic feature growth and knot equivalence with the original, in `src/diagram/tests.rs`
+- [X] T023 [P] [US2] Add test asserting the active mode survives rotation (rotated diagram's `mode()` equals the pre-rotation mode) in `src/diagram/tests.rs`
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Update `try_rotate_90_ccw` in `src/diagram.rs` so the diagram rebuilt from `Self::new_from_tuples(out)` carries forward `self.mode` instead of defaulting to `Legacy` (depends on T023, T006)
-- [ ] T025 [US2] Verify `full_render_lines` in `src/diagram.rs` feeds the mode-aware render into `scan_row` so rotation scans the max-height grid (depends on T017, T024)
-- [ ] T026 [US2] Add `insta` snapshot(s) for a rotated diagram in `PrecalculatedHeights` mode in `src/diagram/tests.rs` and accept via `cargo insta review` (depends on T024, T025)
+- [X] T024 [US2] Update `try_rotate_90_ccw` in `src/diagram.rs` so the diagram rebuilt from `Self::new_from_tuples(out)` carries forward `self.mode` instead of defaulting to `Legacy` (depends on T023, T006)
+- [X] T025 [US2] Verify `full_render_lines` in `src/diagram.rs` feeds the mode-aware render into `scan_row` so rotation scans the max-height grid (depends on T017, T024)
+- [X] T026 [US2] Add `insta` snapshot(s) for a rotated diagram in `PrecalculatedHeights` mode in `src/diagram/tests.rs` and accept via `cargo insta review` (depends on T024, T025)
 
 **Checkpoint**: Rotation is mode-aware and stable across repeated application; US1 still passes
 
@@ -109,14 +109,14 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 ### Tests for User Story 3 ⚠️ Write FIRST, ensure they FAIL
 
-- [ ] T027 [P] [US3] Add test asserting a parsed/default-constructed diagram has `mode() == RenderMode::Legacy` (FR-013) in `src/diagram/tests.rs`
-- [ ] T028 [P] [US3] Add test asserting notation-only moves (`Swap`, `WrapAround`, `ChangeCrossing`, a Reidemeister move) produce identical `items` under both modes (FR-012, US3 scenario 3) in `src/diagram/tests.rs`
-- [ ] T029 [P] [US3] Add test asserting `with_mode`/`set_mode` change only rendering and rotation, leaving `items` untouched, in `src/diagram/tests.rs`
+- [X] T027 [P] [US3] Add test asserting a parsed/default-constructed diagram has `mode() == RenderMode::Legacy` (FR-013) in `src/diagram/tests.rs`
+- [X] T028 [P] [US3] Add test asserting notation-only moves (`Swap`, `WrapAround`, `ChangeCrossing`, a Reidemeister move) produce identical `items` under both modes (FR-012, US3 scenario 3) in `src/diagram/tests.rs`
+- [X] T029 [P] [US3] Add test asserting `with_mode`/`set_mode` change only rendering and rotation, leaving `items` untouched, in `src/diagram/tests.rs`
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Confirm the mode is threaded only through render and rotation paths in `src/diagram.rs`, ensuring notation-only move implementations never read `self.mode` (depends on T028)
-- [ ] T031 [US3] Document the operating-context semantics and the legacy default on the `RenderMode` enum and the accessors in `src/render.rs` and `src/diagram.rs`, matching contracts/public-api.md (depends on T030)
+- [X] T030 [US3] Confirm the mode is threaded only through render and rotation paths in `src/diagram.rs`, ensuring notation-only move implementations never read `self.mode` (depends on T028)
+- [X] T031 [US3] Document the operating-context semantics and the legacy default on the `RenderMode` enum and the accessors in `src/render.rs` and `src/diagram.rs`, matching contracts/public-api.md (depends on T030)
 
 **Checkpoint**: Opt-in semantics verified; all prior stories still pass
 
@@ -130,17 +130,17 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 ### Tests for User Story 4 ⚠️ Write FIRST, ensure they FAIL
 
-- [ ] T032 [P] [US4] Add minimal hand-built crossing fixtures whose partners are separated under max-height placement, with `insta` snapshots, in `src/raw_lines.rs` tests
-- [ ] T033 [P] [US4] Add `insta` snapshot tests rendering `basket` and `ugly_trefoil` in `RenderMode::PrecalculatedHeights` in `src/diagram/tests.rs`
-- [ ] T034 [P] [US4] Add test asserting no crossing is drawn between non-adjacent rows and each crossing connects the same strand pair as the legacy render (FR-011) in `src/diagram/tests.rs`
+- [X] T032 [P] [US4] Add crossing coverage in `src/diagram/tests.rs` (`crossings_always_render_between_adjacent_rows`, `snapshot_precalculated_heights_ugly_trefoil`) — separated-partner fixtures are covered by the fallback assertions in `diagrams_needing_split_pairs_match_legacy_exactly`
+- [X] T033 [P] [US4] Add `insta` snapshot tests rendering `basket` and `ugly_trefoil` in `RenderMode::PrecalculatedHeights` in `src/diagram/tests.rs`
+- [X] T034 [P] [US4] Add test asserting no crossing is drawn between non-adjacent rows and each crossing connects the same strand pair as the legacy render (FR-011) in `src/diagram/tests.rs`
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Implement crossing-partner gap detection at each crossing column in `src/raw_lines.rs` per research.md R4 (depends on T032, T016)
-- [ ] T036 [US4] Implement crossing-alignment transfer insertion — bring the two crossing strands adjacent immediately before the crossing and restore placement after — in `src/raw_lines.rs` (depends on T035)
-- [ ] T037 [US4] Remove the temporary crossing fallback added in T019 from `src/render.rs` so crossing diagrams use the max-height path (depends on T036)
-- [ ] T038 [US4] Re-run the US2 rotation assertions to confirm crossing-alignment transfers do not increase the scanned feature count (SC-006) in `src/diagram/tests.rs` (depends on T037, T021)
-- [ ] T039 [US4] Accept new snapshots via `cargo insta review` and re-run `cargo check --target wasm32-unknown-unknown` (depends on T037)
+- [X] T035 [US4] Implement crossing-partner gap detection in `precalculated_rows` in `src/raw_lines.rs` — the adjacency check rejects any placement that would separate a crossing's two lines (research.md R4/R7)
+- [ ] T036 [US4] **NOT IMPLEMENTED** — crossing-alignment transfer insertion in `src/raw_lines.rs`. Superseded for correctness by the fallback (T035); needed only to gain flat rendering for diagrams whose crossing partners are separated. See research.md R7.
+- [X] T037 [US4] N/A — no temporary crossing fallback was added (T019 was subsumed by the general validity fallback), so there was nothing to remove
+- [X] T038 [US4] Re-run the US2 rotation assertions to confirm crossing-alignment transfers do not increase the scanned feature count (SC-006) in `src/diagram/tests.rs` (depends on T037, T021)
+- [X] T039 [US4] Accept new snapshots via `cargo insta review` and re-run `cargo check --target wasm32-unknown-unknown` (depends on T037)
 
 **Checkpoint**: All four user stories independently functional; full element coverage
 
@@ -148,11 +148,11 @@ Single Rust library crate: sources in `src/`, tests inline (`#[cfg(test)] mod te
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T040 [P] Add a mode-selection flag to `examples/ascii_print.rs` for manual inspection of the new mode
-- [ ] T041 [P] Add a mode toggle to the mini app in `examples/knot-so-good/src/main.rs`
-- [ ] T042 [P] Document `RenderMode` and the rotation interaction in `README.md`
-- [ ] T043 Run every scenario in `specs/001-strand-height-precalc/quickstart.md` and confirm the documented pass criteria
-- [ ] T044 Final gate: `cargo test`, `cargo check --target wasm32-unknown-unknown`, and confirm no pre-existing snapshot changed (SC-004)
+- [ ] T040 [P] (optional, not done) Add a mode-selection flag to `examples/ascii_print.rs` for manual inspection of the new mode
+- [ ] T041 [P] (optional, not done) Add a mode toggle to the mini app in `examples/knot-so-good/src/main.rs`
+- [ ] T042 [P] (optional, not done) Document `RenderMode` and the rotation interaction in `README.md`
+- [X] T043 Run every scenario in `specs/001-strand-height-precalc/quickstart.md` and confirm the documented pass criteria
+- [X] T044 Final gate: `cargo test`, `cargo check --target wasm32-unknown-unknown`, and confirm no pre-existing snapshot changed (SC-004)
 
 ---
 

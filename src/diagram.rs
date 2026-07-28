@@ -941,7 +941,9 @@ impl AbbreviatedDiagram {
             prev = Some(cur);
         }
 
-        *self = Self::new_from_tuples(out)?;
+        // The mode is the context the user is working in, so it survives the
+        // rotation even though the notation is re-derived from the render.
+        *self = Self::new_from_tuples(out)?.with_mode(self.mode());
         Ok(())
     }
 

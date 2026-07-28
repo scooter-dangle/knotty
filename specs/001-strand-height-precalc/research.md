@@ -41,6 +41,15 @@ and store it as a field on `AbbreviatedDiagram`. Convert the tuple struct
   every call (easy to get inconsistent), contradicting the operating-context
   model.
 
+**IMPLEMENTED VARIANT (deviation)**: the mode was added as a *second tuple
+field* — `AbbreviatedDiagram(Vec<AbbreviatedItem>, RenderMode)` — rather than
+converting to a named struct. Sizing the change showed 38 `self.0` access sites
+but only one construction site, so the named-struct form would have meant a
+38-site mechanical rename for no behavioral gain, against the project rule of
+minimal, noise-free commits. `.0` is already the established idiom throughout
+`diagram.rs`. Everything else in R1 (default `Legacy`, accessors, unchanged
+public signatures) is as designed.
+
 **Cost / risk**: The tuple→named-struct change requires a mechanical
 `self.0 → self.items` / `knot.0 → knot.items` rename (~40 sites in `diagram.rs`)
 and updating constructors (`new_from_tuples`, the `FromStr` parser, rotation's
@@ -114,6 +123,41 @@ move, and the exact glyph sequence) is the highest-uncertainty implementation
 area and will be developed test-first with small, targeted snapshot fixtures
 (e.g. `basket`, `ugly_trefoil`, and minimal hand-built crossing cases) before
 the general path is generalized.
+
+**IMPLEMENTED VARIANT (deviation)**: crossing-alignment transfers were *not*
+built. Instead, the placement pass validates that every event's two lines land
+on adjacent rows and that strand order is preserved; when they do not, the
+whole diagram falls back to the legacy placement. This still satisfies FR-011's
+hard guarantee — a crossing is never drawn between non-adjacent rows — and
+FR-006/FR-007, and crossing-bearing diagrams whose partners *are* adjacent
+under max-height placement (e.g. `ugly_trefoil`) render flat today. What is
+lost is the flat rendering for diagrams that would need alignment transfers.
+See R7 for the boundary this exposed.
+
+## R7. Which diagrams can be drawn flat (discovered during implementation)
+
+**Finding**: a constant per-line row assignment is only faithful when no pair's
+two lines are ever separated. Nesting separates them: in `(0 (1 )1 )0` the outer
+pair opens at rows 0/1, but the inner pair opening between them pushes the outer
+top line to row 3, so the outer pair is no longer adjacent when it must close.
+Naive max placement also inverts strand order in cases like
+`(0 (2 )2 (0 (0 (0 (0 …`, where a lower strand keeps rising after the strand
+above it has closed.
+
+**Decision**: detect both conditions and fall back to legacy for that diagram.
+
+**Consequence**: *stacked* diagrams — exactly the ones with avoidable
+up-then-down displacement — render flat (`terrace` drops from 18 transfer
+segments to 0). *Nested* diagrams (`donut`, `c_thingy`, `trefoil`, `basket`)
+fall back and are byte-identical to legacy. This is the right dividing line for
+correctness, but it is coarser than ideal: a mixed diagram loses the benefit on
+its stacked parts too.
+
+**Remaining work**: to benefit mixed/nested diagrams, a pair's top line needs to
+rise once after opening and descend once before closing (its own inherent
+boundary movement, permitted by FR-009) while every *other* strand stays flat.
+That requires a per-line transfer mechanism; today's `expand_above`/
+`contract_above` move every line at or above an index together.
 
 ## R5. How is default-mode parity guaranteed?
 
