@@ -60,10 +60,12 @@ specs/001-strand-height-precalc/
 ├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/
-│   └── public-api.md    # Phase 1 output (library API + behavioral contract)
+│   ├── public-api.md      # Phase 1 output (library API + behavioral contract)
+│   └── strand-heights.md  # Internal contract: the seam between the two
+│                          # independently-implementable components
 ├── checklists/
 │   └── requirements.md  # Spec quality checklist (existing)
-└── tasks.md             # Phase 2 output (/speckit-tasks — NOT created here)
+└── tasks.md             # Phase 2 output (/speckit-tasks)
 ```
 
 ### Source Code (repository root)

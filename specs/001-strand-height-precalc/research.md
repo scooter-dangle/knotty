@@ -71,6 +71,16 @@ existing notion of logical index used throughout `raw_lines::append`.
 **Alternatives considered**: Cost-aware placement weighing crossing-alignment
 against displacement — explicitly out of scope per clarification.
 
+**⚠️ Under review — granularity**: this decision is written *per pair* (one peak
+row per opening event). The feature owner describes the calculation as producing
+"the starting heights for each strand in each strand pair" — i.e. *per strand*,
+two values per opening. These coincide only if a pair's two strands are always
+placed adjacent and never diverge before closing, which the notation does not
+obviously guarantee. The distinction is material to the shape of the height map,
+so it is tracked as the open Shape question in
+[contracts/strand-heights.md](./contracts/strand-heights.md) and resolved from
+the part-1 golden fixtures (tasks.md T010). Amend this section once fixed.
+
 ## R3. How is the grid built so placed strands run flat?
 
 **Decision**: Add a max-height placement path alongside the existing
