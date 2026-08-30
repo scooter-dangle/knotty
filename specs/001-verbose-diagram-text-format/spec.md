@@ -29,6 +29,9 @@ The format is independent of knot notation: it describes a picture, not a knot.
 - Q: What exactly should serialization emit — what is the canonical text for a diagram? → A: The full rectangle, nothing trimmed: every row padded to the diagram's full width with `_`, so canonical text survives a round trip byte-for-byte.
 - Q: How should the app surface the compact text of a diagram built from knot notation? → A: Notation mode gains a read-only compact-text readout, hidden by default or substantially de-emphasized so it does not clutter the notation workflow; and switching into manual mode seeds the text box from the diagram currently shown.
 - Q: When the user switches into manual mode and the text box already has text in it, what happens? → A: Seed only when the box is empty; existing manual text is never overwritten.
+- Q: How should ragged line lengths be handled on deserialization? → A: Missing trailing cells are inferred as empty, up to the diagram's longest row. Balancing line lengths is never required — in the library or while typing in the app — so in-progress input always renders.
+- Q: In the app's live preview, what is shown while the text contains an unrecognized character? → A: The last valid rendering stays on screen, visually marked as stale, with the error message shown alongside it rather than replacing it.
+- Q: What should trailing blank lines mean — empty rows at the bottom of the picture, or nothing? → A: Empty rows. One trailing newline terminates the last row; each further blank line is a row of empty cells and is preserved on output. Canonical output continues to trim nothing.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -108,19 +111,21 @@ picture appears and updates on every keystroke without pressing a button.
    is gone from the screen.
 2. **Given** the app in manual diagram mode, **When** the user types or edits a character, **Then**
    the displayed diagram updates to match the new text without any further action.
-3. **Given** the app in manual diagram mode, **When** the text is not valid, **Then** an error
-   message describing the problem is shown in place of a diagram, and correcting the text restores
-   the diagram.
-4. **Given** the app in manual diagram mode with text entered, **When** the user reloads the page,
+3. **Given** a valid diagram on screen in manual mode, **When** the user types an unrecognized
+   character, **Then** that rendering stays visible but marked stale, the error message appears
+   alongside it, and correcting the character returns the rendering to normal.
+4. **Given** manual mode with no valid text yet entered, **When** the text is invalid, **Then** the
+   error is shown on its own, with no rendering.
+5. **Given** the app in manual diagram mode with text entered, **When** the user reloads the page,
    **Then** the mode, the entered text, and the manual-mode snapshots are restored.
-5. **Given** the app in manual diagram mode, **When** the user switches back to notation mode,
+6. **Given** the app in manual diagram mode, **When** the user switches back to notation mode,
    **Then** the previously entered notation, moves, and notation-mode snapshots are still there,
    unchanged.
-6. **Given** snapshots taken in both modes, **When** the user is in either mode, **Then** only that
+7. **Given** snapshots taken in both modes, **When** the user is in either mode, **Then** only that
    mode's snapshots are listed.
-7. **Given** a diagram built in notation mode and an empty manual text box, **When** the user
+8. **Given** a diagram built in notation mode and an empty manual text box, **When** the user
    switches to manual mode, **Then** the box is pre-filled with that diagram's compact text.
-8. **Given** manual text the user has already entered, **When** the user leaves manual mode and
+9. **Given** manual text the user has already entered, **When** the user leaves manual mode and
    returns, **Then** their text is exactly as they left it.
 
 ---
@@ -129,13 +134,17 @@ picture appears and updates on every keystroke without pressing a button.
 
 - **Unrecognized character**: reported as an error identifying the row, the column, and the
   character — never silently ignored or treated as empty.
-- **Ragged rows**: rows shorter than the widest row are padded on the right with empty cells.
+- **Ragged rows**: rows shorter than the diagram's longest row have their missing trailing cells
+  inferred as empty. This is normal accepted input, not a tolerated defect — a half-typed row renders
+  the same as a padded one.
 - **Empty input**: yields an empty diagram, which renders as nothing.
 - **Blank line inside the text**: an entirely empty line describes a row of entirely empty cells, not
   the end of the input. A line containing spaces is not empty — it is an error.
 - **Space or tab inside a row**: an error, reported with its row and column like any other
   unrecognized character. Empty cells are written `_`; whitespace is never a stand-in for them.
-- **Trailing newline**: optional; text with and without one describes the same diagram.
+- **Trailing newline**: optional; text with and without one describes the same diagram. A *further*
+  blank line past it is a row of empty cells at the bottom of the picture, not nothing — so unlike
+  ragged row lengths, trailing blank lines do change the diagram.
 - **Carriage returns**: recognized only as part of a line terminator, never as a cell. Text saved with
   Windows line endings describes the same diagram as the same text with Unix line endings; a carriage
   return anywhere else in a row is an error.
@@ -215,49 +224,61 @@ worked out to write it, and nothing had to be aligned by counting spaces.
   for the diagram it describes.
 - **FR-009**: The system MUST reject unrecognized characters, reporting the first one encountered
   with an error message identifying the character and its row and column position.
-- **FR-010**: The system MUST treat rows shorter than the widest row as if padded on the right with
-  empty cells; such text is accepted but is not canonical, and writing it back out yields the padded
-  canonical form.
-- **FR-011**: The system MUST treat empty input as an empty diagram rather than an error.
-- **FR-012**: The system MUST accept a trailing newline and both Unix and Windows line endings
-  without changing the described diagram, treating a carriage return as part of a line terminator
-  only and never as a cell.
-- **FR-013**: The system MUST NOT require the described picture to correspond to a valid knot; it
+- **FR-010**: The system MUST infer the missing cells of any row shorter than the diagram's longest
+  row as empty, padding it on the right to that width. Ragged text is fully accepted — balancing line
+  lengths MUST never be required to render. Such text is not canonical, and writing it back out
+  yields the padded canonical form.
+- **FR-011**: The app's live preview MUST render ragged in-progress text under the same inference
+  rule, so a user sees what their current input generates without first squaring up the lines.
+- **FR-012**: The system MUST treat empty input as an empty diagram rather than an error.
+- **FR-013**: The system MUST accept a single trailing newline as terminating the last row, without
+  changing the described diagram, and MUST accept both Unix and Windows line endings, treating a
+  carriage return as part of a line terminator only and never as a cell. Each blank line beyond that
+  terminator — trailing or interior — describes a row of empty cells and MUST be preserved, including
+  on output.
+- **FR-014**: The system MUST NOT require the described picture to correspond to a valid knot; it
   renders whatever the text describes.
-- **FR-014**: The example app MUST offer manual diagram mode as a separate mode from its existing
+- **FR-015**: The example app MUST offer manual diagram mode as a separate mode from its existing
   notation mode, with a single explicit control that switches into it and back out again.
-- **FR-015**: In manual diagram mode the app MUST present a text box for this format and update the
+- **FR-016**: In manual diagram mode the app MUST present a text box for this format and update the
   displayed diagram on every edit, with no button press or other confirmation step.
-- **FR-016**: In manual diagram mode, when the text is invalid, the app MUST show the error message
-  in place of the diagram, and MUST restore the diagram once the text becomes valid again.
-- **FR-017**: Manual diagram mode MUST show only the controls that apply to it. Everything that
+- **FR-017**: In manual diagram mode, when the text is invalid, the app MUST keep the last valid
+  rendering on screen and show the error message alongside it, never blanking the picture. The
+  rendering MUST be visually marked as stale while it does not match the current text, and MUST
+  return to its normal appearance as soon as the text is valid again.
+- **FR-018**: Before any valid text has been entered, an invalid text MUST show the error alone,
+  since there is no prior rendering to keep.
+- **FR-019**: Manual diagram mode MUST show only the controls that apply to it. Everything that
   operates on knot notation — the notation and moves text boxes, the built-in knot buttons, the move
   pickers, the rotate action, and the current-encoding readout — MUST be absent while in manual mode.
-- **FR-018**: Manual diagram mode MUST display the picture as full ASCII only. The drawn (SVG)
+- **FR-020**: Manual diagram mode MUST display the picture as full ASCII only. The drawn (SVG)
   display, the compact display toggle, and the SVG download MUST be unavailable in manual mode.
-- **FR-019**: Manual diagram mode MUST keep its own collection of snapshots, stored and displayed
+- **FR-021**: Manual diagram mode MUST keep its own collection of snapshots, stored and displayed
   separately from notation mode's snapshots. A mode's catalog MUST NOT show the other mode's entries.
-- **FR-020**: A manual-mode snapshot MUST record the diagram text it was taken from, so restoring it
+- **FR-022**: A manual-mode snapshot MUST record the diagram text it was taken from, so restoring it
   returns the user to that text, and MUST preview it as ASCII rather than as a drawn image,
   consistent with the mode's display.
-- **FR-021**: The app MUST retain each mode's own state — notation, moves, and snapshots on one side;
+- **FR-023**: Taking a snapshot MUST be unavailable while the text is invalid, so a snapshot can
+  never pair a stale rendering with text that does not produce it. This mirrors notation mode, which
+  already refuses to snapshot an invalid diagram.
+- **FR-024**: The app MUST retain each mode's own state — notation, moves, and snapshots on one side;
   diagram text and snapshots on the other — while the user is in the other mode, and restore it
   unchanged on return.
-- **FR-022**: The app MUST remember the selected mode, the manual diagram text, and the manual-mode
+- **FR-025**: The app MUST remember the selected mode, the manual diagram text, and the manual-mode
   snapshots across a page reload, alongside the state it already remembers.
-- **FR-023**: The app MUST continue to load state saved before this feature existed, treating it as
+- **FR-026**: The app MUST continue to load state saved before this feature existed, treating it as
   notation mode with no manual text and no manual snapshots.
-- **FR-024**: The documented symbol table MUST be discoverable from the manual mode surface, so a
+- **FR-027**: The documented symbol table MUST be discoverable from the manual mode surface, so a
   user can look up a character without leaving the app.
-- **FR-025**: Notation mode MUST offer a read-only readout of the current diagram's compact text,
+- **FR-028**: Notation mode MUST offer a read-only readout of the current diagram's compact text,
   available for reading and copying, kept up to date with the displayed diagram.
-- **FR-026**: That readout MUST be hidden by default or otherwise substantially de-emphasized, so it
+- **FR-029**: That readout MUST be hidden by default or otherwise substantially de-emphasized, so it
   does not compete with the knot-notation workflow that mode exists for. The existing encoding
   readout MUST keep its current prominence.
-- **FR-027**: Switching from notation mode into manual diagram mode MUST seed the manual text box
+- **FR-030**: Switching from notation mode into manual diagram mode MUST seed the manual text box
   with the compact text of the diagram currently displayed, so the user can start from a real
   rendering and edit it.
-- **FR-028**: Seeding MUST happen only when the manual text box is empty. Manual text the user has
+- **FR-031**: Seeding MUST happen only when the manual text box is empty. Manual text the user has
   already entered MUST be left untouched, on every subsequent switch and across reloads.
 
 ### Key Entities

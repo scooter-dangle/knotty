@@ -31,13 +31,19 @@
 
 ## Notes
 
-- Iteration 1: one open [NEEDS CLARIFICATION] in FR-004 (row ordering). Everything else passed.
-- Iteration 2: row ordering resolved to visual order (first line = top of the picture); FR-004
-  rewritten, an ordering acceptance scenario and a worked trefoil example added, and the reversal
+- Iteration 1: one open [NEEDS CLARIFICATION] on row ordering. Everything else passed.
+- Iteration 2: row ordering resolved to visual order (first line = top of the picture); the ordering
+  requirement rewritten, an acceptance scenario and a worked trefoil example added, and the reversal
   recorded in Assumptions. All items pass.
 - Iteration 3 (`/speckit-clarify`, 5 questions): whitespace rejection, manual mode as a fully
   separate mode with its own snapshots, canonical padded output, the notation-mode readout plus
   seeding, and the seed-only-when-empty rule. All 16 items still pass; no regressions.
+- Iteration 4 (`/speckit-clarify`, 2 questions plus a directive): ragged-row inference restated as a
+  first-class rule that the live preview must honour; an invalid preview now keeps the last valid
+  rendering marked stale rather than blanking; trailing blank lines confirmed as empty rows.
+  Requirements renumbered to a clean FR-001..FR-031 sequence. All 16 items still pass; no
+  regressions.
 - Type names (`VerboseDiagram`, `Horiz`) appear only in the verbatim Input line; the body speaks in
-  terms of diagrams, rows, and cells. FR-017/FR-018 name app controls (move pickers, rotate, SVG
-  download, compact toggle) — these are existing user-facing features, not implementation detail.
+  terms of diagrams, rows, and cells. The manual-mode requirements name app controls (move pickers,
+  rotate, SVG download, compact toggle) — these are existing user-facing features, not
+  implementation detail.
