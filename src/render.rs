@@ -605,6 +605,11 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_parsed_diagram_render_with_borders() {
+        insta::assert_snapshot!(parse(TREFOIL).display::<true>().collect::<String>());
+    }
+
+    #[test]
     fn snapshot_parsed_diagram_render() {
         let hand_written = "\
             _j---r_\n\

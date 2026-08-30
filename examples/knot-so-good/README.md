@@ -51,6 +51,22 @@ Short lines are padded with empty cells, so there is no need to balance
 line lengths while typing. The same reference is available in the app
 itself under "character reference".
 
+The "switch to bordered view" button redraws the picture with the cell
+boundaries included, so each character you typed owns one visible box:
+
+```
++---+---+---+---+---+---+---
+|   |   |___|___|___|   |
+|   |  /|   |   |   |\  |
+|   | ( |   |   |   | ) |
++---+---+---+---+---+---+---
+```
+
+Four rows of boxes for four lines of text, seven across for seven
+characters per line — useful for tracking down which character drew the
+part of the picture you did not mean. The setting is remembered, and it
+affects only how the picture is drawn.
+
 The mode describes a *picture*, not a knot — it will happily render
 something no knot could produce, which is the point when you want to say
 what a rendering should look like. Moves and rotation are unavailable

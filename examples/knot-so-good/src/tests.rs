@@ -198,6 +198,7 @@ fn round_trip_carries_manual_state() {
         manual_snapshots: vec![PersistedManualSnapshot {
             diagram: "()\n.,\n".into(),
         }],
+        manual_borders: false,
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -219,7 +220,20 @@ fn state_saved_before_manual_mode_still_loads() {
     assert_eq!(restored.mode, PersistedMode::Notation);
     assert_eq!(restored.manual_diagram, "");
     assert!(restored.manual_snapshots.is_empty());
+    assert!(!restored.manual_borders);
     assert_eq!(restored.diagram, "(0 )0");
+}
+
+#[test]
+fn manual_borders_round_trips_and_defaults_off() {
+    let state = PersistedState {
+        manual_borders: true,
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&state).unwrap();
+    let restored: PersistedState = serde_json::from_str(&json).unwrap();
+
+    assert!(restored.manual_borders);
 }
 
 #[test]
@@ -254,6 +268,44 @@ fn symbol_table_characters_match_the_library() {
     bytes.sort_unstable();
     bytes.dedup();
     assert_eq!(bytes.len(), 16, "symbol table has duplicate characters");
+}
+
+#[test]
+fn bordered_render_draws_one_box_per_character() {
+    // One box per typed character, one row of boxes per line of text.
+    for text in ["(\n", "()\n.,\n", "_(---)_\n_./-/,_\n(-A\\A-)\n.--a--,\n"] {
+        let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
+        let plain: String = diagram.display::<false>().collect();
+        let bordered: String = diagram.display::<true>().collect();
+
+        let rows = text.lines().count();
+        let width = text.lines().map(str::len).max().unwrap();
+
+        assert_eq!(plain.lines().count(), 3 * rows - 2, "{text:?}");
+        assert_eq!(bordered.lines().count(), 4 * rows - 2, "{text:?}");
+
+        let borders = bordered.lines().filter(|line| line.starts_with('+'));
+        assert_eq!(borders.clone().count(), rows, "{text:?}");
+
+        for border in borders {
+            assert_eq!(border.matches("+---").count(), width, "{text:?}");
+        }
+    }
+}
+
+#[test]
+fn both_views_are_empty_for_the_same_diagrams() {
+    // The app asks "is there a picture?" once, without knowing which view
+    // is selected, so the two must agree.
+    for text in ["", "\n", "()\n.,\n"] {
+        let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
+
+        assert_eq!(
+            diagram.display::<false>().next().is_some(),
+            diagram.display::<true>().next().is_some(),
+            "{text:?}",
+        );
+    }
 }
 
 #[test]
