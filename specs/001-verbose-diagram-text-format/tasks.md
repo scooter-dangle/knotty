@@ -37,7 +37,7 @@ modules and `insta` snapshots under `src/snapshots/`, per plan.md's structure de
 
 **Purpose**: Establish a green baseline so any later failure is attributable to this feature.
 
-- [ ] T001 Run the full CI-parity command set from `.github/workflows/test.yml` (`cargo check --target wasm32-unknown-unknown`, `cargo build`, `cargo test`, then `cargo test` and `trunk build --release` in `examples/knot-so-good/`) and confirm all pass before changing anything
+- [X] T001 Run the full CI-parity command set from `.github/workflows/test.yml` (`cargo check --target wasm32-unknown-unknown`, `cargo build`, `cargo test`, then `cargo test` and `trunk build --release` in `examples/knot-so-good/`) and confirm all pass before changing anything
 
 ---
 
@@ -48,9 +48,9 @@ inside either story.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T002 Add `Horiz::as_byte(&self) -> u8` and `Horiz::from_byte(u8) -> Option<Self>` as `const fn` matches in `src/render.rs`, placed adjacent to `Horiz::display()` so the two tables stay visibly paired, using exactly the 16 mappings in contracts/diagram-text-format.md
-- [ ] T003 Add `#[cfg(test)] mod tests` to `src/render.rs` (inline, matching `src/raw_lines.rs`) with a test asserting `from_byte(as_byte(v)) == Some(v)` for all 16 variants listed explicitly with no wildcard arm, and a test asserting the 16 bytes are pairwise distinct — contract guarantees C-1 and C-2
-- [ ] T004 Add tests in `src/render.rs` asserting `from_byte` returns `None` for `b' '`, `b'\t'`, `b'l'`, `b'B'`, and `b'\r'` — guards FR-003 case sensitivity and FR-004 whitespace rejection at the table level
+- [X] T002 Add `Horiz::as_byte(&self) -> u8` and `Horiz::from_byte(u8) -> Option<Self>` as `const fn` matches in `src/render.rs`, placed adjacent to `Horiz::display()` so the two tables stay visibly paired, using exactly the 16 mappings in contracts/diagram-text-format.md
+- [X] T003 Add `#[cfg(test)] mod tests` to `src/render.rs` (inline, matching `src/raw_lines.rs`) with a test asserting `from_byte(as_byte(v)) == Some(v)` for all 16 variants listed explicitly with no wildcard arm, and a test asserting the 16 bytes are pairwise distinct — contract guarantees C-1 and C-2
+- [X] T004 Add tests in `src/render.rs` asserting `from_byte` returns `None` for `b' '`, `b'\t'`, `b'l'`, `b'B'`, and `b'\r'` — guards FR-003 case sensitivity and FR-004 whitespace rejection at the table level
 
 **Checkpoint**: The mapping is proven bidirectional and total. Reading and writing can now proceed
 independently.
@@ -70,18 +70,18 @@ is byte-for-byte identical to the one `(0 (2 /1 \0 /1 )2 )0` produces. No app ch
 > until T009 adds the impl. Add the tests, watch the compile error name the missing impl, then
 > implement.
 
-- [ ] T005 [US1] Add a test in `src/render.rs` parsing the canonical trefoil text (`_(---)_` / `_./-/,_` / `(-A\A-)` / `.--a--,`) and asserting its `display::<false>()` output equals `AbbreviatedDiagram::from_str("(0 (2 /1 \\0 /1 )2 )0").unwrap().ascii_print::<false>()` — FR-006, and the reference picture in contracts/diagram-text-format.md
-- [ ] T006 [US1] Add a row-order test in `src/render.rs` asserting the arc described by the **first** text line appears in the **top** rows of the rendered output — FR-005. Assert on rendered text, not `is_ok()`; a reversed implementation passes any weaker check (research.md, Trap 1)
-- [ ] T007 [US1] Add tests in `src/render.rs` for input normalization: ragged rows render identically to their right-padded equivalent (FR-010); `""` parses to a zero-row diagram (FR-012); `"()\n"` and `"()"` parse identically; `"()\r\n.,"` equals `"()\n.,"`; and `"()\n\n"` yields a second, all-`Empty` row (FR-013)
-- [ ] T008 [US1] Add error-message tests in `src/render.rs` asserting that a stray `b` on the **first** text line reports line 1 (not the last line), that column numbers are 1-based, and that only the first offending character is reported — FR-009, contract C-8. This is the single most likely defect in the feature; a test asserting only `is_err()` does not catch it
-- [ ] T009 [US1] Add an `insta` snapshot test in `src/render.rs` capturing the rendered ASCII for a parsed hand-written diagram, with the snapshot stored under `src/snapshots/` — Constitution Article III
+- [X] T005 [US1] Add a test in `src/render.rs` parsing the canonical trefoil text (`_(---)_` / `_./-/,_` / `(-A\A-)` / `.--a--,`) and asserting its `display::<false>()` output equals `AbbreviatedDiagram::from_str("(0 (2 /1 \\0 /1 )2 )0").unwrap().ascii_print::<false>()` — FR-006, and the reference picture in contracts/diagram-text-format.md
+- [X] T006 [US1] Add a row-order test in `src/render.rs` asserting the arc described by the **first** text line appears in the **top** rows of the rendered output — FR-005. Assert on rendered text, not `is_ok()`; a reversed implementation passes any weaker check (research.md, Trap 1)
+- [X] T007 [US1] Add tests in `src/render.rs` for input normalization: ragged rows render identically to their right-padded equivalent (FR-010); `""` parses to a zero-row diagram (FR-012); `"()\n"` and `"()"` parse identically; `"()\r\n.,"` equals `"()\n.,"`; and `"()\n\n"` yields a second, all-`Empty` row (FR-013)
+- [X] T008 [US1] Add error-message tests in `src/render.rs` asserting that a stray `b` on the **first** text line reports line 1 (not the last line), that column numbers are 1-based, and that only the first offending character is reported — FR-009, contract C-8. This is the single most likely defect in the feature; a test asserting only `is_err()` does not catch it
+- [X] T009 [US1] Add an `insta` snapshot test in `src/render.rs` capturing the rendered ASCII for a parsed hand-written diagram, with the snapshot stored under `src/snapshots/` — Constitution Article III
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `impl FromStr for VerboseDiagram` with `type Err = String` in `src/render.rs`: strip one trailing `\n`, split on `\n`, strip a trailing `\r` per line, map each byte via `Horiz::from_byte`, and record the offending position in **input coordinates during the forward pass** before any reversal
-- [ ] T011 [US1] In the same `FromStr` impl in `src/render.rs`, add the second pass: compute the widest row, `resize` every row to that width with `Horiz::Empty`, then reverse the row order before constructing `VerboseDiagram` — padding cannot happen in the per-line loop because the width is unknown until parsing ends (research.md, Trap 2)
-- [ ] T012 [US1] Run `cargo insta review`, accept the new snapshot, and commit the `.snap` file under `src/snapshots/`
-- [ ] T013 [US1] Run `cargo check --target wasm32-unknown-unknown` and confirm the new code compiles for wasm — Constitution Article II, non-negotiable
+- [X] T010 [US1] Implement `impl FromStr for VerboseDiagram` with `type Err = String` in `src/render.rs`: strip one trailing `\n`, split on `\n`, strip a trailing `\r` per line, map each byte via `Horiz::from_byte`, and record the offending position in **input coordinates during the forward pass** before any reversal
+- [X] T011 [US1] In the same `FromStr` impl in `src/render.rs`, add the second pass: compute the widest row, `resize` every row to that width with `Horiz::Empty`, then reverse the row order before constructing `VerboseDiagram` — padding cannot happen in the per-line loop because the width is unknown until parsing ends (research.md, Trap 2)
+- [X] T012 [US1] Run `cargo insta review`, accept the new snapshot, and commit the `.snap` file under `src/snapshots/`
+- [X] T013 [US1] Run `cargo check --target wasm32-unknown-unknown` and confirm the new code compiles for wasm — Constitution Article II, non-negotiable
 
 **Checkpoint**: US1 is complete and shippable on its own. The format can be written by hand and
 rendered, which is the whole MVP.

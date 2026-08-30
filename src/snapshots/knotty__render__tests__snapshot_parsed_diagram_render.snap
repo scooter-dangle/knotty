@@ -1,0 +1,11 @@
+---
+source: src/render.rs
+expression: render(&parse(hand_written))
+---
+   __/_________  _   
+                /    
+               /     
+   ____  ___\_____   
+  /    \          \  
+ (      \          ) 
+  \______\  ______/
