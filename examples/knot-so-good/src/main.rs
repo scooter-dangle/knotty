@@ -13,6 +13,16 @@ enum PersistedDisplayMode {
     Other,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Default, Clone, PartialEq, Debug)]
+#[serde(rename_all = "snake_case")]
+enum PersistedMode {
+    #[default]
+    Notation,
+    Manual,
+    #[serde(other)]
+    Other,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Default)]
 struct PersistedState {
     #[serde(default)]
@@ -25,6 +35,12 @@ struct PersistedState {
     compact: bool,
     #[serde(default)]
     snapshots: Vec<PersistedSnapshot>,
+    #[serde(default)]
+    mode: PersistedMode,
+    #[serde(default)]
+    manual_diagram: String,
+    #[serde(default)]
+    manual_snapshots: Vec<PersistedManualSnapshot>,
 }
 
 impl PersistedState {
@@ -38,6 +54,12 @@ impl PersistedState {
             },
             compact: model.compact,
             snapshots: model.snapshots.clone(),
+            mode: match model.mode {
+                Mode::Notation => PersistedMode::Notation,
+                Mode::Manual => PersistedMode::Manual,
+            },
+            manual_diagram: model.manual_diagram.clone(),
+            manual_snapshots: model.manual_snapshots.clone(),
         }
     }
 }
@@ -53,6 +75,11 @@ struct PersistedSnapshot {
     compact: bool,
     current_diagram_encoding: String,
     svg: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct PersistedManualSnapshot {
+    diagram: String,
 }
 
 const STORAGE_KEY: &str = "knotty_state";
@@ -88,6 +115,11 @@ fn clear_storage() {
 }
 
 enum Msg {
+    SetMode(Mode),
+    ManualDiagram(Option<String>),
+    ManualSnapshot,
+    RestoreManualSnapshot(usize),
+    DeleteManualSnapshot(usize),
     DisplayMode(DisplayMode),
     Compact(bool),
     Diagram(Option<String>),
@@ -106,7 +138,15 @@ enum DisplayMode {
     Svg,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+enum Mode {
+    #[default]
+    Notation,
+    Manual,
+}
+
 struct Model {
+    mode: Mode,
     display_mode: DisplayMode,
     compact: bool,
     raw_base_diagram: String,
@@ -120,6 +160,10 @@ struct Model {
     svg_diagram: String,
     storage_error: Option<String>,
     snapshots: Vec<PersistedSnapshot>,
+    manual_diagram: String,
+    manual_error: Option<String>,
+    manual_render: Option<String>,
+    manual_snapshots: Vec<PersistedManualSnapshot>,
 }
 
 const UNKNOT: &str = "\
@@ -138,6 +182,30 @@ const KNOT_5_1: &str = "\
     (0 (2 /1 \\0 \\0 \\0 /1 )2 )0\
 ";
 
+// Characters come from the library, so only the labels live here.
+const SYMBOL_TABLE: [(knotty::Horiz, &str); 16] = {
+    use knotty::Horiz::*;
+
+    [
+        (Empty, "empty"),
+        (Line, "line"),
+        (CrossDownOver, "cross down, over"),
+        (CrossDownUnder, "cross down, under"),
+        (CrossUpOver, "cross up, over"),
+        (CrossUpUnder, "cross up, under"),
+        (OpenedBelow, "opened below"),
+        (OpenedAbove, "opened above"),
+        (ClosedBelow, "closed below"),
+        (ClosedAbove, "closed above"),
+        (TransferUpStart, "transfer up, start"),
+        (TransferUp, "transfer up"),
+        (TransferUpFinish, "transfer up, finish"),
+        (TransferDownStart, "transfer down, start"),
+        (TransferDown, "transfer down"),
+        (TransferDownFinish, "transfer down, finish"),
+    ]
+};
+
 const BUILT_IN_KNOTS: &[(&str, &str)] = &[
     ("unknot", UNKNOT),
     ("trefoil", TREFOIL),
@@ -150,6 +218,142 @@ impl Model {
         self.snapshots.len() >= MAX_SNAPSHOTS
             || self.modified_diagram.is_err()
             || !self.parsed_moves_valid
+    }
+
+    fn manual_snapshot_disabled(&self) -> bool {
+        self.manual_snapshots.len() >= MAX_SNAPSHOTS || self.manual_error.is_some()
+    }
+
+    fn compact_text(&self) -> Option<String> {
+        let knot = self.modified_diagram.as_ref().ok()?;
+        Some(
+            knotty::VerboseDiagram::from_abbreviated(knot)
+                .ok()?
+                .to_string(),
+        )
+    }
+
+    fn storage_error_html(&self, link: &html::Scope<Self>) -> Html {
+        let Some(err) = self.storage_error.as_ref() else {
+            return Html::default();
+        };
+
+        html! {
+            <p>
+                { format!("Could not restore saved state (corrupt data was cleared): {err}. ") }
+                <button onclick={link.callback(|_| Msg::DismissStorageError)}>
+                    { "Dismiss" }
+                </button>
+            </p>
+        }
+    }
+
+    fn mode_toggle(&self, link: &html::Scope<Self>) -> Html {
+        let (other, label) = match self.mode {
+            Mode::Notation => (Mode::Manual, "switch to manual diagram mode"),
+            Mode::Manual => (Mode::Notation, "switch to knot notation mode"),
+        };
+
+        html! {
+            <button onclick={link.callback(move |_| Msg::SetMode(other))}>{ label }</button>
+        }
+    }
+
+    fn manual_view(&self, link: &html::Scope<Self>) -> Html {
+        // This is a mess, in the same way the notation inputs are.
+        let manual_oninput = link.callback(|event: InputEvent| {
+            let value = event
+                .dyn_into()
+                .ok()
+                .and_then(|event: Event| event.target())
+                .and_then(|event_target: EventTarget| -> Option<HtmlTextAreaElement> {
+                    event_target.dyn_into().ok()
+                })
+                .map(|target| target.value());
+
+            Msg::ManualDiagram(value)
+        });
+
+        let render_class = if self.manual_error.is_some() {
+            "manual-render stale"
+        } else {
+            "manual-render"
+        };
+
+        html! {
+            <>
+                { self.storage_error_html(link) }
+                { self.mode_toggle(link) }
+                <button
+                    class="snapshot"
+                    disabled={self.manual_snapshot_disabled()}
+                    onclick={link.callback(|_| Msg::ManualSnapshot)}
+                >{ "snapshot" }</button>
+                if let Some(ref render) = self.manual_render {
+                    <p><pre class={render_class}>{ ascii_diagram_to_html(render) }</pre></p>
+                }
+                if let Some(ref err) = self.manual_error {
+                    <p class="manual-error">{ format!("Error: {err}") }</p>
+                }
+                <textarea
+                    class="manual-input"
+                    rows="10"
+                    cols="40"
+                    value={self.manual_diagram.clone()}
+                    oninput={manual_oninput}
+                />
+                <details class="symbol-table">
+                    <summary>{ "character reference" }</summary>
+                    <table>
+                        { SYMBOL_TABLE.iter().map(|(horiz, name)| html! {
+                            <tr>
+                                <td><code>{ horiz.as_byte() as char }</code></td>
+                                <td>{ *name }</td>
+                            </tr>
+                        }).collect::<Html>() }
+                    </table>
+                </details>
+                if !self.manual_snapshots.is_empty() {
+                    <div class="snapshot-catalog">
+                        { self.manual_snapshots.iter().enumerate().map(|(idx, snapshot)| {
+                            let preview = snapshot
+                                .diagram
+                                .parse::<knotty::VerboseDiagram>()
+                                .map(|diagram| render_manual(&diagram))
+                                .unwrap_or_default();
+
+                            html! {
+                                <div class="snapshot-entry">
+                                    <pre class="manual-render">{ ascii_diagram_to_html(&preview) }</pre>
+                                    <button onclick={link.callback(move |_| Msg::RestoreManualSnapshot(idx))}>
+                                        { "restore" }
+                                    </button>
+                                    <button onclick={link.callback(move |_| Msg::DeleteManualSnapshot(idx))}>
+                                        { "delete" }
+                                    </button>
+                                </div>
+                            }
+                        }).collect::<Html>() }
+                    </div>
+                }
+            </>
+        }
+    }
+
+    fn update_manual(&mut self) {
+        match self.manual_diagram.parse::<knotty::VerboseDiagram>() {
+            Ok(diagram) => {
+                self.manual_error = None;
+
+                // An empty diagram draws nothing, so there is no picture
+                // to keep once the text goes bad.
+                let render = render_manual(&diagram);
+                self.manual_render = (!render.is_empty()).then_some(render);
+            }
+            // Keep the last valid render so a mistyped character does
+            // not blank the picture mid-edit.
+            Err(err) => self.manual_error = Some(err),
+        }
     }
 
     fn update_modified(&mut self) {
@@ -177,6 +381,10 @@ impl Model {
         self.svg_diagram =
             ascii_diagram_to_svg(self.ascii_modified_diagram.as_deref().unwrap_or(""));
     }
+}
+
+fn render_manual(diagram: &knotty::VerboseDiagram) -> String {
+    diagram.display::<false>().collect()
 }
 
 fn onkeypress_add_move(scope: &html::Scope<Model>) -> Callback<KeyboardEvent> {
@@ -237,22 +445,36 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        let (raw_base_diagram, raw_moves, display_mode, compact, snapshots, storage_error) =
-            match load_from_storage() {
-                Ok(Some(persisted)) => {
-                    let mode = match persisted.display_mode {
-                        PersistedDisplayMode::Ascii => DisplayMode::Ascii,
-                        PersistedDisplayMode::Svg | PersistedDisplayMode::Other => DisplayMode::Svg,
-                    };
-                    (persisted.diagram, persisted.moves, mode, persisted.compact, persisted.snapshots, None)
-                }
-                Ok(None) => (String::new(), String::new(), DisplayMode::Svg, false, Vec::new(), None),
-                Err(err) => {
-                    clear_storage();
-                    web_sys::console::error_1(&format!("knotty: failed to restore state: {err}").into());
-                    (String::new(), String::new(), DisplayMode::Svg, false, Vec::new(), Some(err))
-                }
-            };
+        let (persisted, storage_error) = match load_from_storage() {
+            Ok(Some(persisted)) => (persisted, None),
+            Ok(None) => (PersistedState::default(), None),
+            Err(err) => {
+                clear_storage();
+                web_sys::console::error_1(&format!("knotty: failed to restore state: {err}").into());
+                (PersistedState::default(), Some(err))
+            }
+        };
+
+        let PersistedState {
+            diagram: raw_base_diagram,
+            moves: raw_moves,
+            display_mode,
+            compact,
+            snapshots,
+            mode,
+            manual_diagram,
+            manual_snapshots,
+        } = persisted;
+
+        let display_mode = match display_mode {
+            PersistedDisplayMode::Ascii => DisplayMode::Ascii,
+            PersistedDisplayMode::Svg | PersistedDisplayMode::Other => DisplayMode::Svg,
+        };
+
+        let mode = match mode {
+            PersistedMode::Manual => Mode::Manual,
+            PersistedMode::Notation | PersistedMode::Other => Mode::Notation,
+        };
 
         let parsed_base_diagram = raw_base_diagram.parse();
         let parsed_moves_result = raw_moves.parse::<knotty::DiagramMoves>();
@@ -260,6 +482,7 @@ impl Component for Model {
         let parsed_moves = parsed_moves_result.unwrap_or_default();
 
         let mut model = Self {
+            mode,
             display_mode,
             compact,
             raw_base_diagram,
@@ -273,8 +496,13 @@ impl Component for Model {
             raw_moves,
             storage_error,
             snapshots,
+            manual_diagram,
+            manual_error: None,
+            manual_render: None,
+            manual_snapshots,
         };
         model.update_modified();
+        model.update_manual();
         model
     }
 
@@ -282,6 +510,59 @@ impl Component for Model {
         use Msg::*;
 
         let should_render = match msg {
+            SetMode(mode) => {
+                if self.mode == mode {
+                    return false;
+                }
+
+                // Seed only into an empty box, so entered text is never
+                // overwritten on a later switch.
+                if mode == Mode::Manual && self.manual_diagram.is_empty() {
+                    if let Some(text) = self.compact_text() {
+                        self.manual_diagram = text;
+                        self.update_manual();
+                    }
+                }
+
+                self.mode = mode;
+                true
+            }
+            ManualDiagram(Some(diagram)) => {
+                if self.manual_diagram == diagram {
+                    return false;
+                }
+
+                self.manual_diagram = diagram;
+                self.update_manual();
+                true
+            }
+            ManualSnapshot => {
+                if self.manual_snapshot_disabled() {
+                    return false;
+                }
+
+                self.manual_snapshots.push(PersistedManualSnapshot {
+                    diagram: self.manual_diagram.clone(),
+                });
+                true
+            }
+            RestoreManualSnapshot(idx) => {
+                let Some(snapshot) = self.manual_snapshots.get(idx) else {
+                    return false;
+                };
+
+                self.manual_diagram = snapshot.diagram.clone();
+                self.update_manual();
+                true
+            }
+            DeleteManualSnapshot(idx) => {
+                if idx < self.manual_snapshots.len() {
+                    self.manual_snapshots.remove(idx);
+                    true
+                } else {
+                    false
+                }
+            }
             DismissStorageError => {
                 self.storage_error = None;
                 true
@@ -411,7 +692,7 @@ impl Component for Model {
                     false
                 }
             }
-            Moves(None) | Diagram(None) => false,
+            Moves(None) | Diagram(None) | ManualDiagram(None) => false,
         };
 
         if should_render {
@@ -422,6 +703,10 @@ impl Component for Model {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let link = ctx.link();
+
+        if self.mode == Mode::Manual {
+            return self.manual_view(link);
+        }
 
         // This is a mess.
         let diagram_oninput = link.callback(|event: InputEvent| {
@@ -490,14 +775,8 @@ impl Component for Model {
 
         html! {
             <>
-                if let Some(ref err) = self.storage_error {
-                    <p>
-                        { format!("Could not restore saved state (corrupt data was cleared): {err}. ") }
-                        <button onclick={link.callback(|_| Msg::DismissStorageError)}>
-                            { "Dismiss" }
-                        </button>
-                    </p>
-                }
+                { self.storage_error_html(link) }
+                { self.mode_toggle(link) }
                 { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
                     <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
                 }).collect::<Html>() }
@@ -522,6 +801,10 @@ impl Component for Model {
                     // TODO modify diagram input to allow moves on the same line
                     self.modified_diagram.clone().unwrap_or_default().to_string().replace('\n', " ")
                 }</pre>
+                <details class="compact-text">
+                    <summary>{ "diagram text" }</summary>
+                    <pre>{ self.compact_text().unwrap_or_default() }</pre>
+                </details>
                 <br/>
                 <textarea
                     value={self.raw_base_diagram.clone()}
