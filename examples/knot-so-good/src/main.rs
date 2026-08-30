@@ -41,6 +41,8 @@ struct PersistedState {
     manual_diagram: String,
     #[serde(default)]
     manual_snapshots: Vec<PersistedManualSnapshot>,
+    #[serde(default)]
+    manual_borders: bool,
 }
 
 impl PersistedState {
@@ -60,6 +62,7 @@ impl PersistedState {
             },
             manual_diagram: model.manual_diagram.clone(),
             manual_snapshots: model.manual_snapshots.clone(),
+            manual_borders: model.manual_borders,
         }
     }
 }
@@ -326,7 +329,7 @@ impl Model {
                             let preview = snapshot
                                 .diagram
                                 .parse::<knotty::VerboseDiagram>()
-                                .map(|diagram| render_manual(&diagram, false))
+                                .map(|diagram| render_manual(&diagram, self.manual_borders))
                                 .unwrap_or_default();
 
                             html! {
@@ -475,6 +478,7 @@ impl Component for Model {
             mode,
             manual_diagram,
             manual_snapshots,
+            manual_borders,
         } = persisted;
 
         let display_mode = match display_mode {
@@ -496,7 +500,7 @@ impl Component for Model {
             mode,
             display_mode,
             compact,
-            manual_borders: false,
+            manual_borders,
             raw_base_diagram,
             parsed_base_diagram,
             modified_diagram: Ok(Default::default()),

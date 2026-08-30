@@ -198,6 +198,7 @@ fn round_trip_carries_manual_state() {
         manual_snapshots: vec![PersistedManualSnapshot {
             diagram: "()\n.,\n".into(),
         }],
+        manual_borders: false,
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -219,7 +220,20 @@ fn state_saved_before_manual_mode_still_loads() {
     assert_eq!(restored.mode, PersistedMode::Notation);
     assert_eq!(restored.manual_diagram, "");
     assert!(restored.manual_snapshots.is_empty());
+    assert!(!restored.manual_borders);
     assert_eq!(restored.diagram, "(0 )0");
+}
+
+#[test]
+fn manual_borders_round_trips_and_defaults_off() {
+    let state = PersistedState {
+        manual_borders: true,
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&state).unwrap();
+    let restored: PersistedState = serde_json::from_str(&json).unwrap();
+
+    assert!(restored.manual_borders);
 }
 
 #[test]

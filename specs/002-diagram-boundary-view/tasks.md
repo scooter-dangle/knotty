@@ -55,7 +55,7 @@ the app still renders exactly the plain picture it does now.
 - [X] T002 Change `render_manual` in `examples/knot-so-good/src/main.rs` to `fn render_manual(diagram: &knotty::VerboseDiagram, borders: bool) -> String`, branching `if borders { diagram.display::<true>().collect() } else { diagram.display::<false>().collect() }` — this is the feature's only dispatch over the `GRID_BORDERS` const generic (research R1); update both existing call sites to pass `false`
 - [X] T003 Change `Model.manual_render` in `examples/knot-so-good/src/main.rs` from `Option<String>` to `Option<knotty::VerboseDiagram>`, and in `update_manual` store the parsed diagram itself, using `diagram.display::<false>().next().is_some()` in place of the current `!render.is_empty()` check — the two are equivalent and the new form allocates nothing (research R2); leave the `Err` arm exactly as it is, since not touching `manual_render` on a parse failure is what keeps the stale picture on screen
 - [X] T004 Update `manual_view` in `examples/knot-so-good/src/main.rs` to render at view time — `render_manual(diagram, false)` for the main picture — keeping the existing `manual-render` / `manual-render stale` class logic untouched
-- [ ] T005 Verify the refactor is behaviour-neutral: run `cargo test` in `examples/knot-so-good/`, then `trunk serve` and confirm manual mode still renders, still keeps a stale picture on a bad character, and still shows nothing for empty text
+- [X] T005 Verify the refactor is behaviour-neutral: run `cargo test` in `examples/knot-so-good/`, then `trunk serve` and confirm manual mode still renders, still keeps a stale picture on a bad character, and still shows nothing for empty text
 
 **Checkpoint**: The app holds the last valid diagram rather than a rendered string. Either view can now
 be produced at any moment, including for a stale picture.
@@ -102,14 +102,14 @@ the view still on and the same text.
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] Add persistence tests to `examples/knot-so-good/src/tests.rs`: state JSON with no `manual_borders` key deserializes with the flag `false` (FR-002, FR-014 — the guarantee that silently regresses if `#[serde(default)]` is ever dropped), and a `PersistedState` with `manual_borders: true` round-trips through `serde_json` (FR-012)
+- [X] T012 [P] [US2] Add persistence tests to `examples/knot-so-good/src/tests.rs`: state JSON with no `manual_borders` key deserializes with the flag `false` (FR-002, FR-014 — the guarantee that silently regresses if `#[serde(default)]` is ever dropped), and a `PersistedState` with `manual_borders: true` round-trips through `serde_json` (FR-012)
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Add `#[serde(default)] manual_borders: bool` to `PersistedState` in `examples/knot-so-good/src/main.rs` and copy it in `PersistedState::from_model` — a plain `bool`, not an enum, since a two-state view has nothing to be forward-compatible with (research R5)
-- [ ] T014 [US2] Read `manual_borders` from the loaded state in `Model::create` in `examples/knot-so-good/src/main.rs`, as a straight assignment with no enum mapping, replacing the `false` placeholder from T008
-- [ ] T015 [US2] Verify the stale-toggle behaviour by hand per scenario 5 of `specs/002-diagram-boundary-view/quickstart.md`: with a stale bordered picture on screen, toggle the view and confirm the *same* picture is redrawn plain, still dimmed, with the error still beside it (FR-006, FR-007) — this is the check that fails if T003 was skipped
-- [ ] T016 [US2] Verify per scenario 6 steps 4–5 of `specs/002-diagram-boundary-view/quickstart.md` that notation mode shows no boundary-view control and its own display controls are untouched (FR-015), and that switching modes and back preserves the setting (FR-013)
+- [X] T013 [US2] Add `#[serde(default)] manual_borders: bool` to `PersistedState` in `examples/knot-so-good/src/main.rs` and copy it in `PersistedState::from_model` — a plain `bool`, not an enum, since a two-state view has nothing to be forward-compatible with (research R5)
+- [X] T014 [US2] Read `manual_borders` from the loaded state in `Model::create` in `examples/knot-so-good/src/main.rs`, as a straight assignment with no enum mapping, replacing the `false` placeholder from T008
+- [X] T015 [US2] Verify the stale-toggle behaviour by hand per scenario 5 of `specs/002-diagram-boundary-view/quickstart.md`: with a stale bordered picture on screen, toggle the view and confirm the *same* picture is redrawn plain, still dimmed, with the error still beside it (FR-006, FR-007) — this is the check that fails if T003 was skipped
+- [X] T016 [US2] Verify per scenario 6 steps 4–5 of `specs/002-diagram-boundary-view/quickstart.md` that notation mode shows no boundary-view control and its own display controls are untouched (FR-015), and that switching modes and back preserves the setting (FR-013)
 
 **Checkpoint**: The setting persists and behaves correctly around errors and mode switches.
 
@@ -124,8 +124,8 @@ follows.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Pass `self.manual_borders` to `render_manual` in the snapshot-preview loop of `manual_view` in `examples/knot-so-good/src/main.rs` (FR-010) — a one-argument change, since the previews already parse and render per view pass
-- [ ] T018 [US3] Verify per scenario 6 steps 1–3 of `specs/002-diagram-boundary-view/quickstart.md` that previews follow the toggle and that restoring a snapshot changes the text but **not** the selected view (FR-011); confirm `PersistedManualSnapshot` still holds only `diagram`
+- [X] T017 [US3] Pass `self.manual_borders` to `render_manual` in the snapshot-preview loop of `manual_view` in `examples/knot-so-good/src/main.rs` (FR-010) — a one-argument change, since the previews already parse and render per view pass
+- [X] T018 [US3] Verify per scenario 6 steps 1–3 of `specs/002-diagram-boundary-view/quickstart.md` that previews follow the toggle and that restoring a snapshot changes the text but **not** the selected view (FR-011); confirm `PersistedManualSnapshot` still holds only `diagram`
 
 **Checkpoint**: All three stories are complete and independently demonstrable.
 
@@ -133,9 +133,9 @@ follows.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T019 [P] Document the boundary view in the "Manual diagram mode" section of `examples/knot-so-good/README.md`, alongside the existing character reference
-- [ ] T020 Self-review the diff against the plan's constraints: `ascii_diagram_to_html`'s byte allow-list in `examples/knot-so-good/src/main.rs` is unnarrowed (it must keep `+` and `|`, research R4), no CSS was added to `examples/knot-so-good/index.html` (research R6), no new dependency in either `Cargo.toml`, and no library behaviour changed — the only `src/` diff is the test and its snapshot
-- [ ] T021 Run the full CI-parity command set from T001 plus `cargo check --manifest-path examples/knot-so-good/Cargo.toml --target wasm32-unknown-unknown`, and confirm all pass (constitution Article II)
+- [X] T019 [P] Document the boundary view in the "Manual diagram mode" section of `examples/knot-so-good/README.md`, alongside the existing character reference
+- [X] T020 Self-review the diff against the plan's constraints: `ascii_diagram_to_html`'s byte allow-list in `examples/knot-so-good/src/main.rs` is unnarrowed (it must keep `+` and `|`, research R4), no CSS was added to `examples/knot-so-good/index.html` (research R6), no new dependency in either `Cargo.toml`, and no library behaviour changed — the only `src/` diff is the test and its snapshot
+- [X] T021 Run the full CI-parity command set from T001 plus `cargo check --manifest-path examples/knot-so-good/Cargo.toml --target wasm32-unknown-unknown`, and confirm all pass (constitution Article II)
 
 ---
 
@@ -220,3 +220,8 @@ cleanly and isolates any regression it might cause from the feature that follows
 - Do not "fix" the picture's open right and bottom outer edge — that is a library behaviour change,
   explicitly out of scope (spec Assumptions, research R3)
 - Do not add a `manual_borders` field to `PersistedManualSnapshot` (FR-011)
+- The hand-verification tasks (T005, T015, T016, T018) were executed by driving the real app —
+  `trunk serve` plus a Playwright script walking quickstart scenarios 4, 5 and 6 — rather than by
+  clicking through them. All 38 assertions passed, including the stale-toggle check (T015) and the
+  pre-feature-state reload (FR-014). The script is not committed: it needs a running dev server and a
+  browser, neither of which CI has.
