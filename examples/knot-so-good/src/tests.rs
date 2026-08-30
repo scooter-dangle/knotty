@@ -1,7 +1,10 @@
 // These tests run against the host target (`cargo test`).
 // The LocalStorage glue (load_from_storage/save_to_storage) wraps web_sys
 // and is not tested here; it is too thin to warrant browser-based tests.
-use super::{ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedSnapshot, PersistedState};
+use super::{
+    ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedManualSnapshot,
+    PersistedMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
+};
 
 #[test]
 fn round_trip_full() {
@@ -11,6 +14,7 @@ fn round_trip_full() {
         display_mode: PersistedDisplayMode::Ascii,
         compact: false,
         snapshots: Vec::new(),
+        ..Default::default()
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -93,6 +97,7 @@ fn round_trip_with_snapshots() {
                 svg: "<svg>unknot</svg>".into(),
             },
         ],
+        ..Default::default()
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -136,6 +141,7 @@ fn compact_persists_true() {
         display_mode: PersistedDisplayMode::Svg,
         compact: true,
         snapshots: Vec::new(),
+        ..Default::default()
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -177,4 +183,89 @@ fn unknown_fields_in_snapshots_are_ignored() {
     let restored: PersistedState = serde_json::from_str(json).unwrap();
     assert_eq!(restored.snapshots.len(), 1);
     assert_eq!(restored.snapshots[0].diagram, "(0 )0");
+}
+
+#[test]
+fn round_trip_carries_manual_state() {
+    let state = PersistedState {
+        diagram: "(0 )0".into(),
+        moves: String::new(),
+        display_mode: PersistedDisplayMode::Ascii,
+        compact: false,
+        snapshots: Vec::new(),
+        mode: PersistedMode::Manual,
+        manual_diagram: "()\n.,\n".into(),
+        manual_snapshots: vec![PersistedManualSnapshot {
+            diagram: "()\n.,\n".into(),
+        }],
+    };
+    let json = serde_json::to_string(&state).unwrap();
+    let restored: PersistedState = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(restored.mode, PersistedMode::Manual);
+    assert_eq!(restored.manual_diagram, "()\n.,\n");
+    assert_eq!(restored.manual_snapshots.len(), 1);
+    assert_eq!(restored.manual_snapshots[0].diagram, "()\n.,\n");
+    // The notation side is untouched by the manual side.
+    assert_eq!(restored.diagram, "(0 )0");
+}
+
+#[test]
+fn state_saved_before_manual_mode_still_loads() {
+    // Exactly what an older build wrote: no mode, no manual fields.
+    let restored: PersistedState =
+        serde_json::from_str(r#"{"diagram":"(0 )0","moves":"","display_mode":"ascii"}"#).unwrap();
+
+    assert_eq!(restored.mode, PersistedMode::Notation);
+    assert_eq!(restored.manual_diagram, "");
+    assert!(restored.manual_snapshots.is_empty());
+    assert_eq!(restored.diagram, "(0 )0");
+}
+
+#[test]
+fn unknown_mode_string_deserializes_to_other() {
+    // Unknown mode values deserialize to Other for forward compatibility.
+    // In create(), Other falls back to Mode::Notation.
+    for mode_str in ["", "garbage", "MANUAL", "notation "] {
+        let json = format!(r#"{{"diagram":"","moves":"","mode":"{mode_str}"}}"#);
+        let restored: PersistedState = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.mode, PersistedMode::Other, "mode {mode_str:?}");
+    }
+}
+
+#[test]
+fn manual_snapshots_round_trip_independently_of_notation_snapshots() {
+    let json = r#"{"diagram":"","moves":"","manual_snapshots":[{"diagram":"()\n.,\n"}]}"#;
+    let restored: PersistedState = serde_json::from_str(json).unwrap();
+
+    assert_eq!(restored.manual_snapshots.len(), 1);
+    assert!(restored.snapshots.is_empty());
+}
+
+#[test]
+fn symbol_table_characters_match_the_library() {
+    // The labels live here; the characters must come from knotty.
+    let mut bytes: Vec<u8> = SYMBOL_TABLE
+        .iter()
+        .map(|(horiz, _)| horiz.as_byte())
+        .collect();
+
+    assert_eq!(bytes.len(), 16);
+    bytes.sort_unstable();
+    bytes.dedup();
+    assert_eq!(bytes.len(), 16, "symbol table has duplicate characters");
+}
+
+#[test]
+fn manual_diagram_text_renders_without_notation() {
+    let diagram = "()\n.,\n".parse::<knotty::VerboseDiagram>().unwrap();
+    let rendered: String = diagram.display::<false>().collect();
+
+    assert_eq!(
+        rendered,
+        "(0 )0"
+            .parse::<knotty::AbbreviatedDiagram>()
+            .unwrap()
+            .ascii_print::<false>(),
+    );
 }

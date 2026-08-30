@@ -123,35 +123,35 @@ appears and updates on every keystroke without pressing a button.
 
 ### Persistence (do first — the existing tests already establish the pattern)
 
-- [ ] T019 [US3] Add `PersistedMode` (`Notation | Manual` with `#[serde(other)] Other`) and `PersistedManualSnapshot` (single `diagram_text` field) to `examples/knot-so-good/src/main.rs`, following the existing `PersistedDisplayMode` pattern exactly
-- [ ] T020 [US3] Add `mode`, `manual_diagram`, and `manual_snapshots` fields to `PersistedState` in `examples/knot-so-good/src/main.rs`, each `#[serde(default)]`, and extend `PersistedState::from_model` to populate them — FR-025
-- [ ] T021 [US3] Add tests in `examples/knot-so-good/src/tests.rs`: a full round trip carrying manual fields; a pre-feature JSON blob with no `mode`/`manual_diagram` loading as notation mode with empty manual state (FR-026); and an unknown `mode` string deserializing to `Other` and falling back to `Notation` — mirror the existing `missing_fields_use_defaults` and `display_mode_unknown_string_deserializes_to_other` tests
+- [X] T019 [US3] Add `PersistedMode` (`Notation | Manual` with `#[serde(other)] Other`) and `PersistedManualSnapshot` (single `diagram_text` field) to `examples/knot-so-good/src/main.rs`, following the existing `PersistedDisplayMode` pattern exactly
+- [X] T020 [US3] Add `mode`, `manual_diagram`, and `manual_snapshots` fields to `PersistedState` in `examples/knot-so-good/src/main.rs`, each `#[serde(default)]`, and extend `PersistedState::from_model` to populate them — FR-025
+- [X] T021 [US3] Add tests in `examples/knot-so-good/src/tests.rs`: a full round trip carrying manual fields; a pre-feature JSON blob with no `mode`/`manual_diagram` loading as notation mode with empty manual state (FR-026); and an unknown `mode` string deserializing to `Other` and falling back to `Notation` — mirror the existing `missing_fields_use_defaults` and `display_mode_unknown_string_deserializes_to_other` tests
 
 ### Model and message plumbing
 
-- [ ] T022 [US3] Add a `Mode` enum and a `mode` field to `Model` in `examples/knot-so-good/src/main.rs`, keeping notation state and manual state as sibling field groups so neither is disturbed by a switch — FR-024
-- [ ] T023 [US3] Add manual-mode fields to `Model` in `examples/knot-so-good/src/main.rs`: `manual_text`, the parse `Result<VerboseDiagram, String>`, `last_valid_render: Option<String>`, and `manual_snapshots`
-- [ ] T024 [US3] Add `Msg` variants and `update` arms in `examples/knot-so-good/src/main.rs` for `SetMode`, `ManualText`, `ManualSnapshot`, `RestoreManualSnapshot`, and `DeleteManualSnapshot`, saving to storage on each state change as the existing arms do
-- [ ] T025 [US3] Implement the manual re-parse pipeline in `examples/knot-so-good/src/main.rs`: on every text edit, parse and render via `VerboseDiagram::display::<false>()`; on success store the render in `last_valid_render`; on failure keep the previous value — FR-016, FR-011
+- [X] T022 [US3] Add a `Mode` enum and a `mode` field to `Model` in `examples/knot-so-good/src/main.rs`, keeping notation state and manual state as sibling field groups so neither is disturbed by a switch — FR-024
+- [X] T023 [US3] Add manual-mode fields to `Model` in `examples/knot-so-good/src/main.rs`: `manual_text`, the parse `Result<VerboseDiagram, String>`, `last_valid_render: Option<String>`, and `manual_snapshots`
+- [X] T024 [US3] Add `Msg` variants and `update` arms in `examples/knot-so-good/src/main.rs` for `SetMode`, `ManualText`, `ManualSnapshot`, `RestoreManualSnapshot`, and `DeleteManualSnapshot`, saving to storage on each state change as the existing arms do
+- [X] T025 [US3] Implement the manual re-parse pipeline in `examples/knot-so-good/src/main.rs`: on every text edit, parse and render via `VerboseDiagram::display::<false>()`; on success store the render in `last_valid_render`; on failure keep the previous value — FR-016, FR-011
 
 ### Manual mode view
 
-- [ ] T026 [US3] Implement the manual mode view branch in `examples/knot-so-good/src/main.rs`: a textarea bound to `manual_text` with an `oninput` callback, and the ASCII picture rendered through the existing `ascii_diagram_to_html` — FR-016, FR-020
-- [ ] T027 [US3] Implement the three render states in the manual view in `examples/knot-so-good/src/main.rs`: valid → normal picture; invalid with a prior render → that picture marked stale plus the error beside it (FR-017); invalid with no prior render → error alone (FR-018)
-- [ ] T028 [US3] Implement the manual snapshot catalog in `examples/knot-so-good/src/main.rs`, reading only `manual_snapshots`, re-rendering each preview as ASCII from its stored text rather than caching it, with restore and delete buttons — FR-021, FR-022
-- [ ] T029 [US3] Extend `Model::snapshot_disabled` (or add a manual-mode equivalent) in `examples/knot-so-good/src/main.rs` so the snapshot button is unavailable while the manual text is invalid — FR-023
-- [ ] T030 [US3] Add a symbol table reference to the manual mode surface in `examples/knot-so-good/src/main.rs`, listing all 16 character-to-cell mappings — FR-027
+- [X] T026 [US3] Implement the manual mode view branch in `examples/knot-so-good/src/main.rs`: a textarea bound to `manual_text` with an `oninput` callback, and the ASCII picture rendered through the existing `ascii_diagram_to_html` — FR-016, FR-020
+- [X] T027 [US3] Implement the three render states in the manual view in `examples/knot-so-good/src/main.rs`: valid → normal picture; invalid with a prior render → that picture marked stale plus the error beside it (FR-017); invalid with no prior render → error alone (FR-018)
+- [X] T028 [US3] Implement the manual snapshot catalog in `examples/knot-so-good/src/main.rs`, reading only `manual_snapshots`, re-rendering each preview as ASCII from its stored text rather than caching it, with restore and delete buttons — FR-021, FR-022
+- [X] T029 [US3] Extend `Model::snapshot_disabled` (or add a manual-mode equivalent) in `examples/knot-so-good/src/main.rs` so the snapshot button is unavailable while the manual text is invalid — FR-023
+- [X] T030 [US3] Add a symbol table reference to the manual mode surface in `examples/knot-so-good/src/main.rs`, listing all 16 character-to-cell mappings — FR-027
 
 ### Notation mode changes and the bridge
 
-- [ ] T031 [US3] Gate every notation-only control behind `Mode::Notation` in the `view` of `examples/knot-so-good/src/main.rs` — the notation and moves textareas, the built-in knot buttons, the move pickers, the rotate button, the encoding readout, the display-mode and compact toggles, and the SVG download — FR-019, FR-020
-- [ ] T032 [US3] Add the compact-text readout to notation mode in `examples/knot-so-good/src/main.rs`, computed via `VerboseDiagram::from_abbreviated(&diagram)?.to_string()`, wrapped in a `<details>` element so it is collapsed by default and the existing encoding line keeps its prominence — FR-028, FR-029
-- [ ] T033 [US3] Implement seeding in the `SetMode` arm in `examples/knot-so-good/src/main.rs`: when switching to manual mode, fill `manual_text` from the current diagram's compact text **only if `manual_text` is empty**, leaving entered text untouched on every later switch — FR-030, FR-031
-- [ ] T034 [US3] Add the mode toggle control to `examples/knot-so-good/src/main.rs`, a single button that switches into manual mode and back, placed with the existing top-row buttons — FR-015
+- [X] T031 [US3] Gate every notation-only control behind `Mode::Notation` in the `view` of `examples/knot-so-good/src/main.rs` — the notation and moves textareas, the built-in knot buttons, the move pickers, the rotate button, the encoding readout, the display-mode and compact toggles, and the SVG download — FR-019, FR-020
+- [X] T032 [US3] Add the compact-text readout to notation mode in `examples/knot-so-good/src/main.rs`, computed via `VerboseDiagram::from_abbreviated(&diagram)?.to_string()`, wrapped in a `<details>` element so it is collapsed by default and the existing encoding line keeps its prominence — FR-028, FR-029
+- [X] T033 [US3] Implement seeding in the `SetMode` arm in `examples/knot-so-good/src/main.rs`: when switching to manual mode, fill `manual_text` from the current diagram's compact text **only if `manual_text` is empty**, leaving entered text untouched on every later switch — FR-030, FR-031
+- [X] T034 [US3] Add the mode toggle control to `examples/knot-so-good/src/main.rs`, a single button that switches into manual mode and back, placed with the existing top-row buttons — FR-015
 
 ### Styling
 
-- [ ] T035 [P] [US3] Add styles to `examples/knot-so-good/index.html` for the stale render marking, the symbol table, the collapsed compact-text readout, and manual snapshot entries, following the existing disabled-control styling convention
+- [X] T035 [P] [US3] Add styles to `examples/knot-so-good/index.html` for the stale render marking, the symbol table, the collapsed compact-text readout, and manual snapshot entries, following the existing disabled-control styling convention
 
 **Checkpoint**: All three stories are functional. The app has two independent modes with separate
 state and separate snapshots.
