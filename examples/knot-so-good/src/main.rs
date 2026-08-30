@@ -162,7 +162,7 @@ struct Model {
     snapshots: Vec<PersistedSnapshot>,
     manual_diagram: String,
     manual_error: Option<String>,
-    manual_render: Option<String>,
+    manual_render: Option<knotty::VerboseDiagram>,
     manual_snapshots: Vec<PersistedManualSnapshot>,
 }
 
@@ -289,8 +289,8 @@ impl Model {
                     disabled={self.manual_snapshot_disabled()}
                     onclick={link.callback(|_| Msg::ManualSnapshot)}
                 >{ "snapshot" }</button>
-                if let Some(ref render) = self.manual_render {
-                    <p><pre class={render_class}>{ ascii_diagram_to_html(render) }</pre></p>
+                if let Some(ref diagram) = self.manual_render {
+                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, false)) }</pre></p>
                 }
                 if let Some(ref err) = self.manual_error {
                     <p class="manual-error">{ format!("Error: {err}") }</p>
@@ -319,7 +319,7 @@ impl Model {
                             let preview = snapshot
                                 .diagram
                                 .parse::<knotty::VerboseDiagram>()
-                                .map(|diagram| render_manual(&diagram))
+                                .map(|diagram| render_manual(&diagram, false))
                                 .unwrap_or_default();
 
                             html! {
@@ -347,8 +347,8 @@ impl Model {
 
                 // An empty diagram draws nothing, so there is no picture
                 // to keep once the text goes bad.
-                let render = render_manual(&diagram);
-                self.manual_render = (!render.is_empty()).then_some(render);
+                let has_picture = diagram.display::<false>().next().is_some();
+                self.manual_render = has_picture.then_some(diagram);
             }
             // Keep the last valid render so a mistyped character does
             // not blank the picture mid-edit.
@@ -383,8 +383,12 @@ impl Model {
     }
 }
 
-fn render_manual(diagram: &knotty::VerboseDiagram) -> String {
-    diagram.display::<false>().collect()
+fn render_manual(diagram: &knotty::VerboseDiagram, borders: bool) -> String {
+    if borders {
+        diagram.display::<true>().collect()
+    } else {
+        diagram.display::<false>().collect()
+    }
 }
 
 fn onkeypress_add_move(scope: &html::Scope<Model>) -> Callback<KeyboardEvent> {

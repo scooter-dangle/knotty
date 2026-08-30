@@ -39,7 +39,7 @@ modules and `insta` snapshots under `src/snapshots/`; the app has host-target te
 
 **Purpose**: Establish a green baseline so any later failure is attributable to this feature.
 
-- [ ] T001 Run the CI-parity command set from `.github/workflows/test.yml` (`cargo check --target wasm32-unknown-unknown`, `cargo build`, `cargo test`, then `cargo test` and `trunk build --release` in `examples/knot-so-good/`) and confirm all pass before changing anything
+- [X] T001 Run the CI-parity command set from `.github/workflows/test.yml` (`cargo check --target wasm32-unknown-unknown`, `cargo build`, `cargo test`, then `cargo test` and `trunk build --release` in `examples/knot-so-good/`) and confirm all pass before changing anything
 
 ---
 
@@ -52,9 +52,9 @@ the app still renders exactly the plain picture it does now.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T002 Change `render_manual` in `examples/knot-so-good/src/main.rs` to `fn render_manual(diagram: &knotty::VerboseDiagram, borders: bool) -> String`, branching `if borders { diagram.display::<true>().collect() } else { diagram.display::<false>().collect() }` — this is the feature's only dispatch over the `GRID_BORDERS` const generic (research R1); update both existing call sites to pass `false`
-- [ ] T003 Change `Model.manual_render` in `examples/knot-so-good/src/main.rs` from `Option<String>` to `Option<knotty::VerboseDiagram>`, and in `update_manual` store the parsed diagram itself, using `diagram.display::<false>().next().is_some()` in place of the current `!render.is_empty()` check — the two are equivalent and the new form allocates nothing (research R2); leave the `Err` arm exactly as it is, since not touching `manual_render` on a parse failure is what keeps the stale picture on screen
-- [ ] T004 Update `manual_view` in `examples/knot-so-good/src/main.rs` to render at view time — `render_manual(diagram, false)` for the main picture — keeping the existing `manual-render` / `manual-render stale` class logic untouched
+- [X] T002 Change `render_manual` in `examples/knot-so-good/src/main.rs` to `fn render_manual(diagram: &knotty::VerboseDiagram, borders: bool) -> String`, branching `if borders { diagram.display::<true>().collect() } else { diagram.display::<false>().collect() }` — this is the feature's only dispatch over the `GRID_BORDERS` const generic (research R1); update both existing call sites to pass `false`
+- [X] T003 Change `Model.manual_render` in `examples/knot-so-good/src/main.rs` from `Option<String>` to `Option<knotty::VerboseDiagram>`, and in `update_manual` store the parsed diagram itself, using `diagram.display::<false>().next().is_some()` in place of the current `!render.is_empty()` check — the two are equivalent and the new form allocates nothing (research R2); leave the `Err` arm exactly as it is, since not touching `manual_render` on a parse failure is what keeps the stale picture on screen
+- [X] T004 Update `manual_view` in `examples/knot-so-good/src/main.rs` to render at view time — `render_manual(diagram, false)` for the main picture — keeping the existing `manual-render` / `manual-render stale` class logic untouched
 - [ ] T005 Verify the refactor is behaviour-neutral: run `cargo test` in `examples/knot-so-good/`, then `trunk serve` and confirm manual mode still renders, still keeps a stale picture on a bad character, and still shows nothing for empty text
 
 **Checkpoint**: The app holds the last valid diagram rather than a rendered string. Either view can now
