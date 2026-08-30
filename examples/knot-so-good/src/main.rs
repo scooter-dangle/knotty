@@ -344,7 +344,11 @@ impl Model {
         match self.manual_diagram.parse::<knotty::VerboseDiagram>() {
             Ok(diagram) => {
                 self.manual_error = None;
-                self.manual_render = Some(render_manual(&diagram));
+
+                // An empty diagram draws nothing, so there is no picture
+                // to keep once the text goes bad.
+                let render = render_manual(&diagram);
+                self.manual_render = (!render.is_empty()).then_some(render);
             }
             // Keep the last valid render so a mistyped character does
             // not blank the picture mid-edit.

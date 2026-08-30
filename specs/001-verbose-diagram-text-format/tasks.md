@@ -160,10 +160,10 @@ state and separate snapshots.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T036 Walk all ten steps of Scenario 5 in [quickstart.md](./quickstart.md) against `trunk serve --port 3000` in `examples/knot-so-good/`, confirming each cited requirement by hand — the browser behaviour has no automated coverage
-- [ ] T037 [P] Update `examples/knot-so-good/README.md` to describe manual diagram mode and the character set, so the app's own docs do not describe only half of it
-- [ ] T038 Re-run the full CI-parity set from Scenario 6 of [quickstart.md](./quickstart.md), including `trunk build --release`, since the example app is built by a separate CI job from the library tests
-- [ ] T039 Review the complete diff against the conventions in `CLAUDE.md`: no comments or docstrings added to untouched code, no abstractions beyond what the tasks required, and one logical change per commit with a conventional-commit prefix
+- [X] T036 Walk all ten steps of Scenario 5 in [quickstart.md](./quickstart.md) against `trunk serve --port 3000` in `examples/knot-so-good/`, confirming each cited requirement by hand — the browser behaviour has no automated coverage
+- [X] T037 [P] Update `examples/knot-so-good/README.md` to describe manual diagram mode and the character set, so the app's own docs do not describe only half of it
+- [X] T038 Re-run the full CI-parity set from Scenario 6 of [quickstart.md](./quickstart.md), including `trunk build --release`, since the example app is built by a separate CI job from the library tests
+- [X] T039 Review the complete diff against the conventions in `CLAUDE.md`: no comments or docstrings added to untouched code, no abstractions beyond what the tasks required, and one logical change per commit with a conventional-commit prefix
 
 ---
 
