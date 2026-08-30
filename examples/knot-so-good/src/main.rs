@@ -117,6 +117,7 @@ fn clear_storage() {
 enum Msg {
     SetMode(Mode),
     ManualDiagram(Option<String>),
+    ManualBorders(bool),
     ManualSnapshot,
     RestoreManualSnapshot(usize),
     DeleteManualSnapshot(usize),
@@ -149,6 +150,7 @@ struct Model {
     mode: Mode,
     display_mode: DisplayMode,
     compact: bool,
+    manual_borders: bool,
     raw_base_diagram: String,
     parsed_base_diagram: Result<knotty::AbbreviatedDiagram, String>,
     modified_diagram: Result<knotty::AbbreviatedDiagram, String>,
@@ -274,6 +276,8 @@ impl Model {
             Msg::ManualDiagram(value)
         });
 
+        let other_borders = !self.manual_borders;
+
         let render_class = if self.manual_error.is_some() {
             "manual-render stale"
         } else {
@@ -284,13 +288,16 @@ impl Model {
             <>
                 { self.storage_error_html(link) }
                 { self.mode_toggle(link) }
+                <button onclick={link.callback(move |_| Msg::ManualBorders(other_borders))}>
+                    { if self.manual_borders { "switch to plain view" } else { "switch to bordered view" } }
+                </button>
                 <button
                     class="snapshot"
                     disabled={self.manual_snapshot_disabled()}
                     onclick={link.callback(|_| Msg::ManualSnapshot)}
                 >{ "snapshot" }</button>
                 if let Some(ref diagram) = self.manual_render {
-                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, false)) }</pre></p>
+                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre></p>
                 }
                 if let Some(ref err) = self.manual_error {
                     <p class="manual-error">{ format!("Error: {err}") }</p>
@@ -489,6 +496,7 @@ impl Component for Model {
             mode,
             display_mode,
             compact,
+            manual_borders: false,
             raw_base_diagram,
             parsed_base_diagram,
             modified_diagram: Ok(Default::default()),
@@ -539,6 +547,14 @@ impl Component for Model {
                 self.manual_diagram = diagram;
                 self.update_manual();
                 true
+            }
+            ManualBorders(borders) => {
+                if self.manual_borders == borders {
+                    false
+                } else {
+                    self.manual_borders = borders;
+                    true
+                }
             }
             ManualSnapshot => {
                 if self.manual_snapshot_disabled() {

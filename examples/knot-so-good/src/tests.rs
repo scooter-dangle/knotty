@@ -257,6 +257,44 @@ fn symbol_table_characters_match_the_library() {
 }
 
 #[test]
+fn bordered_render_draws_one_box_per_character() {
+    // One box per typed character, one row of boxes per line of text.
+    for text in ["(\n", "()\n.,\n", "_(---)_\n_./-/,_\n(-A\\A-)\n.--a--,\n"] {
+        let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
+        let plain: String = diagram.display::<false>().collect();
+        let bordered: String = diagram.display::<true>().collect();
+
+        let rows = text.lines().count();
+        let width = text.lines().map(str::len).max().unwrap();
+
+        assert_eq!(plain.lines().count(), 3 * rows - 2, "{text:?}");
+        assert_eq!(bordered.lines().count(), 4 * rows - 2, "{text:?}");
+
+        let borders = bordered.lines().filter(|line| line.starts_with('+'));
+        assert_eq!(borders.clone().count(), rows, "{text:?}");
+
+        for border in borders {
+            assert_eq!(border.matches("+---").count(), width, "{text:?}");
+        }
+    }
+}
+
+#[test]
+fn both_views_are_empty_for_the_same_diagrams() {
+    // The app asks "is there a picture?" once, without knowing which view
+    // is selected, so the two must agree.
+    for text in ["", "\n", "()\n.,\n"] {
+        let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
+
+        assert_eq!(
+            diagram.display::<false>().next().is_some(),
+            diagram.display::<true>().next().is_some(),
+            "{text:?}",
+        );
+    }
+}
+
+#[test]
 fn manual_diagram_text_renders_without_notation() {
     let diagram = "()\n.,\n".parse::<knotty::VerboseDiagram>().unwrap();
     let rendered: String = diagram.display::<false>().collect();

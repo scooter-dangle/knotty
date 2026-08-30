@@ -77,15 +77,15 @@ text box is untouched.
 > `VerboseDiagram::display::<true>()` already works, so they pass immediately — their job is to stop it
 > changing under a feature that now shows it to users. No red phase to stage.
 
-- [ ] T006 [P] [US1] Add an `insta` snapshot test to the `#[cfg(test)] mod tests` in `src/render.rs` covering `display::<true>()` for the trefoil parsed from `_(---)_\n_./-/,_\n(-A\A-)\n.--a--,\n`, then run `cargo insta review` and commit the accepted snapshot under `src/snapshots/`
-- [ ] T007 [P] [US1] Add a geometry test to `examples/knot-so-good/src/tests.rs` asserting, for diagrams parsed from text of 1, 2 and 4 rows: total bordered lines are `4 × rows − 2` against `3 × rows − 2` plain, there is exactly one `+`-prefixed border line per row, each border line holds one `+---` group per cell, and `display::<false>()` and `display::<true>()` are empty for exactly the same inputs (`""` included) — this is SC-001 and the FR-008 precondition
+- [X] T006 [P] [US1] Add an `insta` snapshot test to the `#[cfg(test)] mod tests` in `src/render.rs` covering `display::<true>()` for the trefoil parsed from `_(---)_\n_./-/,_\n(-A\A-)\n.--a--,\n`, then run `cargo insta review` and commit the accepted snapshot under `src/snapshots/`
+- [X] T007 [P] [US1] Add a geometry test to `examples/knot-so-good/src/tests.rs` asserting, for diagrams parsed from text of 1, 2 and 4 rows: total bordered lines are `4 × rows − 2` against `3 × rows − 2` plain, there is exactly one `+`-prefixed border line per row, each border line holds one `+---` group per cell, and `display::<false>()` and `display::<true>()` are empty for exactly the same inputs (`""` included) — this is SC-001 and the FR-008 precondition
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Add `manual_borders: bool` to `Model` in `examples/knot-so-good/src/main.rs`, beside `compact`, and initialise it to `false` in `create` (persistence is wired in US2)
-- [ ] T009 [US1] Add `Msg::ManualBorders(bool)` in `examples/knot-so-good/src/main.rs` with an update arm that returns `false` when the value is unchanged and otherwise sets the flag and returns `true` — matching the `Compact` and `DisplayMode` arms; it must **not** call `update_manual`, since the text and its parse result are unaffected (FR-004)
-- [ ] T010 [US1] Add the toggle button to `manual_view` in `examples/knot-so-good/src/main.rs`, next to the `snapshot` button, labelled in the app's existing idiom — `switch to bordered view` / `switch to plain view`, naming the view it moves to (FR-017, research R6)
-- [ ] T011 [US1] Pass `self.manual_borders` to `render_manual` for the main picture in `manual_view` in `examples/knot-so-good/src/main.rs` (FR-003, FR-005)
+- [X] T008 [US1] Add `manual_borders: bool` to `Model` in `examples/knot-so-good/src/main.rs`, beside `compact`, and initialise it to `false` in `create` (persistence is wired in US2)
+- [X] T009 [US1] Add `Msg::ManualBorders(bool)` in `examples/knot-so-good/src/main.rs` with an update arm that returns `false` when the value is unchanged and otherwise sets the flag and returns `true` — matching the `Compact` and `DisplayMode` arms; it must **not** call `update_manual`, since the text and its parse result are unaffected (FR-004)
+- [X] T010 [US1] Add the toggle button to `manual_view` in `examples/knot-so-good/src/main.rs`, next to the `snapshot` button, labelled in the app's existing idiom — `switch to bordered view` / `switch to plain view`, naming the view it moves to (FR-017, research R6)
+- [X] T011 [US1] Pass `self.manual_borders` to `render_manual` for the main picture in `manual_view` in `examples/knot-so-good/src/main.rs` (FR-003, FR-005)
 
 **Checkpoint**: The boundary view works end to end for the session. Quickstart scenario 4 passes; the
 setting does not yet survive a reload.
