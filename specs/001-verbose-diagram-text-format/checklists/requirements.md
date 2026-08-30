@@ -35,5 +35,9 @@
 - Iteration 2: row ordering resolved to visual order (first line = top of the picture); FR-004
   rewritten, an ordering acceptance scenario and a worked trefoil example added, and the reversal
   recorded in Assumptions. All items pass.
+- Iteration 3 (`/speckit-clarify`, 5 questions): whitespace rejection, manual mode as a fully
+  separate mode with its own snapshots, canonical padded output, the notation-mode readout plus
+  seeding, and the seed-only-when-empty rule. All 16 items still pass; no regressions.
 - Type names (`VerboseDiagram`, `Horiz`) appear only in the verbatim Input line; the body speaks in
-  terms of diagrams, rows, and cells.
+  terms of diagrams, rows, and cells. FR-017/FR-018 name app controls (move pickers, rotate, SVG
+  download, compact toggle) — these are existing user-facing features, not implementation detail.
