@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Horiz {
@@ -397,6 +397,26 @@ impl FromStr for VerboseDiagram {
     }
 }
 
+impl fmt::Display for VerboseDiagram {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Defensive: a VerboseDiagram built any way other than by
+        // parsing or `from_abbreviated` could be ragged, and an
+        // unpadded row would break the byte-for-byte round trip.
+        let width = self.0.iter().map(|line| line.0.len()).max().unwrap_or(0);
+
+        // Row 0 is the bottom of the picture; the text reads top-down.
+        self.0.iter().rev().try_for_each(|line| {
+            line.0
+                .iter()
+                .map(Horiz::as_byte)
+                .chain(std::iter::repeat(Horiz::Empty.as_byte()).take(width - line.0.len()))
+                .try_for_each(|byte| write!(formatter, "{}", byte as char))?;
+
+            writeln!(formatter)
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -593,5 +613,74 @@ mod tests {
         ";
 
         insta::assert_snapshot!(render(&parse(hand_written)));
+    }
+
+    const SAMPLE_KNOTS: [&str; 4] = [
+        "(0 )0",
+        "(0 (2 /1 \\0 /1 )2 )0",
+        "(0 (2 \\1 (3 /2 /4 )3 \\1 )2 )0",
+        "(0 (2 /1 \\0 \\0 \\0 /1 )2 )0",
+    ];
+
+    fn verbose(source: &str) -> VerboseDiagram {
+        VerboseDiagram::from_abbreviated(&knot(source)).unwrap()
+    }
+
+    #[test]
+    fn serializes_to_the_canonical_text() {
+        assert_eq!(verbose("(0 )0").to_string(), UNKNOT);
+        assert_eq!(verbose("(0 (2 /1 \\0 /1 )2 )0").to_string(), TREFOIL);
+    }
+
+    #[test]
+    fn serialized_rows_all_have_equal_length() {
+        for source in SAMPLE_KNOTS {
+            let text = verbose(source).to_string();
+            let widths: Vec<usize> = text.lines().map(str::len).collect();
+
+            assert!(
+                widths.windows(2).all(|pair| pair[0] == pair[1]),
+                "{source}: ragged widths {widths:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn round_trips_through_text() {
+        for source in SAMPLE_KNOTS {
+            let diagram = verbose(source);
+            let text = diagram.to_string();
+
+            assert_eq!(parse(&text), diagram, "{source}");
+            assert_eq!(parse(&text).to_string(), text, "{source}");
+        }
+    }
+
+    #[test]
+    fn ragged_text_normalizes_to_a_fixed_point() {
+        let ragged = "\
+            _(---)\n\
+            _./-/,\n\
+            (-A\\A-)\n\
+            .--a--,\n\
+        ";
+
+        let canonical = parse(ragged).to_string();
+
+        assert_eq!(canonical, TREFOIL);
+        assert_eq!(parse(&canonical).to_string(), canonical);
+    }
+
+    #[test]
+    fn empty_diagram_serializes_to_empty_text() {
+        assert_eq!(VerboseDiagram::default().to_string(), "");
+        assert_eq!(parse(""), VerboseDiagram::default());
+    }
+
+    #[test]
+    fn blank_rows_survive_a_round_trip() {
+        let with_blank = "()\n__\n.,\n";
+
+        assert_eq!(parse(with_blank).to_string(), with_blank);
     }
 }

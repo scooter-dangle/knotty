@@ -98,14 +98,14 @@ verify against.
 
 ### Tests for User Story 2
 
-- [ ] T014 [US2] Add tests in `src/render.rs` asserting `VerboseDiagram::from_abbreviated` output for the unknot and trefoil serializes to exactly the canonical text in data-model.md and contracts/diagram-text-format.md, and that every emitted row has equal length — FR-007, contract C-7
-- [ ] T015 [US2] Add round-trip tests in `src/render.rs` covering contract guarantees C-3, C-4, and C-5: `parse(write(d)) == d`; `write(parse(write(d))) == write(d)` byte for byte; and ragged input normalizing to canonical text that is then a fixed point under a further write — FR-008
-- [ ] T016 [US2] Add a round-trip test in `src/render.rs` iterating the built-in knots used by the example app (unknot, trefoil, square knot, knot 5_1) plus the fixtures in `examples/samples/`, asserting byte-stability for each — SC-003
+- [X] T014 [US2] Add tests in `src/render.rs` asserting `VerboseDiagram::from_abbreviated` output for the unknot and trefoil serializes to exactly the canonical text in data-model.md and contracts/diagram-text-format.md, and that every emitted row has equal length — FR-007, contract C-7
+- [X] T015 [US2] Add round-trip tests in `src/render.rs` covering contract guarantees C-3, C-4, and C-5: `parse(write(d)) == d`; `write(parse(write(d))) == write(d)` byte for byte; and ragged input normalizing to canonical text that is then a fixed point under a further write — FR-008
+- [X] T016 [US2] Add a round-trip test in `src/render.rs` iterating the built-in knots used by the example app (unknot, trefoil, square knot, knot 5_1) plus the fixtures in `examples/samples/`, asserting byte-stability for each — SC-003
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Implement `impl fmt::Display for VerboseDiagram` in `src/render.rs`: iterate `self.0` in reverse so the last stored row prints first, emit `Horiz::as_byte` per cell, and terminate each row with `\n` — FR-007
-- [ ] T018 [US2] In the same `Display` impl in `src/render.rs`, pad each emitted row to the diagram's widest row so a ragged `VerboseDiagram` (reachable via `Default`) cannot silently break the byte-for-byte round trip — research.md, Trap 2 consequence
+- [X] T017 [US2] Implement `impl fmt::Display for VerboseDiagram` in `src/render.rs`: iterate `self.0` in reverse so the last stored row prints first, emit `Horiz::as_byte` per cell, and terminate each row with `\n` — FR-007
+- [X] T018 [US2] In the same `Display` impl in `src/render.rs`, pad each emitted row to the diagram's widest row so a ragged `VerboseDiagram` (reachable via `Default`) cannot silently break the byte-for-byte round trip — research.md, Trap 2 consequence
 
 **Checkpoint**: The library half is complete. US1 and US2 together satisfy every non-app requirement
 (FR-001..FR-014) and can ship with no example-app change.
