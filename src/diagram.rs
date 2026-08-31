@@ -2,7 +2,7 @@ use core::fmt;
 use std::{cmp::Ordering, mem, str::FromStr};
 
 use crate::moves::{CommentLines, DiagramMove, Lean, Move, OverUnder, UpDown};
-use crate::raw_lines::append;
+use crate::raw_lines::{append, OpeningCentered};
 use crate::render::{Horiz, RenderMode, VerboseDiagram, VerboseLine};
 use crate::rotate::scan_row;
 
@@ -115,14 +115,29 @@ impl fmt::Display for AbbreviatedItem {
 pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>);
 
 impl VerboseDiagram {
-    pub fn from_abbreviated(knot: &AbbreviatedDiagram, _mode: RenderMode) -> Result<Self, String> {
+    pub fn from_abbreviated(knot: &AbbreviatedDiagram, mode: RenderMode) -> Result<Self, String> {
         let height = knot.height();
 
-        let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
+        let lines = match mode {
+            RenderMode::Standard => {
+                let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
-        for AbbreviatedItem { element, index } in knot.0.iter() {
-            append(&mut lines, *element, *index);
-        }
+                for AbbreviatedItem { element, index } in knot.0.iter() {
+                    append(&mut lines, *element, *index);
+                }
+
+                lines
+            }
+            RenderMode::OpeningCentered => {
+                let mut lines = OpeningCentered::new(height, knot.len());
+
+                for AbbreviatedItem { element, index } in knot.0.iter() {
+                    lines.append(*element, *index);
+                }
+
+                lines.into_lines()
+            }
+        };
 
         Ok(Self(lines.into_iter().map(VerboseLine).collect()))
     }

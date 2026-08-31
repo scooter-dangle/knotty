@@ -343,7 +343,9 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
 - **FR-006**: Both renderings MUST depict the same knot for the same input — the same crossings with
   the same over/under, joined the same way.
 - **FR-007**: For any diagram whose current rendering contains no transfer cells (`j`, `i`, `r`, `2`,
-  `k`, `L`), the two renderings MUST produce identical pictures.
+  `k`, `L`), the two renderings MUST produce identical pictures — the picture itself, with no cell
+  boundaries drawn. With boundaries on, the two necessarily differ even here, and that difference is
+  the point (SC-004).
 - **FR-008**: The current rendering MUST remain the default everywhere and MUST be unchanged,
   byte for byte, by this feature.
 - **FR-009**: Selecting a rendering mode MUST NOT change the diagram, the abbreviated notation, or the
@@ -393,7 +395,7 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
 - **SC-002**: Every existing rendering the project has recorded is unchanged — 100% of them — when
   the current rendering mode is used.
 - **SC-003**: For every sample knot in the project whose current rendering uses no transfer cells,
-  the two rendering modes produce identical pictures.
+  the two rendering modes produce identical pictures with no cell boundaries drawn.
 - **SC-004**: With cell boundaries drawn, 100% of crossings, openings and closings in an
   opening-centered picture are contained in a single box, against 0% in the current rendering.
 - **SC-005**: A person comparing the two renderings of a diagram in the app can switch between them

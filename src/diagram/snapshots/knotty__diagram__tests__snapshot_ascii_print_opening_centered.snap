@@ -1,0 +1,8 @@
+---
+source: src/diagram/tests.rs
+expression: "ascii_print_compact::<false>(knot, RenderMode::OpeningCentered)"
+---
+    
+ /\ 
+(  )
+ \/
