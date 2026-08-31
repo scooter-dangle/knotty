@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use knotty::{self, AbbreviatedDiagram};
+use knotty::{self, AbbreviatedDiagram, RenderMode};
 
 fn read_input(file: Option<String>) -> Result<String, String> {
     let lines = match file.as_deref() {
@@ -49,7 +49,7 @@ fn main() -> Result<(), String> {
         (false, false) => AbbreviatedDiagram::ascii_print::<false>,
     };
 
-    let display = func(&knot);
+    let display = func(&knot, RenderMode::Standard);
     print!("{display}");
 
     if print_modified_abbreviated_diagram {

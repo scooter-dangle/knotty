@@ -21,6 +21,13 @@ pub enum Horiz {
     TransferDownFinish,
 }
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderMode {
+    #[default]
+    Standard,
+    OpeningCentered,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct VerboseLine(pub(crate) Vec<Horiz>);
 
@@ -36,7 +43,7 @@ pub(crate) const DISPLAY_LINES: usize = display_lines(false);
 
 impl Horiz {
     #[rustfmt::skip]
-    pub const fn display(&self) -> [&'static str; DISPLAY_LINES] {
+    pub const fn display(&self, _mode: RenderMode) -> [&'static str; DISPLAY_LINES] {
         use Horiz::*;
 
         match self {
@@ -119,7 +126,10 @@ impl Horiz {
     }
 
     #[rustfmt::skip]
-    pub const fn display_with_borders(&self) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
+    pub const fn display_with_borders(
+        &self,
+        _mode: RenderMode,
+    ) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
         use Horiz::*;
 
         match self {
@@ -298,11 +308,14 @@ impl Horiz {
 }
 
 impl VerboseLine {
-    pub fn display<const GRID_BORDERS: bool>(&self) -> impl 'static + Iterator<Item = String> {
+    pub fn display<const GRID_BORDERS: bool>(
+        &self,
+        mode: RenderMode,
+    ) -> impl 'static + Iterator<Item = String> {
         let horiz_len: usize = if GRID_BORDERS {
-            Horiz::Empty.display_with_borders()[0].len()
+            Horiz::Empty.display_with_borders(mode)[0].len()
         } else {
-            Horiz::Empty.display()[0].len()
+            Horiz::Empty.display(mode)[0].len()
         };
 
         let mut l0 = " ".repeat(self.0.len() * horiz_len) + "\n";
@@ -316,9 +329,9 @@ impl VerboseLine {
 
         for (idx, horiz) in self.0.iter().enumerate() {
             let [h0, h1, h2, h3] = if GRID_BORDERS {
-                horiz.display_with_borders()
+                horiz.display_with_borders(mode)
             } else {
-                let [h0, h1, h2] = horiz.display();
+                let [h0, h1, h2] = horiz.display(mode);
                 [h0, h1, h2, ""]
             };
             let range = (idx * horiz_len)..((idx + 1) * horiz_len);
@@ -338,14 +351,17 @@ impl VerboseLine {
 }
 
 impl VerboseDiagram {
-    pub fn display<'a, const GRID_BORDERS: bool>(&'a self) -> impl 'a + Iterator<Item = String> {
+    pub fn display<'a, const GRID_BORDERS: bool>(
+        &'a self,
+        mode: RenderMode,
+    ) -> impl 'a + Iterator<Item = String> {
         let (last_idx, inner) = match self.0.len().checked_sub(1) {
             Some(idx) => (idx, self.0.as_slice()),
             None => (0, &[][..]),
         };
 
         inner.iter().rev().enumerate().flat_map(move |(idx, line)| {
-            line.display::<GRID_BORDERS>()
+            line.display::<GRID_BORDERS>(mode)
                 .take(display_lines(GRID_BORDERS) - if idx == last_idx { 2 } else { 0 })
         })
     }
@@ -490,20 +506,23 @@ mod tests {
     }
 
     fn render(diagram: &VerboseDiagram) -> String {
-        diagram.display::<false>().collect()
+        diagram.display::<false>(RenderMode::Standard).collect()
     }
 
     #[test]
     fn parsed_trefoil_renders_as_the_notation_does() {
         assert_eq!(
             render(&parse(TREFOIL)),
-            knot("(0 (2 /1 \\0 /1 )2 )0").ascii_print::<false>(),
+            knot("(0 (2 /1 \\0 /1 )2 )0").ascii_print::<false>(RenderMode::Standard),
         );
     }
 
     #[test]
     fn parsed_unknot_renders_as_the_notation_does() {
-        assert_eq!(render(&parse(UNKNOT)), knot("(0 )0").ascii_print::<false>());
+        assert_eq!(
+            render(&parse(UNKNOT)),
+            knot("(0 )0").ascii_print::<false>(RenderMode::Standard)
+        );
     }
 
     #[test]
@@ -513,7 +532,8 @@ mod tests {
         // check would accept.
         assert_eq!(
             parse(TREFOIL),
-            VerboseDiagram::from_abbreviated(&knot("(0 (2 /1 \\0 /1 )2 )0")).unwrap(),
+            VerboseDiagram::from_abbreviated(&knot("(0 (2 /1 \\0 /1 )2 )0"), RenderMode::Standard)
+                .unwrap(),
         );
 
         let reversed = TREFOIL
@@ -606,7 +626,9 @@ mod tests {
 
     #[test]
     fn snapshot_parsed_diagram_render_with_borders() {
-        insta::assert_snapshot!(parse(TREFOIL).display::<true>().collect::<String>());
+        insta::assert_snapshot!(parse(TREFOIL)
+            .display::<true>(RenderMode::Standard)
+            .collect::<String>());
     }
 
     #[test]
@@ -628,7 +650,7 @@ mod tests {
     ];
 
     fn verbose(source: &str) -> VerboseDiagram {
-        VerboseDiagram::from_abbreviated(&knot(source)).unwrap()
+        VerboseDiagram::from_abbreviated(&knot(source), RenderMode::Standard).unwrap()
     }
 
     #[test]

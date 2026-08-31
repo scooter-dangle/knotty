@@ -160,16 +160,16 @@ fn compact_and_non_compact_differ_for_trefoil() {
     let trefoil = "(0 (2 /1 \\0 /1 )2 )0"
         .parse::<knotty::AbbreviatedDiagram>()
         .unwrap();
-    let full = trefoil.try_ascii_print::<false>().unwrap();
-    let compact = trefoil.try_ascii_print_compact::<false>().unwrap();
+    let full = trefoil.try_ascii_print::<false>(knotty::RenderMode::Standard).unwrap();
+    let compact = trefoil.try_ascii_print_compact::<false>(knotty::RenderMode::Standard).unwrap();
     assert_ne!(full, compact);
 }
 
 #[test]
 fn non_compact_mode_uses_full_ascii() {
     let unknot = "(0 )0".parse::<knotty::AbbreviatedDiagram>().unwrap();
-    let full = unknot.try_ascii_print::<false>().unwrap();
-    let also = unknot.ascii_print::<false>();
+    let full = unknot.try_ascii_print::<false>(knotty::RenderMode::Standard).unwrap();
+    let also = unknot.ascii_print::<false>(knotty::RenderMode::Standard);
     assert_eq!(full, also);
 }
 
@@ -275,8 +275,8 @@ fn bordered_render_draws_one_box_per_character() {
     // One box per typed character, one row of boxes per line of text.
     for text in ["(\n", "()\n.,\n", "_(---)_\n_./-/,_\n(-A\\A-)\n.--a--,\n"] {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
-        let plain: String = diagram.display::<false>().collect();
-        let bordered: String = diagram.display::<true>().collect();
+        let plain: String = diagram.display::<false>(knotty::RenderMode::Standard).collect();
+        let bordered: String = diagram.display::<true>(knotty::RenderMode::Standard).collect();
 
         let rows = text.lines().count();
         let width = text.lines().map(str::len).max().unwrap();
@@ -301,8 +301,8 @@ fn both_views_are_empty_for_the_same_diagrams() {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
 
         assert_eq!(
-            diagram.display::<false>().next().is_some(),
-            diagram.display::<true>().next().is_some(),
+            diagram.display::<false>(knotty::RenderMode::Standard).next().is_some(),
+            diagram.display::<true>(knotty::RenderMode::Standard).next().is_some(),
             "{text:?}",
         );
     }
@@ -311,13 +311,13 @@ fn both_views_are_empty_for_the_same_diagrams() {
 #[test]
 fn manual_diagram_text_renders_without_notation() {
     let diagram = "()\n.,\n".parse::<knotty::VerboseDiagram>().unwrap();
-    let rendered: String = diagram.display::<false>().collect();
+    let rendered: String = diagram.display::<false>(knotty::RenderMode::Standard).collect();
 
     assert_eq!(
         rendered,
         "(0 )0"
             .parse::<knotty::AbbreviatedDiagram>()
             .unwrap()
-            .ascii_print::<false>(),
+            .ascii_print::<false>(knotty::RenderMode::Standard),
     );
 }

@@ -39,7 +39,7 @@ and `src/diagram/snapshots/`; the app has host-target tests in `examples/knot-so
 
 **Purpose**: Establish a green baseline so any later failure is attributable to this feature.
 
-- [ ] T001 Run the CI-parity command set from `.github/workflows/test.yml` — `cargo check --target wasm32-unknown-unknown`, `cargo build`, `cargo test`, then `cargo test` and `trunk build --release` in `examples/knot-so-good/` — and confirm all pass before changing anything
+- [X] T001 Run the CI-parity command set from `.github/workflows/test.yml` — `cargo check --target wasm32-unknown-unknown`, `cargo build`, `cargo test`, then `cargo test` and `trunk build --release` in `examples/knot-so-good/` — and confirm all pass before changing anything
 
 ---
 
@@ -53,13 +53,13 @@ if a snapshot moves in this phase, the threading is wrong.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T002 Add `RenderMode` to `src/render.rs` — `#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)] pub enum RenderMode { #[default] Standard, OpeningCentered }` — and export it from `src/lib.rs` with `pub use render::RenderMode;` (research R11, contracts "New export"). `Default` must be `Standard` so `RenderMode::default()` is today's behaviour
-- [ ] T003 Add `mode: RenderMode` as a parameter to `Horiz::display` and `Horiz::display_with_borders` in `src/render.rs`, keeping both `const fn` and returning the existing tables for either value for now; US1's T012 replaces this with a real match
-- [ ] T004 Add `mode: RenderMode` to `VerboseLine::display` and `VerboseDiagram::display` in `src/render.rs`, keeping `GRID_BORDERS` a const generic and passing `mode` down to `Horiz` (research R1 — the mode is a runtime value, `GRID_BORDERS` stays generic; do not add a second const generic)
-- [ ] T005 Add `mode: RenderMode` to `VerboseDiagram::from_abbreviated` in `src/diagram.rs`, to `AbbreviatedDiagram::{try_ascii_print, ascii_print, try_ascii_print_compact, ascii_print_compact}`, and to the four free functions of the same names at the bottom of `src/diagram.rs`, per the signatures in `contracts/opening-centered-rendering.md`
-- [ ] T006 Pin `AbbreviatedDiagram::full_render_lines` in `src/diagram.rs` to `RenderMode::Standard` explicitly, with a comment citing research R9 — `rotate::scan_row` recognises the Standard tile shapes by regex, so rotation must never see opening-centered output. Leave `src/rotate.rs` and `try_rotate_90_ccw` untouched
-- [ ] T007 Update every remaining call site to pass `RenderMode::Standard` (~55 sites): the `#[cfg(test)] mod tests` in `src/render.rs`, `src/diagram/tests.rs`, `src/diagram/test.rs`, `examples/ascii_print.rs`, `examples/knot-so-good/src/main.rs` and `examples/knot-so-good/src/tests.rs`. This is one mechanical change — the crate does not compile until all of it lands, so do not split it across commits
-- [ ] T008 Verify the threading is behaviour-neutral: `cargo test` green with **no** snapshot in `src/snapshots/` or `src/diagram/snapshots/` reported as changed, and `cargo check --target wasm32-unknown-unknown` clean. A pending `.snap.new` for an existing snapshot at this point is a bug in T003–T007, not a snapshot to accept
+- [X] T002 Add `RenderMode` to `src/render.rs` — `#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)] pub enum RenderMode { #[default] Standard, OpeningCentered }` — and export it from `src/lib.rs` with `pub use render::RenderMode;` (research R11, contracts "New export"). `Default` must be `Standard` so `RenderMode::default()` is today's behaviour
+- [X] T003 Add `mode: RenderMode` as a parameter to `Horiz::display` and `Horiz::display_with_borders` in `src/render.rs`, keeping both `const fn` and returning the existing tables for either value for now; US1's T012 replaces this with a real match
+- [X] T004 Add `mode: RenderMode` to `VerboseLine::display` and `VerboseDiagram::display` in `src/render.rs`, keeping `GRID_BORDERS` a const generic and passing `mode` down to `Horiz` (research R1 — the mode is a runtime value, `GRID_BORDERS` stays generic; do not add a second const generic)
+- [X] T005 Add `mode: RenderMode` to `VerboseDiagram::from_abbreviated` in `src/diagram.rs`, to `AbbreviatedDiagram::{try_ascii_print, ascii_print, try_ascii_print_compact, ascii_print_compact}`, and to the four free functions of the same names at the bottom of `src/diagram.rs`, per the signatures in `contracts/opening-centered-rendering.md`
+- [X] T006 Pin `AbbreviatedDiagram::full_render_lines` in `src/diagram.rs` to `RenderMode::Standard` explicitly, with a comment citing research R9 — `rotate::scan_row` recognises the Standard tile shapes by regex, so rotation must never see opening-centered output. Leave `src/rotate.rs` and `try_rotate_90_ccw` untouched
+- [X] T007 Update every remaining call site to pass `RenderMode::Standard` (~55 sites): the `#[cfg(test)] mod tests` in `src/render.rs`, `src/diagram/tests.rs`, `src/diagram/test.rs`, `examples/ascii_print.rs`, `examples/knot-so-good/src/main.rs` and `examples/knot-so-good/src/tests.rs`. This is one mechanical change — the crate does not compile until all of it lands, so do not split it across commits
+- [X] T008 Verify the threading is behaviour-neutral: `cargo test` green with **no** snapshot in `src/snapshots/` or `src/diagram/snapshots/` reported as changed, and `cargo check --target wasm32-unknown-unknown` clean. A pending `.snap.new` for an existing snapshot at this point is a bug in T003–T007, not a snapshot to accept
 
 **Checkpoint**: `RenderMode` reaches every entry point, `Standard` reproduces today byte for byte, and
 rotation is pinned. Worth committing on its own — it is a pure signature change with no behaviour

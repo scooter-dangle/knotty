@@ -232,7 +232,7 @@ impl Model {
     fn compact_text(&self) -> Option<String> {
         let knot = self.modified_diagram.as_ref().ok()?;
         Some(
-            knotty::VerboseDiagram::from_abbreviated(knot)
+            knotty::VerboseDiagram::from_abbreviated(knot, knotty::RenderMode::Standard)
                 .ok()?
                 .to_string(),
         )
@@ -357,7 +357,7 @@ impl Model {
 
                 // An empty diagram draws nothing, so there is no picture
                 // to keep once the text goes bad.
-                let has_picture = diagram.display::<false>().next().is_some();
+                let has_picture = diagram.display::<false>(knotty::RenderMode::Standard).next().is_some();
                 self.manual_render = has_picture.then_some(diagram);
             }
             // Keep the last valid render so a mistyped character does
@@ -377,9 +377,9 @@ impl Model {
             .clone()
             .and_then(|knot| {
                 if self.compact {
-                    knot.try_ascii_print_compact::<false>()
+                    knot.try_ascii_print_compact::<false>(knotty::RenderMode::Standard)
                 } else {
-                    knot.try_ascii_print::<false>()
+                    knot.try_ascii_print::<false>(knotty::RenderMode::Standard)
                 }
             });
 
@@ -395,9 +395,9 @@ impl Model {
 
 fn render_manual(diagram: &knotty::VerboseDiagram, borders: bool) -> String {
     if borders {
-        diagram.display::<true>().collect()
+        diagram.display::<true>(knotty::RenderMode::Standard).collect()
     } else {
-        diagram.display::<false>().collect()
+        diagram.display::<false>(knotty::RenderMode::Standard).collect()
     }
 }
 

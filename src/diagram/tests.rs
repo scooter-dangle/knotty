@@ -6,7 +6,7 @@ use pretty_assertions::assert_eq;
 fn snapshot_from_abbreviated() {
     let knot = AbbreviatedDiagram::new_from_tuples(vec![(b'(', 0), (b'\\', 0), (b')', 0)]).unwrap();
 
-    let verbose = VerboseDiagram::from_abbreviated(&knot).unwrap();
+    let verbose = VerboseDiagram::from_abbreviated(&knot, RenderMode::Standard).unwrap();
     insta::assert_debug_snapshot!(verbose);
 }
 
@@ -80,7 +80,7 @@ fn snapshot_ascii_print() {
     //  \/
     //
     let unknot = vec![(b'(', 0), (b')', 0)];
-    insta::assert_snapshot!(ascii_print_compact::<false>(unknot));
+    insta::assert_snapshot!(ascii_print_compact::<false>(unknot, RenderMode::Standard));
 
     // Trefoil:
     //       _____________
@@ -104,15 +104,15 @@ fn snapshot_ascii_print() {
         (b')', 2),
         (b')', 0),
     ];
-    insta::assert_snapshot!(ascii_print_compact::<false>(trefoil));
+    insta::assert_snapshot!(ascii_print_compact::<false>(trefoil, RenderMode::Standard));
 
     // donut:
     let donut = vec![(b'(', 0), (b'(', 1), (b')', 1), (b')', 0)];
-    insta::assert_snapshot!(ascii_print_compact::<false>(donut));
+    insta::assert_snapshot!(ascii_print_compact::<false>(donut, RenderMode::Standard));
 
     // C:
     let c_thingy = vec![(b'(', 0), (b'(', 1), (b')', 2), (b')', 0)];
-    insta::assert_snapshot!(ascii_print_compact::<false>(c_thingy));
+    insta::assert_snapshot!(ascii_print_compact::<false>(c_thingy, RenderMode::Standard));
 
     // weird terrace thing:
     let terrace = vec![
@@ -131,7 +131,7 @@ fn snapshot_ascii_print() {
         (b')', 2),
         (b')', 0),
     ];
-    insta::assert_snapshot!(ascii_print_compact::<false>(terrace));
+    insta::assert_snapshot!(ascii_print_compact::<false>(terrace, RenderMode::Standard));
 
     // basket:
     let basket = vec![
@@ -146,7 +146,7 @@ fn snapshot_ascii_print() {
         (b')', 1),
         (b')', 0),
     ];
-    insta::assert_snapshot!(ascii_print_compact::<false>(basket));
+    insta::assert_snapshot!(ascii_print_compact::<false>(basket, RenderMode::Standard));
 
     // ugly trefoil:
     let ugly_trefoil = vec![
@@ -158,7 +158,10 @@ fn snapshot_ascii_print() {
         (b')', 0),
         (b')', 0),
     ];
-    insta::assert_snapshot!(ascii_print_compact::<false>(ugly_trefoil));
+    insta::assert_snapshot!(ascii_print_compact::<false>(
+        ugly_trefoil,
+        RenderMode::Standard
+    ));
 
     // weird_thing_that_broke_once:
     let weird_thing_that_broke_once = vec![
@@ -171,5 +174,8 @@ fn snapshot_ascii_print() {
         (b')', 1),
         (b')', 0),
     ];
-    insta::assert_snapshot!(ascii_print_compact::<false>(weird_thing_that_broke_once));
+    insta::assert_snapshot!(ascii_print_compact::<false>(
+        weird_thing_that_broke_once,
+        RenderMode::Standard
+    ));
 }
