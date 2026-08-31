@@ -118,6 +118,7 @@ mode the eight that go away are read as the empty cell `_` rather than as distin
 ### Session 2026-08-31
 
 - Q: How far does the synonymy between the eight retired characters and `_` reach — display only, or through parsing and serialization? → A: Normalizing synonym. Under opening-centered rendering the eight are read as `_`, so canonical text writes `_` for them; canonical text is therefore mode-dependent, and the byte-for-byte round trip holds in that mode for the eight surviving characters. The current rendering keeps spec 001's round trip for all sixteen.
+- Q: Where in the app is the rendering mode selectable, and is it one setting or one per app mode? → A: Both notation mode and manual diagram mode, sharing a single persisted choice. The compact view stays notation-only and the boundary view manual-only, so the app offers four option combinations; all eight remain reachable from the library and the example program.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -174,15 +175,18 @@ is redrawn in the other mode with the notation text untouched; reload and confir
    the notation text and diagram text are unchanged.
 2. **Given** a diagram on screen opening-centered, **When** the user switches back, **Then** the
    picture returns to exactly the rendering shown before the switch.
-3. **Given** either rendering mode, **When** the user turns the boundary view (spec 002) on or off,
-   or the compact view on or off, **Then** that option applies to whichever rendering is selected —
-   every combination is available.
+3. **Given** either rendering mode, **When** the user turns on the compact view in notation mode or
+   the boundary view (spec 002) in manual mode, **Then** that option applies to whichever rendering
+   is selected.
 4. **Given** the opening-centered rendering with the boundary view on, **When** the user looks at any
    crossing, opening, or closing, **Then** it is drawn entirely inside one box.
 5. **Given** a rendering mode chosen by the user, **When** the page is reloaded, **Then** the app
    comes back with the same mode selected and the same diagram shown.
 6. **Given** manual diagram mode (spec 001), **When** the user switches rendering mode, **Then** the
    typed text is drawn under the newly selected mode's cell shapes, and the text itself is unchanged.
+7. **Given** a rendering mode selected in one app mode, **When** the user switches between notation
+   mode and manual diagram mode, **Then** the same rendering mode is still selected — the two app
+   modes share one choice rather than remembering their own.
 
 ---
 
@@ -330,13 +334,17 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
 - **FR-009**: Selecting a rendering mode MUST NOT change the diagram, the abbreviated notation, or the
   diagram text; it MUST affect only what is drawn.
 - **FR-010**: Both existing display options — the compact view and the cell boundary view (spec 002) —
-  MUST be available with either rendering mode, in every combination.
+  MUST be available with either rendering mode. In the library and the example program every
+  combination of the three MUST be reachable; in the app each keeps the app mode it lives in today,
+  so the app offers rendering mode with compact in notation mode and rendering mode with the boundary
+  view in manual mode.
 - **FR-011**: In the boundary view under opening-centered rendering, each character of diagram text
   MUST still own exactly one box, unchanged from spec 002.
 - **FR-012**: Users MUST be able to switch rendering mode in the app, in both notation mode and manual
-  diagram mode, and see the picture redrawn immediately with no further action.
+  diagram mode, and see the picture redrawn immediately with no further action. The two app modes MUST
+  share a single rendering-mode choice, not one each.
 - **FR-013**: The app MUST persist the selected rendering mode across reloads, as it persists its other
-  view settings.
+  view settings, as one setting covering both app modes.
 - **FR-014**: The example command-line program MUST allow either rendering mode to be selected, by the
   same mechanism it already uses to select its other display options, defaulting to the current
   rendering.
@@ -374,8 +382,9 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
   in one action and see the result without reloading, re-entering the diagram, or losing any other
   view setting.
 - **SC-006**: The rendering mode a person selects is still selected after a page reload.
-- **SC-007**: Every combination of rendering mode, compact view, and boundary view — all eight — can
-  be produced from both the app and the example program.
+- **SC-007**: All eight combinations of rendering mode, compact view, and boundary view can be produced
+  from the library and from the example program; the app reaches the four its existing layout allows
+  (rendering mode with compact in notation mode, rendering mode with the boundary view in manual mode).
 - **SC-008**: Diagram text using only the eight surviving characters round-trips byte for byte under
   opening-centered rendering; text naming a retired character reaches its canonical form in one pass
   and is unchanged by every pass after that. All sixteen characters still round-trip byte for byte
@@ -396,7 +405,8 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
   deprecate or replace anything.
 - Both modes keep the three-wide, three-line cell, so the compact view and the boundary view need no
   change in what they mean.
-- "Opening-centered" is the name shown to the user.
+- "Opening-centered" is the name shown to the user, and the app's toggle reads as a switch between the
+  two renderings rather than as a property of either app mode.
 - The example program selects the mode the way it selects its existing display options.
 - Per the project constitution, the mode lands in the core library first; the app and the example
   program are surfaces over it.
