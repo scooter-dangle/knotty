@@ -37,9 +37,9 @@ macro_rules! assert_eq_after {
             \nexpected:\n{}\
             \nactual:\n{}",
             stringify!($operation),
-            ascii_print::<false>(diagram),
-            ascii_print::<false>(expected),
-            ascii_print::<false>(actual),
+            ascii_print::<false>(diagram, RenderMode::Standard),
+            ascii_print::<false>(expected, RenderMode::Standard),
+            ascii_print::<false>(actual, RenderMode::Standard),
         );
     };
 }
@@ -84,9 +84,9 @@ macro_rules! assert_eq_after_apply {
             \nexpected:\n{}\
             \nactual:\n{}",
             stringify!($operation),
-            ascii_print::<false>(diagram),
-            ascii_print::<false>(expected),
-            ascii_print::<false>(actual),
+            ascii_print::<false>(diagram, RenderMode::Standard),
+            ascii_print::<false>(expected, RenderMode::Standard),
+            ascii_print::<false>(actual, RenderMode::Standard),
         );
     };
 }
@@ -213,7 +213,7 @@ macro_rules! assert_rotate_features {
             fmt_elements(&actual),
             fmt_elements(&expected),
             "\noriginal:\n{}\n{}\n{}",
-            ascii_print::<false>(input),
+            ascii_print::<false>(input, RenderMode::Standard),
             expected_diagram,
             actual_diagram,
         );
@@ -281,11 +281,11 @@ fn test_try_rotate_90_ccw_depths() {
             let mut diag = AbbreviatedDiagram::new_from_tuples(input.clone()).unwrap();
             diag.try_rotate_90_ccw().unwrap();
             let actual = diag.to_tuples();
-            let expected_diagram = match try_ascii_print::<false>(expected.clone()) {
+            let expected_diagram = match try_ascii_print::<false>(expected.clone(), RenderMode::Standard) {
                 Ok(s) => format!("expected:\n{s}"),
                 Err(e) => format!("expected: error rendering diagram: {e}"),
             };
-            let actual_diagram = match try_ascii_print::<false>(actual.clone()) {
+            let actual_diagram = match try_ascii_print::<false>(actual.clone(), RenderMode::Standard) {
                 Ok(s) => format!("actual:\n{s}"),
                 Err(e) => format!("actual: error rendering diagram: {e}"),
             };
@@ -293,7 +293,7 @@ fn test_try_rotate_90_ccw_depths() {
                 actual,
                 expected,
                 "\noriginal:\n{}\n{}\n{}",
-                ascii_print::<false>(input),
+                ascii_print::<false>(input, RenderMode::Standard),
                 expected_diagram,
                 actual_diagram,
             );
@@ -424,11 +424,11 @@ fn test_try_rotate_90_ccw_period_4() {
     ] {
         let r1 = rotate_n(input.clone(), 1);
         let r5 = rotate_n(input.clone(), 5);
-        let expected_diagram = match try_ascii_print::<false>(r1.clone()) {
+        let expected_diagram = match try_ascii_print::<false>(r1.clone(), RenderMode::Standard) {
             Ok(s) => format!("expected:\n{s}"),
             Err(e) => format!("expected: error rendering diagram: {e}"),
         };
-        let actual_diagram = match try_ascii_print::<false>(r5.clone()) {
+        let actual_diagram = match try_ascii_print::<false>(r5.clone(), RenderMode::Standard) {
             Ok(s) => format!("actual:\n{s}"),
             Err(e) => format!("actual: error rendering diagram: {e}"),
         };
@@ -436,7 +436,7 @@ fn test_try_rotate_90_ccw_period_4() {
             r5,
             r1,
             "\noriginal:\n{}\n{}\n{}",
-            ascii_print::<false>(input),
+            ascii_print::<false>(input, RenderMode::Standard),
             expected_diagram,
             actual_diagram,
         );
@@ -536,7 +536,9 @@ fn rotate_then_render_out_of_bounds_regression() {
         .parse::<AbbreviatedDiagram>()
         .unwrap();
     diagram.try_rotate_90_ccw().unwrap();
-    assert!(diagram.try_ascii_print::<false>().is_ok());
+    assert!(diagram
+        .try_ascii_print::<false>(RenderMode::Standard)
+        .is_ok());
 }
 
 #[test]

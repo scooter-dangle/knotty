@@ -2,8 +2,8 @@ use core::fmt;
 use std::{cmp::Ordering, mem, str::FromStr};
 
 use crate::moves::{CommentLines, DiagramMove, Lean, Move, OverUnder, UpDown};
-use crate::raw_lines::append;
-use crate::render::{Horiz, VerboseDiagram, VerboseLine};
+use crate::raw_lines::{append, OpeningCentered};
+use crate::render::{Horiz, RenderMode, VerboseDiagram, VerboseLine};
 use crate::rotate::scan_row;
 
 macro_rules! try_opt {
@@ -115,14 +115,29 @@ impl fmt::Display for AbbreviatedItem {
 pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>);
 
 impl VerboseDiagram {
-    pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
+    pub fn from_abbreviated(knot: &AbbreviatedDiagram, mode: RenderMode) -> Result<Self, String> {
         let height = knot.height();
 
-        let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
+        let lines = match mode {
+            RenderMode::Standard => {
+                let mut lines: Vec<Vec<Horiz>> = vec![Vec::with_capacity(knot.len()); height];
 
-        for AbbreviatedItem { element, index } in knot.0.iter() {
-            append(&mut lines, *element, *index);
-        }
+                for AbbreviatedItem { element, index } in knot.0.iter() {
+                    append(&mut lines, *element, *index);
+                }
+
+                lines
+            }
+            RenderMode::OpeningCentered => {
+                let mut lines = OpeningCentered::new(height, knot.len());
+
+                for AbbreviatedItem { element, index } in knot.0.iter() {
+                    lines.append(*element, *index);
+                }
+
+                lines.into_lines()
+            }
+        };
 
         Ok(Self(lines.into_iter().map(VerboseLine).collect()))
     }
@@ -893,13 +908,16 @@ impl AbbreviatedDiagram {
     }
 
     fn full_render_lines(&self) -> Result<Vec<String>, String> {
-        let verbose = VerboseDiagram::from_abbreviated(self)?;
+        // Pinned to Standard: `rotate::scan_row` recovers notation from the
+        // picture with regexes that encode the Standard tile shapes, so
+        // rotation must never see an opening-centered rendering.
+        let verbose = VerboseDiagram::from_abbreviated(self, RenderMode::Standard)?;
         Ok({
             verbose
                 .0
                 .iter()
                 .rev()
-                .flat_map(|line| line.display::<false>())
+                .flat_map(|line| line.display::<false>(RenderMode::Standard))
                 .map(|mut sub| {
                     let new_len = sub.trim_end_matches('\n').len();
                     sub.truncate(new_len);
@@ -1504,25 +1522,31 @@ impl AbbreviatedDiagram {
             * 2
     }
 
-    pub fn try_ascii_print<const GRID_BORDERS: bool>(&self) -> Result<String, String> {
+    pub fn try_ascii_print<const GRID_BORDERS: bool>(
+        &self,
+        mode: RenderMode,
+    ) -> Result<String, String> {
         Ok({
-            VerboseDiagram::from_abbreviated(self)?
-                .display::<GRID_BORDERS>()
+            VerboseDiagram::from_abbreviated(self, mode)?
+                .display::<GRID_BORDERS>(mode)
                 .collect::<String>()
         })
     }
 
-    pub fn ascii_print<const GRID_BORDERS: bool>(&self) -> String {
-        self.try_ascii_print::<GRID_BORDERS>().unwrap()
+    pub fn ascii_print<const GRID_BORDERS: bool>(&self, mode: RenderMode) -> String {
+        self.try_ascii_print::<GRID_BORDERS>(mode).unwrap()
     }
 
-    pub fn try_ascii_print_compact<const GRID_BORDERS: bool>(&self) -> Result<String, String> {
+    pub fn try_ascii_print_compact<const GRID_BORDERS: bool>(
+        &self,
+        mode: RenderMode,
+    ) -> Result<String, String> {
         if self.0.is_empty() {
             return Ok(String::new());
         }
 
-        let inner = VerboseDiagram::from_abbreviated(self)?
-            .display::<GRID_BORDERS>()
+        let inner = VerboseDiagram::from_abbreviated(self, mode)?
+            .display::<GRID_BORDERS>(mode)
             .collect::<Vec<_>>();
 
         // We just verified that the self.0 isn't empty
@@ -1548,8 +1572,8 @@ impl AbbreviatedDiagram {
         Ok(out.into_iter().collect())
     }
 
-    pub fn ascii_print_compact<const GRID_BORDERS: bool>(&self) -> String {
-        self.try_ascii_print_compact::<GRID_BORDERS>().unwrap()
+    pub fn ascii_print_compact<const GRID_BORDERS: bool>(&self, mode: RenderMode) -> String {
+        self.try_ascii_print_compact::<GRID_BORDERS>(mode).unwrap()
     }
 
     pub fn to_tuples(&self) -> Vec<(u8, usize)> {
@@ -1562,22 +1586,27 @@ impl AbbreviatedDiagram {
 
 pub fn try_ascii_print<const GRID_BORDERS: bool>(
     tuples: Vec<(u8, usize)>,
+    mode: RenderMode,
 ) -> Result<String, String> {
-    AbbreviatedDiagram::new_from_tuples(tuples)?.try_ascii_print::<GRID_BORDERS>()
+    AbbreviatedDiagram::new_from_tuples(tuples)?.try_ascii_print::<GRID_BORDERS>(mode)
 }
 
-pub fn ascii_print<const GRID_BORDERS: bool>(knot: Vec<(u8, usize)>) -> String {
-    try_ascii_print::<GRID_BORDERS>(knot).unwrap()
+pub fn ascii_print<const GRID_BORDERS: bool>(knot: Vec<(u8, usize)>, mode: RenderMode) -> String {
+    try_ascii_print::<GRID_BORDERS>(knot, mode).unwrap()
 }
 
 pub fn try_ascii_print_compact<const GRID_BORDERS: bool>(
     tuples: Vec<(u8, usize)>,
+    mode: RenderMode,
 ) -> Result<String, String> {
-    AbbreviatedDiagram::new_from_tuples(tuples)?.try_ascii_print_compact::<GRID_BORDERS>()
+    AbbreviatedDiagram::new_from_tuples(tuples)?.try_ascii_print_compact::<GRID_BORDERS>(mode)
 }
 
-pub fn ascii_print_compact<const GRID_BORDERS: bool>(knot: Vec<(u8, usize)>) -> String {
-    try_ascii_print_compact::<GRID_BORDERS>(knot).unwrap()
+pub fn ascii_print_compact<const GRID_BORDERS: bool>(
+    knot: Vec<(u8, usize)>,
+    mode: RenderMode,
+) -> String {
+    try_ascii_print_compact::<GRID_BORDERS>(knot, mode).unwrap()
 }
 
 #[cfg(test)]

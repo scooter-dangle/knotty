@@ -67,6 +67,38 @@ characters per line — useful for tracking down which character drew the
 part of the picture you did not mean. The setting is remembered, and it
 affects only how the picture is drawn.
 
+## Rendering modes
+
+The "switch to opening-centered view" button, present in both modes, redraws
+the diagram with the opening and closing parentheses centred vertically in
+their cell. Every feature is then whole inside one cell — a crossing is a
+complete `X`, an opening carries both of its arms, and a strand climbs one
+level per cell — where the standard rendering splits each of them across two
+cells:
+
+```
++---+---+---+---+---+---+---     +---+---+---+---+---+---+---
+|   |   |___|___|___|   |        |   |   |   |   |   |   |
+|   |  /|   |   |   |\  |        |   |   |___|___|___|   |
+|   | ( |   |   |   | ) |        +---+---+---+---+---+---+---
++---+---+---+---+---+---+---     |   |  /|   |   |   |\  |
+        standard                 |   | ( |   |   |   | ) |
+                                 |   |  \|   |___|   |/  |
+                                 +---+---+---+---+---+---+---
+                                      opening-centered
+```
+
+For a diagram with no vertical strand transfers the two draw the *same*
+picture, so the modes can be flipped back and forth to check one against the
+other; where a strand does climb between levels the pictures differ, because
+opening-centered spends one cell per level where the standard rendering spends
+three per two. The setting is remembered and is shared by both modes.
+
+Under the opening-centered view the eight characters that only ever held the
+other half of a feature — `A`, `a`, `.`, `,`, `j`, `r`, `2` and `L` — are
+synonyms of `_`: still accepted, drawn as an empty cell, and written back as
+`_`.
+
 The mode describes a *picture*, not a knot — it will happily render
 something no knot could produce, which is the point when you want to say
 what a rendering should look like. Moves and rotation are unavailable
