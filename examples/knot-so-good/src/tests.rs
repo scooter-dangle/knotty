@@ -3,7 +3,7 @@
 // and is not tested here; it is too thin to warrant browser-based tests.
 use super::{
     ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedManualSnapshot,
-    PersistedMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
+    PersistedMode, PersistedRenderMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
 };
 
 #[test]
@@ -45,10 +45,9 @@ fn missing_fields_use_defaults() {
 #[test]
 fn unknown_fields_are_ignored() {
     // Newer version wrote a field this version doesn't know about
-    let restored: PersistedState = serde_json::from_str(
-        r#"{"diagram":"","moves":"","display_mode":"svg","future_field":42}"#,
-    )
-    .unwrap();
+    let restored: PersistedState =
+        serde_json::from_str(r#"{"diagram":"","moves":"","display_mode":"svg","future_field":42}"#)
+            .unwrap();
     assert_eq!(restored.display_mode, PersistedDisplayMode::Svg);
 }
 
@@ -104,7 +103,10 @@ fn round_trip_with_snapshots() {
     assert_eq!(restored.snapshots.len(), 2);
     assert_eq!(restored.snapshots[0].diagram, "(0 (2 /1 \\0 /1 )2 )0");
     assert_eq!(restored.snapshots[0].moves, "swap@0");
-    assert_eq!(restored.snapshots[0].display_mode, PersistedDisplayMode::Ascii);
+    assert_eq!(
+        restored.snapshots[0].display_mode,
+        PersistedDisplayMode::Ascii
+    );
     assert_eq!(restored.snapshots[0].svg, "<svg>trefoil</svg>");
     assert_eq!(restored.snapshots[1].diagram, "(0 )0");
 }
@@ -119,17 +121,21 @@ fn make_svg_scalable_adds_viewbox_and_removes_dimensions() {
     assert!(scalable.contains("viewBox="), "should add viewBox");
     let tag_end = scalable.find('>').unwrap();
     let tag = &scalable[..tag_end];
-    assert!(!tag.contains("width="), "opening tag should not contain width");
-    assert!(!tag.contains("height="), "opening tag should not contain height");
+    assert!(
+        !tag.contains("width="),
+        "opening tag should not contain width"
+    );
+    assert!(
+        !tag.contains("height="),
+        "opening tag should not contain height"
+    );
 }
 
 #[test]
 fn missing_snapshots_field_defaults_to_empty() {
     // Older persisted state without snapshots field
-    let restored: PersistedState = serde_json::from_str(
-        r#"{"diagram":"(0 )0","moves":"","display_mode":"svg"}"#,
-    )
-    .unwrap();
+    let restored: PersistedState =
+        serde_json::from_str(r#"{"diagram":"(0 )0","moves":"","display_mode":"svg"}"#).unwrap();
     assert!(restored.snapshots.is_empty());
 }
 
@@ -160,15 +166,21 @@ fn compact_and_non_compact_differ_for_trefoil() {
     let trefoil = "(0 (2 /1 \\0 /1 )2 )0"
         .parse::<knotty::AbbreviatedDiagram>()
         .unwrap();
-    let full = trefoil.try_ascii_print::<false>(knotty::RenderMode::Standard).unwrap();
-    let compact = trefoil.try_ascii_print_compact::<false>(knotty::RenderMode::Standard).unwrap();
+    let full = trefoil
+        .try_ascii_print::<false>(knotty::RenderMode::Standard)
+        .unwrap();
+    let compact = trefoil
+        .try_ascii_print_compact::<false>(knotty::RenderMode::Standard)
+        .unwrap();
     assert_ne!(full, compact);
 }
 
 #[test]
 fn non_compact_mode_uses_full_ascii() {
     let unknot = "(0 )0".parse::<knotty::AbbreviatedDiagram>().unwrap();
-    let full = unknot.try_ascii_print::<false>(knotty::RenderMode::Standard).unwrap();
+    let full = unknot
+        .try_ascii_print::<false>(knotty::RenderMode::Standard)
+        .unwrap();
     let also = unknot.ascii_print::<false>(knotty::RenderMode::Standard);
     assert_eq!(full, also);
 }
@@ -199,6 +211,7 @@ fn round_trip_carries_manual_state() {
             diagram: "()\n.,\n".into(),
         }],
         manual_borders: false,
+        render_mode: PersistedRenderMode::Standard,
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -275,8 +288,12 @@ fn bordered_render_draws_one_box_per_character() {
     // One box per typed character, one row of boxes per line of text.
     for text in ["(\n", "()\n.,\n", "_(---)_\n_./-/,_\n(-A\\A-)\n.--a--,\n"] {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
-        let plain: String = diagram.display::<false>(knotty::RenderMode::Standard).collect();
-        let bordered: String = diagram.display::<true>(knotty::RenderMode::Standard).collect();
+        let plain: String = diagram
+            .display::<false>(knotty::RenderMode::Standard)
+            .collect();
+        let bordered: String = diagram
+            .display::<true>(knotty::RenderMode::Standard)
+            .collect();
 
         let rows = text.lines().count();
         let width = text.lines().map(str::len).max().unwrap();
@@ -301,8 +318,14 @@ fn both_views_are_empty_for_the_same_diagrams() {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
 
         assert_eq!(
-            diagram.display::<false>(knotty::RenderMode::Standard).next().is_some(),
-            diagram.display::<true>(knotty::RenderMode::Standard).next().is_some(),
+            diagram
+                .display::<false>(knotty::RenderMode::Standard)
+                .next()
+                .is_some(),
+            diagram
+                .display::<true>(knotty::RenderMode::Standard)
+                .next()
+                .is_some(),
             "{text:?}",
         );
     }
@@ -311,7 +334,9 @@ fn both_views_are_empty_for_the_same_diagrams() {
 #[test]
 fn manual_diagram_text_renders_without_notation() {
     let diagram = "()\n.,\n".parse::<knotty::VerboseDiagram>().unwrap();
-    let rendered: String = diagram.display::<false>(knotty::RenderMode::Standard).collect();
+    let rendered: String = diagram
+        .display::<false>(knotty::RenderMode::Standard)
+        .collect();
 
     assert_eq!(
         rendered,
@@ -320,4 +345,35 @@ fn manual_diagram_text_renders_without_notation() {
             .unwrap()
             .ascii_print::<false>(knotty::RenderMode::Standard),
     );
+}
+
+#[test]
+fn missing_render_mode_field_defaults_to_standard() {
+    // The guarantee that silently regresses if `#[serde(default)]` is dropped:
+    // state saved before this feature must load in the standard rendering.
+    let json = r#"{"diagram":"(0 )0","moves":""}"#;
+    let state: PersistedState = serde_json::from_str(json).unwrap();
+
+    assert_eq!(state.render_mode, PersistedRenderMode::Standard);
+}
+
+#[test]
+fn unknown_render_mode_string_deserializes_to_other() {
+    let json = r#"{"render_mode":"kaleidoscope"}"#;
+    let state: PersistedState = serde_json::from_str(json).unwrap();
+
+    assert_eq!(state.render_mode, PersistedRenderMode::Other);
+}
+
+#[test]
+fn round_trip_carries_the_render_mode() {
+    let state = PersistedState {
+        render_mode: PersistedRenderMode::OpeningCentered,
+        ..Default::default()
+    };
+
+    let json = serde_json::to_string(&state).unwrap();
+    let back: PersistedState = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(back.render_mode, PersistedRenderMode::OpeningCentered);
 }

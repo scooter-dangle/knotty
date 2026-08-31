@@ -36,6 +36,11 @@ fn main() -> Result<(), String> {
     };
 
     let grid = var("KNOTTY_GRID").ok().as_deref() == Some("true");
+    let mode = if var("KNOTTY_OPENING_CENTERED").ok().as_deref() == Some("true") {
+        RenderMode::OpeningCentered
+    } else {
+        RenderMode::Standard
+    };
     let compact = var("KNOTTY_COMPACT").ok().as_deref() == Some("true");
     let print_modified_abbreviated_diagram =
         var("KNOTTY_PRINT_ABBREV").ok().as_deref() == Some("true");
@@ -49,7 +54,7 @@ fn main() -> Result<(), String> {
         (false, false) => AbbreviatedDiagram::ascii_print::<false>,
     };
 
-    let display = func(&knot, RenderMode::Standard);
+    let display = func(&knot, mode);
     print!("{display}");
 
     if print_modified_abbreviated_diagram {

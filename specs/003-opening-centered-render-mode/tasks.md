@@ -113,16 +113,16 @@ where you left it; reload and confirm it stuck.
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Add persistence tests to `examples/knot-so-good/src/tests.rs`: state JSON with no `render_mode` key deserializes to `Standard`; a `PersistedState` carrying `OpeningCentered` round-trips through `serde_json`; and an unrecognised stored value deserializes to the `Other` variant and loads as `Standard` rather than discarding the whole saved state (FR-013)
+- [X] T021 [P] [US2] Add persistence tests to `examples/knot-so-good/src/tests.rs`: state JSON with no `render_mode` key deserializes to `Standard`; a `PersistedState` carrying `OpeningCentered` round-trips through `serde_json`; and an unrecognised stored value deserializes to the `Other` variant and loads as `Standard` rather than discarding the whole saved state (FR-013)
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Add `enum PersistedRenderMode { Standard, OpeningCentered, #[serde(other)] Other }` and a `#[serde(default)] render_mode: PersistedRenderMode` field to `PersistedState` in `examples/knot-so-good/src/main.rs`, following `PersistedDisplayMode` exactly, and map it in `PersistedState::from_model` (data-model "App persisted state")
-- [ ] T023 [US2] Add `render_mode: knotty::RenderMode` to `Model` in `examples/knot-so-good/src/main.rs` and read it in `create`, mapping `PersistedRenderMode::{OpeningCentered => OpeningCentered, Standard | Other => Standard}` — one field for both app modes, not one per mode (FR-012)
-- [ ] T024 [US2] Add `Msg::SetRenderMode(knotty::RenderMode)` in `examples/knot-so-good/src/main.rs` with an update arm returning `false` when the value is unchanged and otherwise setting the field, calling `update_modified()` so the notation-mode picture and its SVG are rebuilt, and returning `true` — matching the `Compact` arm
-- [ ] T025 [US2] Add the toggle button to **both** views in `examples/knot-so-good/src/main.rs` — the notation control row beside the compact toggle, and `manual_view` beside the bordered toggle — labelled in the app's existing idiom, "switch to opening-centered view" / "switch to standard view", naming the view it moves to
-- [ ] T026 [US2] Change `render_manual` in `examples/knot-so-good/src/main.rs` to `fn render_manual(diagram: &knotty::VerboseDiagram, mode: knotty::RenderMode, borders: bool) -> String` and pass `self.render_mode` from both call sites — the main picture and the snapshot previews — so a stale picture is redrawn in the selected mode as soon as the text is valid again
-- [ ] T027 [US2] Make `update_modified` and `compact_text` in `examples/knot-so-good/src/main.rs` mode-aware: pass `self.render_mode` to `try_ascii_print[_compact]`, and in `compact_text` build the grid with `from_abbreviated(knot, self.render_mode)` and serialise it with `to_text(self.render_mode)` so the readout matches the picture beside it. Also pass the mode to the `display` call in `update_manual`'s `has_picture` check
+- [X] T022 [US2] Add `enum PersistedRenderMode { Standard, OpeningCentered, #[serde(other)] Other }` and a `#[serde(default)] render_mode: PersistedRenderMode` field to `PersistedState` in `examples/knot-so-good/src/main.rs`, following `PersistedDisplayMode` exactly, and map it in `PersistedState::from_model` (data-model "App persisted state")
+- [X] T023 [US2] Add `render_mode: knotty::RenderMode` to `Model` in `examples/knot-so-good/src/main.rs` and read it in `create`, mapping `PersistedRenderMode::{OpeningCentered => OpeningCentered, Standard | Other => Standard}` — one field for both app modes, not one per mode (FR-012)
+- [X] T024 [US2] Add `Msg::SetRenderMode(knotty::RenderMode)` in `examples/knot-so-good/src/main.rs` with an update arm returning `false` when the value is unchanged and otherwise setting the field, calling `update_modified()` so the notation-mode picture and its SVG are rebuilt, and returning `true` — matching the `Compact` arm
+- [X] T025 [US2] Add the toggle button to **both** views in `examples/knot-so-good/src/main.rs` — the notation control row beside the compact toggle, and `manual_view` beside the bordered toggle — labelled in the app's existing idiom, "switch to opening-centered view" / "switch to standard view", naming the view it moves to
+- [X] T026 [US2] Change `render_manual` in `examples/knot-so-good/src/main.rs` to `fn render_manual(diagram: &knotty::VerboseDiagram, mode: knotty::RenderMode, borders: bool) -> String` and pass `self.render_mode` from both call sites — the main picture and the snapshot previews — so a stale picture is redrawn in the selected mode as soon as the text is valid again
+- [X] T027 [US2] Make `update_modified` and `compact_text` in `examples/knot-so-good/src/main.rs` mode-aware: pass `self.render_mode` to `try_ascii_print[_compact]`, and in `compact_text` build the grid with `from_abbreviated(knot, self.render_mode)` and serialise it with `to_text(self.render_mode)` so the readout matches the picture beside it. Also pass the mode to the `display` call in `update_manual`'s `has_picture` check
 - [ ] T028 [US2] Hand-verify scenario 8 steps 1–7 of `specs/003-opening-centered-render-mode/quickstart.md` against `examples/knot-so-good/` under `trunk serve`, including the shared-setting check (step 3), the stale-picture toggle (step 5), the reload (step 6) and the SVG display following the mode (step 7)
 
 **Checkpoint**: The two renderings can be compared by eye, in either app mode, and the choice sticks.
@@ -139,8 +139,8 @@ walk all eight combinations of the three display variables.
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Read `KNOTTY_OPENING_CENTERED` in `examples/ascii_print.rs` alongside the existing `KNOTTY_GRID` and `KNOTTY_COMPACT`, mapping `Some("true")` to `RenderMode::OpeningCentered` and anything else to `Standard`, and pass the value through the existing four-arm `match (compact, grid)` rather than doubling it to eight — the mode is a runtime value, which is the whole point of research R1
-- [ ] T030 [US3] Verify scenarios 2, 3 and 5 of `specs/003-opening-centered-render-mode/quickstart.md` against `examples/ascii_print.rs`: the trefoil sample renders identically in both modes (same `md5sum`), the square knot differs, and all eight combinations of the three variables produce well-formed output with no panic
+- [X] T029 [US3] Read `KNOTTY_OPENING_CENTERED` in `examples/ascii_print.rs` alongside the existing `KNOTTY_GRID` and `KNOTTY_COMPACT`, mapping `Some("true")` to `RenderMode::OpeningCentered` and anything else to `Standard`, and pass the value through the existing four-arm `match (compact, grid)` rather than doubling it to eight — the mode is a runtime value, which is the whole point of research R1
+- [X] T030 [US3] Verify scenarios 2, 3 and 5 of `specs/003-opening-centered-render-mode/quickstart.md` against `examples/ascii_print.rs`: the trefoil sample renders identically in both modes (same `md5sum`), the square knot differs, and all eight combinations of the three variables produce well-formed output with no panic
 
 **Checkpoint**: All three surfaces can select the mode. FR-010 and SC-007 hold.
 
@@ -148,7 +148,7 @@ walk all eight combinations of the three display variables.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T031 [P] Document the rendering toggle in `examples/knot-so-good/README.md`: a paragraph beside the bordered-view section explaining what opening-centered draws, and a note on the manual-mode character table that under that view the eight characters `A a . , j r 2 L` are synonyms of `_` — accepted, drawn blank, written back as `_`
+- [X] T031 [P] Document the rendering toggle in `examples/knot-so-good/README.md`: a paragraph beside the bordered-view section explaining what opening-centered draws, and a note on the manual-mode character table that under that view the eight characters `A a . , j r 2 L` are synonyms of `_` — accepted, drawn blank, written back as `_`
 - [ ] T032 Run the full CI-parity command set from T001 and confirm every check passes, including `trunk build --release` in `examples/knot-so-good/`
 - [ ] T033 Walk `specs/003-opening-centered-render-mode/quickstart.md` end to end and confirm every stated expectation, then mark the spec's Status as Implemented
 
