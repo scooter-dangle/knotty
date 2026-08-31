@@ -32,9 +32,11 @@ The two renderings are swappable — in the library, in the example program, and
 same knot can be drawn both ways and the pictures compared. That comparison is the point: for every
 diagram that the current rendering draws without transfer cells, the two modes are expected to
 produce the identical picture, so any difference at all is a defect in one of them. Diagrams that do
-contain transfers are the one intended exception: a strand that needs three columns to climb a level
-today climbs it in one, so those pictures come out narrower and steeper by design rather than by
-accident.
+contain transfers are the one intended exception: today a stack of strands rises two levels over
+three columns, using half-cells that let a rise begin and end part way through a cell;
+opening-centered it rises one whole level per cell. The overall picture comes out the same width
+either way — the opening that made the room still costs its own column — but the diagonal is stepped
+differently, so those pictures differ by design rather than by accident.
 
 Nothing about the abbreviated knot notation, the diagram text format, or the diagram itself changes.
 Only how a diagram is drawn changes, and only when the new mode is selected.
@@ -122,7 +124,7 @@ mode the eight that go away are read as the empty cell `_` rather than as distin
 
 - Q: How far does the synonymy between the eight retired characters and `_` reach — display only, or through parsing and serialization? → A: Normalizing synonym. Under opening-centered rendering the eight are read as `_`, so canonical text writes `_` for them; canonical text is therefore mode-dependent, and the byte-for-byte round trip holds in that mode for the eight surviving characters. The current rendering keeps spec 001's round trip for all sixteen.
 - Q: Where in the app is the rendering mode selectable, and is it one setting or one per app mode? → A: Both notation mode and manual diagram mode, sharing a single persisted choice. The compact view stays notation-only and the boundary view manual-only, so the app offers four option combinations; all eight remain reachable from the library and the example program.
-- Q: How many columns should a strand transfer occupy in the new mode, given that `i` and `k` now climb a whole level unaided? → A: One column per level climbed. Transfers become steeper and narrower than today, so pictures containing transfers legitimately differ between the two modes; the identical-picture expectation stays scoped to transfer-free diagrams.
+- Q: How many columns should a strand transfer occupy in the new mode, given that `i` and `k` now climb a whole level unaided? → A: One column per level climbed. Each level of rise or fall costs one whole cell, against three columns per two levels today, so the diagonal is stepped differently while the overall picture width is unchanged. Pictures containing transfers therefore differ legitimately between the two modes, and the identical-picture expectation stays scoped to transfer-free diagrams.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -233,8 +235,11 @@ two outputs, plus every combination with the existing compact and boundary optio
 - **Ragged diagram text.** Trailing cells inferred as empty (spec 001) behave in the new mode exactly
   as they do in the current one.
 - **Diagrams containing transfers.** These are the one case where the two renderings are expected to
-  disagree, because a level of strand movement costs one column instead of three. The pictures depict
-  the same knot; a reviewer comparing them should read the difference as intended, not as a defect.
+  disagree, because a level of strand movement costs one whole cell rather than being able to begin
+  and end part way through one. Uncompacted the two pictures are the same width; compacted, the
+  opening-centered one can be a few columns wider, because the columns the compact view can strip are
+  not the same ones. The pictures depict the same knot; a reviewer comparing them should read the
+  difference as intended, not as a defect.
 - **Compaction.** Columns the compact view strips are decided by what is actually drawn, so a column
   that is strippable in one mode may not be in the other; each mode strips its own picture.
 - **Stale picture.** In manual mode, while the text contains an unrecognized character the last valid
@@ -402,8 +407,9 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
   opening-centered rendering; text naming a retired character reaches its canonical form in one pass
   and is unchanged by every pass after that. All sixteen characters still round-trip byte for byte
   under the current rendering.
-- **SC-009**: A strand climbing one level occupies one column in opening-centered rendering against
-  three in the current rendering, and both renderings still depict the same knot.
+- **SC-009**: A strand climbing one level occupies exactly one column in opening-centered rendering,
+  where the current rendering spends three columns to climb two; the uncompacted picture is the same
+  width in both renderings for every sample knot, and both depict the same knot.
 
 ## Assumptions
 
