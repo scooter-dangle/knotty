@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-31
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Another diagram rendering mode variation: an 'opening-centered' form where the opening and closing paren characters are centered vertically within the 3 by 3 character tile. It's meant to be swappable (including in the GUI) with the current rendering mode so that it can be easily examined for regressions. It will reduce complexity in some ways by removing cases in the current mode where the features are split across multiple tiles. It will break, though, a shortcut in the current mode where 'filler' tiles can be determined by examining the tile immediately to their left." (followed by a table of cell shapes, reproduced in full under *The cell table* below)
 

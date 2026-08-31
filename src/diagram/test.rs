@@ -1,7 +1,7 @@
 use super::*;
 use crate::moves::Lean;
-use pretty_assertions::assert_eq;
 use Lean::*;
+use pretty_assertions::assert_eq;
 
 macro_rules! assert_eq_after {
     ($operation:expr, $idx:expr, [$($diagram:expr),* $(,)?], [$($expected:expr),* $(,)?] $(,)?) => {

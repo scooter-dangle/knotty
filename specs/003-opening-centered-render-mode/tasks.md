@@ -123,7 +123,7 @@ where you left it; reload and confirm it stuck.
 - [X] T025 [US2] Add the toggle button to **both** views in `examples/knot-so-good/src/main.rs` — the notation control row beside the compact toggle, and `manual_view` beside the bordered toggle — labelled in the app's existing idiom, "switch to opening-centered view" / "switch to standard view", naming the view it moves to
 - [X] T026 [US2] Change `render_manual` in `examples/knot-so-good/src/main.rs` to `fn render_manual(diagram: &knotty::VerboseDiagram, mode: knotty::RenderMode, borders: bool) -> String` and pass `self.render_mode` from both call sites — the main picture and the snapshot previews — so a stale picture is redrawn in the selected mode as soon as the text is valid again
 - [X] T027 [US2] Make `update_modified` and `compact_text` in `examples/knot-so-good/src/main.rs` mode-aware: pass `self.render_mode` to `try_ascii_print[_compact]`, and in `compact_text` build the grid with `from_abbreviated(knot, self.render_mode)` and serialise it with `to_text(self.render_mode)` so the readout matches the picture beside it. Also pass the mode to the `display` call in `update_manual`'s `has_picture` check
-- [ ] T028 [US2] Hand-verify scenario 8 steps 1–7 of `specs/003-opening-centered-render-mode/quickstart.md` against `examples/knot-so-good/` under `trunk serve`, including the shared-setting check (step 3), the stale-picture toggle (step 5), the reload (step 6) and the SVG display following the mode (step 7)
+- [X] T028 [US2] Hand-verify scenario 8 steps 1–7 of `specs/003-opening-centered-render-mode/quickstart.md` against `examples/knot-so-good/` under `trunk serve`, including the shared-setting check (step 3), the stale-picture toggle (step 5), the reload (step 6) and the SVG display following the mode (step 7)
 
 **Checkpoint**: The two renderings can be compared by eye, in either app mode, and the choice sticks.
 This is the increment that delivers the feature's stated purpose.
@@ -149,8 +149,8 @@ walk all eight combinations of the three display variables.
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [X] T031 [P] Document the rendering toggle in `examples/knot-so-good/README.md`: a paragraph beside the bordered-view section explaining what opening-centered draws, and a note on the manual-mode character table that under that view the eight characters `A a . , j r 2 L` are synonyms of `_` — accepted, drawn blank, written back as `_`
-- [ ] T032 Run the full CI-parity command set from T001 and confirm every check passes, including `trunk build --release` in `examples/knot-so-good/`
-- [ ] T033 Walk `specs/003-opening-centered-render-mode/quickstart.md` end to end and confirm every stated expectation, then mark the spec's Status as Implemented
+- [X] T032 Run the full CI-parity command set from T001 and confirm every check passes, including `trunk build --release` in `examples/knot-so-good/`
+- [X] T033 Walk `specs/003-opening-centered-render-mode/quickstart.md` end to end and confirm every stated expectation, then mark the spec's Status as Implemented
 
 ---
 
@@ -244,3 +244,20 @@ Task: "Assert equal uncompacted width and no stray blank lines, in src/diagram/t
 - The transfer difference between the modes is intended, not a regression. Uncompacted widths match;
   compacted, the opening-centered picture can be a few columns wider because the compact pass strips
   different columns (research R5)
+
+## Execution record
+
+- T001 and T032: `trunk` was not installed in the execution container, so the baseline used
+  `cargo check --target wasm32-unknown-unknown` in `examples/knot-so-good/` in its place. `trunk` was
+  installed before T028, and the real `trunk build --release` passes.
+- T009-T011 could not all precede the implementation: `to_text` did not exist, so T011 would not have
+  compiled. T009 and T010 were written and observed red first; T011 was written immediately after
+  T016, which is the earliest point at which it could compile.
+- T010 originally asserted the two modes agree with cell boundaries drawn as well. They do not, and
+  must not: the bordered view shows which cell owns which mark, which is the whole point of the mode.
+  The assertion was corrected to `assert_ne!` and FR-007 was given the matching precision.
+- T017's snapshots were reviewed against an independent prototype of the grid rules rather than
+  accepted on sight; all eight match byte for byte.
+- T028 was executed by driving the running app with Playwright over `trunk serve` rather than by
+  clicking through it. All 17 assertions passed, covering quickstart scenario 8 steps 1-7. The script
+  is not committed: it needs a dev server and a browser, neither of which CI has.
