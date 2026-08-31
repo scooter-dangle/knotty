@@ -39,6 +39,10 @@
 - FR-007 ("identical pictures where the current rendering uses no transfer cells") was verified
   against the unknot and the trefoil while drafting; it is the sharpest available regression test
   and should be exercised over the project's full sample set during planning.
-- Two behaviours were settled by informed default rather than a clarification question, and are
-  recorded in Assumptions: the eight retired characters stay valid in diagram text and draw nothing,
-  and switching modes reinterprets diagram text rather than translating it.
+- Three behaviours were settled by `/speckit-clarify` on 2026-08-31 and are recorded in Clarifications:
+  the eight retired characters normalize to `_` under the new mode, the app's rendering-mode toggle is
+  one setting shared by both app modes, and a strand transfer costs one column per level climbed. One
+  behaviour remains an informed default in Assumptions: switching modes reinterprets diagram text
+  rather than translating it.
+- Deferred as low impact: whether rotation continues to read back the current rendering regardless of
+  the selected mode. The Assumptions section states that it does; revisit during `/speckit-plan`.

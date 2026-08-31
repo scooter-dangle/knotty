@@ -31,7 +31,10 @@ strand climbs one level per cell. The eight partner-half characters are never dr
 The two renderings are swappable — in the library, in the example program, and in the app — so the
 same knot can be drawn both ways and the pictures compared. That comparison is the point: for every
 diagram that the current rendering draws without transfer cells, the two modes are expected to
-produce the identical picture, so any difference at all is a defect in one of them.
+produce the identical picture, so any difference at all is a defect in one of them. Diagrams that do
+contain transfers are the one intended exception: a strand that needs three columns to climb a level
+today climbs it in one, so those pictures come out narrower and steeper by design rather than by
+accident.
 
 Nothing about the abbreviated knot notation, the diagram text format, or the diagram itself changes.
 Only how a diagram is drawn changes, and only when the new mode is selected.
@@ -119,6 +122,7 @@ mode the eight that go away are read as the empty cell `_` rather than as distin
 
 - Q: How far does the synonymy between the eight retired characters and `_` reach — display only, or through parsing and serialization? → A: Normalizing synonym. Under opening-centered rendering the eight are read as `_`, so canonical text writes `_` for them; canonical text is therefore mode-dependent, and the byte-for-byte round trip holds in that mode for the eight surviving characters. The current rendering keeps spec 001's round trip for all sixteen.
 - Q: Where in the app is the rendering mode selectable, and is it one setting or one per app mode? → A: Both notation mode and manual diagram mode, sharing a single persisted choice. The compact view stays notation-only and the boundary view manual-only, so the app offers four option combinations; all eight remain reachable from the library and the example program.
+- Q: How many columns should a strand transfer occupy in the new mode, given that `i` and `k` now climb a whole level unaided? → A: One column per level climbed. Transfers become steeper and narrower than today, so pictures containing transfers legitimately differ between the two modes; the identical-picture expectation stays scoped to transfer-free diagrams.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -151,6 +155,9 @@ of their cells. Delivers value with no app or command-line change at all.
 6. **Given** diagram text naming one of the eight characters that go away, **When** it is read and
    written back under opening-centered rendering, **Then** the text is accepted, that cell is drawn
    blank, and the character is written back as `_`.
+7. **Given** a knot whose picture contains a strand climbing or descending between levels, **When** it
+   is rendered opening-centered, **Then** each level of movement is drawn in a single cell, and the
+   picture is correspondingly narrower than the current rendering of the same knot.
 
 ---
 
@@ -225,6 +232,9 @@ two outputs, plus every combination with the existing compact and boundary optio
   diagram with blank rows all render in both modes without error.
 - **Ragged diagram text.** Trailing cells inferred as empty (spec 001) behave in the new mode exactly
   as they do in the current one.
+- **Diagrams containing transfers.** These are the one case where the two renderings are expected to
+  disagree, because a level of strand movement costs one column instead of three. The pictures depict
+  the same knot; a reviewer comparing them should read the difference as intended, not as a defect.
 - **Compaction.** Columns the compact view strips are decided by what is actually drawn, so a column
   that is strippable in one mode may not be in the other; each mode strips its own picture.
 - **Stale picture.** In manual mode, while the text contains an unrecognized character the last valid
@@ -354,6 +364,9 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
   text using only the eight surviving characters (`_`, `-`, `\`, `/`, `(`, `)`, `i`, `k`), and MUST
   reach that stable form in a single pass for text naming a retired character. Under the current
   rendering, spec 001's byte-for-byte round trip MUST continue to hold for all sixteen characters.
+- **FR-017**: In opening-centered rendering, a strand moving one level up or down MUST occupy exactly
+  one cell and therefore one column; climbing N levels MUST take N columns, with no additional columns
+  spent on starting or finishing the movement.
 
 ### Key Entities
 
@@ -389,6 +402,8 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
   opening-centered rendering; text naming a retired character reaches its canonical form in one pass
   and is unchanged by every pass after that. All sixteen characters still round-trip byte for byte
   under the current rendering.
+- **SC-009**: A strand climbing one level occupies one column in opening-centered rendering against
+  three in the current rendering, and both renderings still depict the same knot.
 
 ## Assumptions
 
