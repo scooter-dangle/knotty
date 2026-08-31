@@ -109,7 +109,15 @@ L          "\__"            (never drawn)            goes away
            "   "
 ```
 
-Eight characters survive — `_`, `-`, `\`, `/`, `(`, `)`, `i`, `k` — and eight go away.
+Eight characters survive — `_`, `-`, `\`, `/`, `(`, `)`, `i`, `k` — and eight go away. Under this
+mode the eight that go away are read as the empty cell `_` rather than as distinct values (see
+*Clarifications*).
+
+## Clarifications
+
+### Session 2026-08-31
+
+- Q: How far does the synonymy between the eight retired characters and `_` reach — display only, or through parsing and serialization? → A: Normalizing synonym. Under opening-centered rendering the eight are read as `_`, so canonical text writes `_` for them; canonical text is therefore mode-dependent, and the byte-for-byte round trip holds in that mode for the eight surviving characters. The current rendering keeps spec 001's round trip for all sixteen.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -139,6 +147,9 @@ of their cells. Delivers value with no app or command-line change at all.
    empty, as it is in the current rendering.
 5. **Given** any knot, **When** it is rendered opening-centered, **Then** the picture has no leading
    or trailing all-blank lines that the current rendering of the same knot does not also have.
+6. **Given** diagram text naming one of the eight characters that go away, **When** it is read and
+   written back under opening-centered rendering, **Then** the text is accepted, that cell is drawn
+   blank, and the character is written back as `_`.
 
 ---
 
@@ -201,7 +212,8 @@ two outputs, plus every combination with the existing compact and boundary optio
 
 - **A diagram text containing a character that goes away.** Diagram text (spec 001) may name any of
   the sixteen cells regardless of which rendering is selected. Under opening-centered rendering the
-  eight that go away draw nothing; the text is not rejected and the rest of the picture is unaffected.
+  eight that go away are synonyms of `_` — accepted without error, drawn blank, and written back as
+  `_` — so such a text is not stable under a round trip in that mode: it normalizes once, then holds.
 - **Text that draws well in one mode and badly in the other.** The two modes place a feature's marks
   in different cells, so a text hand-written for one mode generally does not draw the same picture in
   the other. Switching modes reinterprets the text; it never rewrites it.
@@ -306,8 +318,9 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
 - **FR-004**: In opening-centered rendering, a crossing, an opening, a closing, and each single level
   of vertical strand movement MUST each be drawn entirely within one cell; no feature may be split
   across cells.
-- **FR-005**: Opening-centered rendering MUST NOT produce any mark for the eight characters listed as
-  going away (`A`, `a`, `.`, `,`, `j`, `r`, `2`, `L`); it MUST NOT reject diagram text that names them.
+- **FR-005**: Under opening-centered rendering, the eight characters listed as going away (`A`, `a`,
+  `.`, `,`, `j`, `r`, `2`, `L`) MUST be synonyms of the empty cell `_`: accepted without error, drawn
+  blank, and written as `_` when diagram text is serialized.
 - **FR-006**: Both renderings MUST depict the same knot for the same input — the same crossings with
   the same over/under, joined the same way.
 - **FR-007**: For any diagram whose current rendering contains no transfer cells (`j`, `i`, `r`, `2`,
@@ -329,6 +342,10 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
   rendering.
 - **FR-015**: Opening-centered rendering MUST NOT introduce leading or trailing all-blank lines that
   the current rendering of the same diagram does not also have.
+- **FR-016**: Canonical diagram text MUST be byte-for-byte stable under opening-centered rendering for
+  text using only the eight surviving characters (`_`, `-`, `\`, `/`, `(`, `)`, `i`, `k`), and MUST
+  reach that stable form in a single pass for text naming a retired character. Under the current
+  rendering, spec 001's byte-for-byte round trip MUST continue to hold for all sixteen characters.
 
 ### Key Entities
 
@@ -359,12 +376,16 @@ empty cell. Whatever produces the new rendering must decide filler cells some ot
 - **SC-006**: The rendering mode a person selects is still selected after a page reload.
 - **SC-007**: Every combination of rendering mode, compact view, and boundary view — all eight — can
   be produced from both the app and the example program.
+- **SC-008**: Diagram text using only the eight surviving characters round-trips byte for byte under
+  opening-centered rendering; text naming a retired character reaches its canonical form in one pass
+  and is unchanged by every pass after that. All sixteen characters still round-trip byte for byte
+  under the current rendering.
 
 ## Assumptions
 
-- The eight characters that go away remain part of the diagram text format regardless of rendering
-  mode. Opening-centered rendering never produces them and draws nothing for them, but text naming
-  them stays valid and renders as blank cells rather than being rejected.
+- The eight characters that go away remain readable in diagram text under either rendering mode. What
+  differs is that opening-centered rendering treats them as the empty cell rather than as distinct
+  values, so canonical text is mode-dependent (see *Clarifications*).
 - Switching rendering mode reinterprets diagram text under the newly selected mode's cell shapes; the
   text is never translated or rewritten. Two texts that draw the same picture in the two modes are in
   general different texts.
