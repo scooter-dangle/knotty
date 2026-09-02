@@ -332,6 +332,215 @@ fn opening_centered_spends_two_columns_where_standard_spends_three() {
     assert!(measured >= 4, "only {measured} sample knots with transfers");
 }
 
+/// Every valid diagram of `len` items whose height never exceeds `max_height`,
+/// built straight from the notation's own rules: an opening at `idx <= height`
+/// raises the height by two, a closing lowers it, a crossing needs two levels
+/// beneath it, and the diagram has to come back to nothing.
+fn every_diagram(len: usize, max_height: usize) -> Vec<Vec<(u8, usize)>> {
+    fn go(
+        cur: &mut Vec<(u8, usize)>,
+        height: usize,
+        left: usize,
+        max_height: usize,
+        out: &mut Vec<Vec<(u8, usize)>>,
+    ) {
+        if left == 0 {
+            if height == 0 && !cur.is_empty() {
+                out.push(cur.clone());
+            }
+            return;
+        }
+
+        for idx in 0..=max_height {
+            if idx <= height && height + 2 <= max_height {
+                cur.push((b'(', idx));
+                go(cur, height + 2, left - 1, max_height, out);
+                cur.pop();
+            }
+
+            if height >= 2 && idx + 2 <= height {
+                cur.push((b')', idx));
+                go(cur, height - 2, left - 1, max_height, out);
+                cur.pop();
+
+                for element in [b'\\', b'/'] {
+                    cur.push((element, idx));
+                    go(cur, height, left - 1, max_height, out);
+                    cur.pop();
+                }
+            }
+        }
+    }
+
+    let mut out = Vec::new();
+    go(&mut Vec::new(), 0, len, max_height, &mut out);
+    out
+}
+
+/// What `try_rotate_90_ccw` does, with the rendering left open: draw the
+/// diagram, reverse each line, and read the rows back bottom-up.
+fn rotate_in_mode(
+    diagram: &AbbreviatedDiagram,
+    mode: RenderMode,
+) -> Result<Vec<(u8, usize)>, String> {
+    let verbose = VerboseDiagram::from_abbreviated(diagram, mode)?;
+
+    let reversed: Vec<String> = verbose
+        .0
+        .iter()
+        .rev()
+        .flat_map(|line| line.display::<false>(mode))
+        .map(|line| line.trim_end_matches('\n').chars().rev().collect())
+        .collect();
+
+    let mut out = Vec::new();
+    let mut prev: Option<&str> = None;
+    for cur in reversed.iter().rev() {
+        out.extend(crate::rotate::scan_row(cur, prev));
+        prev = Some(cur);
+    }
+
+    AbbreviatedDiagram::new_from_tuples(out.clone()).map(|_| out)
+}
+
+/// The evidence that lets `full_render_lines` stop asking for the standard
+/// rendering. `scan_row`'s patterns were written against standard tiles, so
+/// whether they read an opening-centered picture the same way is a question
+/// about every diagram, not about the handful the rotation tests name.
+///
+/// The corpus is bounded to keep the suite quick. Widening it to every diagram
+/// of length 2–8 and height <= 8 — 175,536 of them, 170,928 carrying transfers —
+/// also agrees on all of them, but takes half a minute; that run is recorded in
+/// `specs/005-retire-standard-rendering/research.md`.
+///
+/// Delete this once the standard rendering is gone — it has no second operand
+/// then, and the rotation tests become the whole guarantee.
+#[test]
+fn rotation_reads_both_renderings_the_same_way() {
+    let mut compared = 0;
+    let mut with_transfer = 0;
+
+    for len in 2..=6 {
+        for knot in every_diagram(len, 6) {
+            let diagram = AbbreviatedDiagram::new_from_tuples(knot.clone()).unwrap();
+
+            let standard = rotate_in_mode(&diagram, RenderMode::Standard);
+            let opening_centered = rotate_in_mode(&diagram, RenderMode::OpeningCentered);
+
+            // Agreeing by failing alike would prove nothing.
+            assert!(
+                standard.is_ok() && opening_centered.is_ok(),
+                "{knot:?} rotated to {standard:?} / {opening_centered:?}",
+            );
+            assert_eq!(standard, opening_centered, "{knot:?}");
+
+            compared += 1;
+            if has_transfer(&knot) {
+                with_transfer += 1;
+            }
+        }
+    }
+
+    assert!(compared >= 1_000, "only {compared} diagrams compared");
+    // Transfers are the one place the two renderings legitimately differ, so a
+    // corpus without them would agree for the wrong reason.
+    assert!(with_transfer >= 500, "only {with_transfer} carried transfers");
+}
+
+/// FR-024 stated on its own terms. The comparison against the standard
+/// rendering's three-columns-per-two-levels says the same thing, but only for
+/// as long as there is something to compare against.
+#[test]
+fn a_climb_costs_one_column_per_level() {
+    use Horiz::*;
+
+    // Each opening that has to make room, and each closing that has to give it
+    // back, moves the levels above it twice: once for its own row, once for the
+    // row above. Every one of those moves is a whole cell, so it is a column.
+    let expected = [
+        ("unknot", 0),
+        ("trefoil", 0),
+        ("donut", 4),
+        ("c_thingy", 2),
+        ("terrace", 12),
+        ("basket", 8),
+        ("ugly_trefoil", 4),
+        ("weird_thing_that_broke_once", 6),
+    ];
+
+    let mut measured = 0;
+
+    for ((name, knot), (expected_name, columns)) in sample_knots().into_iter().zip(expected) {
+        assert_eq!(name, expected_name);
+
+        let grid = grid(&knot, RenderMode::OpeningCentered);
+
+        // A cell that starts or finishes a climb part way through is what makes
+        // a level cost less than a whole column. Opening-centered has none.
+        for horiz in grid.0.iter().flat_map(|line| line.0.iter()) {
+            assert!(
+                !matches!(
+                    horiz,
+                    TransferUpStart | TransferUpFinish | TransferDownStart | TransferDownFinish
+                ),
+                "{name} emitted {horiz:?}",
+            );
+        }
+
+        // And the cells it does use cross their own cell corner to corner —
+        // one level, one cell, one column.
+        for horiz in [TransferUp, TransferDown] {
+            let [top, _, bottom] = horiz.display(RenderMode::OpeningCentered);
+            assert_ne!(top.trim(), "", "{horiz:?}");
+            assert_ne!(bottom.trim(), "", "{horiz:?}");
+        }
+
+        assert_eq!(
+            transfer_columns(&knot, RenderMode::OpeningCentered),
+            columns,
+            "{name}",
+        );
+
+        if columns > 0 {
+            measured += 1;
+        }
+    }
+
+    assert!(measured >= 4, "only {measured} sample knots with transfers");
+}
+
+/// FR-015 without a second rendering to measure against.
+#[test]
+fn pictures_are_rectangular_and_end_flush() {
+    for (name, knot) in sample_knots() {
+        let width = grid(&knot, RenderMode::OpeningCentered)
+            .0
+            .iter()
+            .map(|line| line.0.len())
+            .max()
+            .unwrap_or(0);
+
+        let picture = ascii_print::<false>(knot, RenderMode::OpeningCentered);
+        let lines: Vec<&str> = picture.lines().collect();
+
+        for line in &lines {
+            assert_eq!(line.len(), width * 3, "{name}: {line:?}");
+        }
+
+        let blank = |line: &&&str| line.trim().is_empty();
+        assert_eq!(
+            lines.iter().rev().take_while(blank).count(),
+            0,
+            "{name}: trailing blank lines",
+        );
+        // The unknot needs one, to leave room above its opening.
+        assert!(
+            lines.iter().take_while(blank).count() <= 1,
+            "{name}: leading blank lines",
+        );
+    }
+}
+
 #[test]
 fn both_modes_render_at_the_same_size() {
     for (name, knot) in sample_knots() {

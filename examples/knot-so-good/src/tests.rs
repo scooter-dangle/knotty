@@ -347,6 +347,31 @@ fn manual_diagram_text_renders_without_notation() {
     );
 }
 
+/// The guarantee that has to survive the rendering mode being removed: state
+/// saved while the toggle existed still loads, and nothing else in it is lost.
+/// `PersistedState` does not set `deny_unknown_fields`, so a `render_mode` key
+/// it no longer knows is ignored rather than fatal — pinned here so that stays
+/// true by test rather than by luck.
+#[test]
+fn state_saved_with_a_render_mode_still_loads() {
+    let json = r#"{
+        "diagram": "(0 )0",
+        "moves": "swap",
+        "compact": true,
+        "manual_diagram": "()\n',\n",
+        "manual_borders": true,
+        "render_mode": "standard"
+    }"#;
+
+    let state: PersistedState = serde_json::from_str(json).unwrap();
+
+    assert_eq!(state.diagram, "(0 )0");
+    assert_eq!(state.moves, "swap");
+    assert!(state.compact);
+    assert_eq!(state.manual_diagram, "()\n',\n");
+    assert!(state.manual_borders);
+}
+
 #[test]
 fn missing_render_mode_field_defaults_to_standard() {
     // The guarantee that silently regresses if `#[serde(default)]` is dropped:

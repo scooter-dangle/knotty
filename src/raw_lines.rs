@@ -294,6 +294,42 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_opening_centered_append() {
+        let mut lines = OpeningCentered::new(4, 8);
+
+        lines.append(b'(', 0);
+        insta::assert_debug_snapshot!(lines.lines);
+
+        lines.append(b'(', 1);
+        insta::assert_debug_snapshot!(lines.lines);
+
+        lines.append(b'\\', 1);
+        insta::assert_debug_snapshot!(lines.lines);
+
+        lines.append(b')', 1);
+        insta::assert_debug_snapshot!(lines.lines);
+
+        lines.append(b')', 0);
+        insta::assert_debug_snapshot!(lines.lines);
+    }
+
+    /// The climb an opening has to make when something is already live above it,
+    /// and the descent a closing gives back — one whole cell per level, which is
+    /// what makes `expand_above`/`contract_above`'s part-way-through halves
+    /// unnecessary here.
+    #[test]
+    fn snapshot_opening_centered_raise_and_lower() {
+        let mut lines = OpeningCentered::new(5, 6);
+
+        lines.append(b'(', 0);
+        lines.append(b'(', 0);
+        insta::assert_debug_snapshot!(lines.lines);
+
+        lines.append(b')', 2);
+        insta::assert_debug_snapshot!(lines.lines);
+    }
+
+    #[test]
     fn snapshot_raw_lines_append() {
         let mut lines = vec![vec![]; 4];
 
