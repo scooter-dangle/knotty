@@ -276,10 +276,30 @@ fn symbol_table_characters_match_the_library() {
         .map(|(horiz, _)| horiz.as_byte())
         .collect();
 
-    assert_eq!(bytes.len(), 16);
+    assert_eq!(bytes.len(), 8);
     bytes.sort_unstable();
     bytes.dedup();
-    assert_eq!(bytes.len(), 16, "symbol table has duplicate characters");
+    assert_eq!(bytes.len(), 8, "symbol table has duplicate characters");
+
+    // Every row names a cell the parser accepts, and nothing the table omits
+    // is accepted -- the table is the format, not a subset of it.
+    for byte in bytes {
+        let text = format!("{}\n", byte as char);
+        assert!(
+            text.parse::<knotty::VerboseDiagram>().is_ok(),
+            "{:?} is in the table but not accepted",
+            byte as char,
+        );
+    }
+
+    for byte in [b'A', b'a', b'\'', b',', b'j', b'r', b'2', b'L'] {
+        let text = format!("{}\n", byte as char);
+        assert!(
+            text.parse::<knotty::VerboseDiagram>().is_err(),
+            "{:?} is accepted but not in the table",
+            byte as char,
+        );
+    }
 }
 
 #[test]
@@ -369,4 +389,27 @@ fn state_saved_with_a_render_mode_still_loads() {
     assert!(state.compact);
     assert_eq!(state.manual_diagram, "()\n',\n");
     assert!(state.manual_borders);
+}
+
+/// A snapshot saved before the half-cells were removed holds text that no
+/// longer parses. It must stay in the catalog and stay restorable -- the app
+/// reports it rather than dropping it, and nothing else breaks.
+#[test]
+fn a_snapshot_naming_a_freed_character_survives_as_invalid() {
+    let saved = "()\n',\n";
+
+    assert!(saved.parse::<knotty::VerboseDiagram>().is_err());
+
+    let state = PersistedState {
+        manual_snapshots: vec![PersistedManualSnapshot {
+            diagram: saved.into(),
+        }],
+        ..Default::default()
+    };
+
+    let json = serde_json::to_string(&state).unwrap();
+    let back: PersistedState = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(back.manual_snapshots.len(), 1);
+    assert_eq!(back.manual_snapshots[0].diagram, saved);
 }

@@ -7,18 +7,10 @@ pub enum Horiz {
     Line,
     CrossDownOver,
     CrossDownUnder,
-    CrossUpOver,
-    CrossUpUnder,
     OpenedBelow,
-    OpenedAbove,
     ClosedBelow,
-    ClosedAbove,
-    TransferUpStart,
     TransferUp,
-    TransferUpFinish,
-    TransferDownStart,
     TransferDown,
-    TransferDownFinish,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -40,19 +32,7 @@ impl Horiz {
         use Horiz::*;
 
         match self {
-            // The eight halves that only ever held the other end of a
-            // feature are synonyms of `Empty` here: every feature is whole
-            // inside one cell, so there is nothing left for them to draw.
-            | Empty
-            | CrossUpOver
-            | CrossUpUnder
-            | OpenedAbove
-            | ClosedAbove
-            | TransferUpStart
-            | TransferUpFinish
-            | TransferDownStart
-            | TransferDownFinish
-            => [
+            Empty => [
                 r#"   "#,
                 r#"   "#,
                 r#"   "#,
@@ -100,16 +80,7 @@ impl Horiz {
         use Horiz::*;
 
         match self {
-            | Empty
-            | CrossUpOver
-            | CrossUpUnder
-            | OpenedAbove
-            | ClosedAbove
-            | TransferUpStart
-            | TransferUpFinish
-            | TransferDownStart
-            | TransferDownFinish
-            => [
+            Empty => [
                 r#"+---"#,
                 r#"|   "#,
                 r#"|   "#,
@@ -161,28 +132,6 @@ impl Horiz {
     }
 
     #[rustfmt::skip]
-    /// The cells the split-cell rendering drew and this one does not. They stay
-    /// readable, but they draw nothing, so canonical text writes them as the
-    /// empty cell. Goes away when the cells themselves do.
-    #[rustfmt::skip]
-    const fn drawn(self) -> Self {
-        use Horiz::*;
-
-        match self {
-            | CrossUpOver
-            | CrossUpUnder
-            | OpenedAbove
-            | ClosedAbove
-            | TransferUpStart
-            | TransferUpFinish
-            | TransferDownStart
-            | TransferDownFinish
-            => Empty,
-
-            horiz => horiz,
-        }
-    }
-
     pub const fn is_empty(&self) -> bool {
         matches!(self, Horiz::Empty)
     }
@@ -192,22 +141,14 @@ impl Horiz {
         use Horiz::*;
 
         match self {
-            Empty              => b'.',
-            Line               => b'_',
-            CrossDownOver      => b'x',
-            CrossDownUnder     => b'y',
-            CrossUpOver        => b'A',
-            CrossUpUnder       => b'a',
-            OpenedBelow        => b'(',
-            OpenedAbove        => b'\'',
-            ClosedBelow        => b')',
-            ClosedAbove        => b',',
-            TransferUpStart    => b'j',
-            TransferUp         => b'/',
-            TransferUpFinish   => b'r',
-            TransferDownStart  => b'2',
-            TransferDown       => b'\\',
-            TransferDownFinish => b'L',
+            Empty          => b'.',
+            Line           => b'_',
+            CrossDownOver  => b'x',
+            CrossDownUnder => b'y',
+            OpenedBelow    => b'(',
+            ClosedBelow    => b')',
+            TransferUp     => b'/',
+            TransferDown   => b'\\',
         }
     }
 
@@ -220,18 +161,10 @@ impl Horiz {
             b'_'  => Line,
             b'x'  => CrossDownOver,
             b'y'  => CrossDownUnder,
-            b'A'  => CrossUpOver,
-            b'a'  => CrossUpUnder,
             b'('  => OpenedBelow,
-            b'\'' => OpenedAbove,
             b')'  => ClosedBelow,
-            b','  => ClosedAbove,
-            b'j'  => TransferUpStart,
             b'/'  => TransferUp,
-            b'r'  => TransferUpFinish,
-            b'2'  => TransferDownStart,
             b'\\' => TransferDown,
-            b'L'  => TransferDownFinish,
             _ => return None,
         })
     }
@@ -316,7 +249,7 @@ impl VerboseDiagram {
             .flat_map(|line| {
                 line.0
                     .iter()
-                    .map(|horiz| horiz.drawn())
+                    .copied()
                     .chain(std::iter::repeat(Horiz::Empty).take(width - line.0.len()))
                     .map(|horiz| horiz.as_byte() as char)
                     .chain(std::iter::once('\n'))
@@ -383,7 +316,7 @@ mod tests {
     use crate::AbbreviatedDiagram;
     use pretty_assertions::assert_eq;
 
-    const ALL_HORIZ: [Horiz; 16] = {
+    const ALL_HORIZ: [Horiz; 8] = {
         use Horiz::*;
 
         [
@@ -391,73 +324,35 @@ mod tests {
             Line,
             CrossDownOver,
             CrossDownUnder,
-            CrossUpOver,
-            CrossUpUnder,
             OpenedBelow,
-            OpenedAbove,
             ClosedBelow,
-            ClosedAbove,
-            TransferUpStart,
             TransferUp,
-            TransferUpFinish,
-            TransferDownStart,
             TransferDown,
-            TransferDownFinish,
         ]
     };
 
-    const RETIRED: [Horiz; 8] = {
-        use Horiz::*;
-
-        [
-            CrossUpOver,
-            CrossUpUnder,
-            OpenedAbove,
-            ClosedAbove,
-            TransferUpStart,
-            TransferUpFinish,
-            TransferDownStart,
-            TransferDownFinish,
-        ]
-    };
+    /// The characters the split-cell rendering used for its half-cells. They
+    /// name nothing now.
+    const FREED: [u8; 8] = [b'A', b'a', b'\'', b',', b'j', b'r', b'2', b'L'];
 
     #[test]
     #[rustfmt::skip]
-    fn opening_centered_cells_match_the_table() {
+    fn cells_match_the_table() {
         use Horiz::*;
 
-        let table: [(Horiz, [&str; DISPLAY_LINES]); 16] = [
-            (Empty,              ["   ", "   ", "   "]),
-            (Line,               ["   ", "   ", "___"]),
-            (CrossDownOver,      [r"\ /", r" \ ", r"/ \"]),
-            (CrossDownUnder,     [r"\ /", r" / ", r"/ \"]),
-            (CrossUpOver,        ["   ", "   ", "   "]),
-            (CrossUpUnder,       ["   ", "   ", "   "]),
-            (OpenedBelow,        ["  /", " ( ", r"  \"]),
-            (OpenedAbove,        ["   ", "   ", "   "]),
-            (ClosedBelow,        [r"\  ", " ) ", "/  "]),
-            (ClosedAbove,        ["   ", "   ", "   "]),
-            (TransferUpStart,    ["   ", "   ", "   "]),
-            (TransferUp,         ["  /", " / ", "/  "]),
-            (TransferUpFinish,   ["   ", "   ", "   "]),
-            (TransferDownStart,  ["   ", "   ", "   "]),
-            (TransferDown,       [r"\  ", r" \ ", r"  \"]),
-            (TransferDownFinish, ["   ", "   ", "   "]),
+        let table: [(Horiz, [&str; DISPLAY_LINES]); 8] = [
+            (Empty,          ["   ", "   ", "   "]),
+            (Line,           ["   ", "   ", "___"]),
+            (CrossDownOver,  [r"\ /", r" \ ", r"/ \"]),
+            (CrossDownUnder, [r"\ /", r" / ", r"/ \"]),
+            (OpenedBelow,    ["  /", " ( ", r"  \"]),
+            (ClosedBelow,    [r"\  ", " ) ", "/  "]),
+            (TransferUp,     ["  /", " / ", "/  "]),
+            (TransferDown,   [r"\  ", r" \ ", r"  \"]),
         ];
 
         for (horiz, cell) in table {
             assert_eq!(horiz.display(), cell, "{horiz:?}");
-        }
-    }
-
-    #[test]
-    fn retired_cells_are_blank() {
-        for horiz in RETIRED {
-            assert_eq!(
-                horiz.display(),
-                ["   "; DISPLAY_LINES],
-                "{horiz:?}",
-            );
         }
     }
 
@@ -476,15 +371,8 @@ mod tests {
     }
 
     #[test]
-    fn retired_characters_are_read_but_never_written() {
-        let diagram = parse("Aa',\njr2L\n");
-
-        assert_eq!(diagram.to_text(), "....\n....\n");
-    }
-
-    #[test]
     fn text_settles_in_one_pass() {
-        for source in [UNKNOT, TREFOIL, "Aa',\njr2L\n", ".(_/_).\n(__\\__)\n"] {
+        for source in [UNKNOT, TREFOIL, ".(_/_).\n(__\\__)\n"] {
             let once = parse(source).to_text();
             let twice = parse(&once).to_text();
 
@@ -511,6 +399,11 @@ mod tests {
     #[test]
     fn unrecognized_bytes_have_no_mapping() {
         for byte in [b' ', b'\t', b'l', b'B', b'\r', b'0', b'|', b'-', b'i', b'k'] {
+            assert_eq!(Horiz::from_byte(byte), None, "byte {:?}", byte as char);
+        }
+
+        // The half-cells the split-cell rendering drew.
+        for byte in FREED {
             assert_eq!(Horiz::from_byte(byte), None, "byte {:?}", byte as char);
         }
     }
@@ -595,26 +488,26 @@ mod tests {
 
     #[test]
     fn trailing_newline_is_optional() {
-        assert_eq!(parse("()\n',\n"), parse("()\n',"));
+        assert_eq!(parse("..\n()\n"), parse("..\n()"));
     }
 
     #[test]
     fn carriage_returns_terminate_lines() {
-        assert_eq!(parse("()\r\n',\r\n"), parse("()\n',"));
+        assert_eq!(parse("..\r\n()\r\n"), parse("..\n()"));
     }
 
     #[test]
     fn blank_line_past_the_terminator_is_an_empty_row() {
-        let with_blank = parse("()\n',\n\n");
+        let with_blank = parse("..\n()\n\n");
 
         assert_eq!(with_blank.0.len(), 3);
         assert_eq!(with_blank.0[0], VerboseLine(vec![Horiz::Empty; 2]));
-        assert_ne!(with_blank, parse("()\n',\n"));
+        assert_ne!(with_blank, parse("..\n()\n"));
     }
 
     #[test]
     fn interior_blank_line_is_an_empty_row() {
-        assert_eq!(parse("()\n\n',").0[1], VerboseLine(vec![Horiz::Empty; 2]));
+        assert_eq!(parse("..\n\n()").0[1], VerboseLine(vec![Horiz::Empty; 2]));
     }
 
     #[test]
@@ -636,6 +529,21 @@ mod tests {
 
         assert!(error.contains("line 2"), "{error}");
         assert!(error.contains("column 2"), "{error}");
+    }
+
+    /// The half-cells are gone, so the characters that named them are just
+    /// unrecognized now — reported the same way as any other.
+    #[test]
+    fn freed_characters_are_rejected_with_their_position() {
+        for byte in FREED {
+            let character = byte as char;
+            let source = format!("()\n.{character}\n");
+            let error = source.parse::<VerboseDiagram>().unwrap_err();
+
+            assert!(error.contains(&format!("{character:?}")), "{error}");
+            assert!(error.contains("line 2"), "{error}");
+            assert!(error.contains("column 2"), "{error}");
+        }
     }
 
     #[test]

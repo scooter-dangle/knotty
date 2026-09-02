@@ -97,12 +97,14 @@ cargo test
 Confirm:
 
 ```sh
-# Each freed character is now rejected, by name and position.
-printf 'A\n' | cargo run --example ascii_print -- -   # and a, ' , j r 2 L
+cargo test freed_characters_are_rejected_with_their_position
 ```
 
 - The parse error names the character with a one-based row and column, exactly as any other
-  unrecognised character does (FR-020a).
+  unrecognised character does (FR-020a). **Not checkable from `ascii_print`**: that program parses
+  *knot notation*, not diagram text, so feeding it a freed character produces a notation error
+  ("invalid index"), not the diagram-text parser's message. The diagram text format is reached
+  through `VerboseDiagram::from_str` — from the library, or from the app's manual mode.
 - Diagram text over `.` `_` `x` `y` `(` `)` `/` `\` still round-trips byte for byte (FR-021).
 - In the app, the symbol table shows eight rows, matching the characters the parser accepts (FR-022).
 - Any app snapshot whose text uses a freed character reports as invalid and the rest of the app keeps

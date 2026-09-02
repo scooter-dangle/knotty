@@ -188,7 +188,7 @@ const KNOT_5_1: &str = "\
 ";
 
 // Characters come from the library, so only the labels live here.
-const SYMBOL_TABLE: [(knotty::Horiz, &str); 16] = {
+const SYMBOL_TABLE: [(knotty::Horiz, &str); 8] = {
     use knotty::Horiz::*;
 
     [
@@ -196,18 +196,10 @@ const SYMBOL_TABLE: [(knotty::Horiz, &str); 16] = {
         (Line, "line"),
         (CrossDownOver, "cross down, over"),
         (CrossDownUnder, "cross down, under"),
-        (CrossUpOver, "cross up, over"),
-        (CrossUpUnder, "cross up, under"),
-        (OpenedBelow, "opened below"),
-        (OpenedAbove, "opened above"),
-        (ClosedBelow, "closed below"),
-        (ClosedAbove, "closed above"),
-        (TransferUpStart, "transfer up, start"),
+        (OpenedBelow, "opened"),
+        (ClosedBelow, "closed"),
         (TransferUp, "transfer up"),
-        (TransferUpFinish, "transfer up, finish"),
-        (TransferDownStart, "transfer down, start"),
         (TransferDown, "transfer down"),
-        (TransferDownFinish, "transfer down, finish"),
     ]
 };
 
@@ -326,15 +318,21 @@ impl Model {
                 if !self.manual_snapshots.is_empty() {
                     <div class="snapshot-catalog">
                         { self.manual_snapshots.iter().enumerate().map(|(idx, snapshot)| {
+                            // A snapshot saved before a character stopped
+                            // naming a cell still lists and still restores;
+                            // say so rather than showing an empty picture.
                             let preview = snapshot
                                 .diagram
                                 .parse::<knotty::VerboseDiagram>()
-                                .map(|diagram| render_manual(&diagram, self.manual_borders))
-                                .unwrap_or_default();
+                                .map(|diagram| render_manual(&diagram, self.manual_borders));
 
                             html! {
                                 <div class="snapshot-entry">
-                                    <pre class="manual-render">{ ascii_diagram_to_html(&preview) }</pre>
+                                    if let Ok(ref preview) = preview {
+                                        <pre class="manual-render">{ ascii_diagram_to_html(preview) }</pre>
+                                    } else {
+                                        <p class="manual-error">{ "unreadable snapshot" }</p>
+                                    }
                                     <button onclick={link.callback(move |_| Msg::RestoreManualSnapshot(idx))}>
                                         { "restore" }
                                     </button>

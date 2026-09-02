@@ -193,53 +193,10 @@ fn transfer_columns(knot: &[(u8, usize)]) -> usize {
     (0..width)
         .filter(|&column| {
             grid.0.iter().any(|line| {
-                matches!(
-                    line.0[column],
-                    TransferUpStart
-                        | TransferUp
-                        | TransferUpFinish
-                        | TransferDownStart
-                        | TransferDown
-                        | TransferDownFinish
-                )
+                matches!(line.0[column], TransferUp | TransferDown)
             })
         })
         .count()
-}
-
-#[test]
-fn opening_centered_never_emits_a_retired_cell() {
-    use Horiz::*;
-
-    for (name, knot) in sample_knots() {
-        let grid = grid(&knot);
-
-        for horiz in grid.0.iter().flat_map(|line| line.0.iter()) {
-            assert!(
-                !matches!(
-                    horiz,
-                    CrossUpOver
-                        | CrossUpUnder
-                        | OpenedAbove
-                        | ClosedAbove
-                        | TransferUpStart
-                        | TransferUpFinish
-                        | TransferDownStart
-                        | TransferDownFinish
-                ),
-                "{name} emitted {horiz:?}",
-            );
-        }
-
-        // Every feature sits at row `idx`, and the highest is at `height - 2`,
-        // so the top row can only ever carry strands.
-        let top = grid.0.last().unwrap();
-        assert!(
-            top.0.iter().all(|horiz| matches!(horiz, Empty | Line)),
-            "{name} top row: {:?}",
-            top.0,
-        );
-    }
 }
 
 /// FR-024 stated on its own terms. The comparison against the standard
@@ -270,19 +227,18 @@ fn a_climb_costs_one_column_per_level() {
 
         let grid = grid(&knot);
 
-        // A cell that starts or finishes a climb part way through is what makes
-        // a level cost less than a whole column. Opening-centered has none.
-        for horiz in grid.0.iter().flat_map(|line| line.0.iter()) {
-            assert!(
-                !matches!(
-                    horiz,
-                    TransferUpStart | TransferUpFinish | TransferDownStart | TransferDownFinish
-                ),
-                "{name} emitted {horiz:?}",
-            );
-        }
+        // Every feature sits at row `idx`, and the highest is at `height - 2`,
+        // so the top row can only ever carry strands.
+        let top = grid.0.last().unwrap();
+        assert!(
+            top.0.iter().all(|horiz| matches!(horiz, Empty | Line)),
+            "{name} top row: {:?}",
+            top.0,
+        );
 
-        // And the cells it does use cross their own cell corner to corner —
+        // A cell that starts or finishes a climb part way through would make a
+        // level cost less than a whole column. There is no such cell left to
+        // use, so the ones that remain cross their own cell corner to corner —
         // one level, one cell, one column.
         for horiz in [TransferUp, TransferDown] {
             let [top, _, bottom] = horiz.display();
