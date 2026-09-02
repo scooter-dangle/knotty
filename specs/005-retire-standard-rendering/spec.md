@@ -42,8 +42,9 @@ display choice today:
 
 - **Rotation depends on it.** Rotating a diagram works by drawing the diagram, reading the picture
   back with patterns that encode the split-cell tile shapes, and recovering notation from what it
-  read. It is pinned to the split-cell rendering for exactly that reason, and it cannot simply be
-  pointed at the other one.
+  read. It is pinned to the split-cell rendering for exactly that reason. Whether it could simply be
+  pointed at the other one was the feature's open question; Phase 0 research answered yes, but the
+  answer had to be established by evidence before anything moved (FR-008a).
 - **Recorded pictures are split-cell pictures.** Roughly half the project's recorded renderings, and
   the rendered knot in the project's own README, were captured in the split-cell rendering.
 - **Several tests exist only to compare the two.** Tests that assert the two renderings agree on
@@ -276,10 +277,21 @@ table and confirm it matches.
 - **FR-008**: Rotation MUST recover notation by reading back a picture drawn in the surviving
   rendering, using patterns derived against that rendering's tile shapes. It MUST NOT retain the
   split-cell tile shapes, publicly or privately.
-- **FR-008a**: Because the surviving rendering steps a strand transfer differently, the read-back
-  MUST be re-derived against the surviving rendering's tile shapes rather than adapted from the
-  existing patterns, and MUST be covered by tests over every knot the project's rotation tests
-  exercise today, including the existing regression cases.
+- **FR-008a**: The read-back MUST be shown to produce identical results against the surviving
+  rendering before it is re-pointed at it. That evidence MUST be a differential check run while both
+  renderings still exist, over a corpus far wider than the project's rotation tests, and MUST include
+  diagrams containing strand transfers — the case where the two renderings legitimately differ — and
+  MUST establish that the two agree on real results rather than by failing alike.
+
+  *Amended after Phase 0 research (see [research.md](./research.md), R1).* This requirement
+  originally mandated re-deriving the read-back patterns against the surviving rendering's tile
+  shapes, on the assumption that the different transfer stepping would demand it. A differential run
+  over every valid diagram of length 2–8 and height ≤ 8 — 175,536 diagrams, 170,928 of them
+  containing transfers, all rotating successfully under both renderings — found the two agree on
+  100% of them, so the existing patterns need no change. The requirement now asks for that evidence
+  instead of for the rewrite. What the user decided at clarification time is unchanged: the read-back
+  is pointed at the surviving rendering, and the split-cell tile shapes survive nowhere, publicly or
+  privately.
 
 #### One rendering
 

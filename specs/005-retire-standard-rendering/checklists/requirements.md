@@ -39,11 +39,15 @@
   (FR-008, FR-008a, SC-013). The eight half-cells are removed outright, narrowing the diagram text
   format (FR-020, FR-020a, FR-020b, SC-012). Consequences propagated to the overview, User Story 4,
   the edge cases, the key entities, and the assumptions. All items pass.
-- Two requirements are worth a second look at planning time, because they are where this feature can
-  go wrong quietly:
-  - **FR-008a** — the surviving rendering steps a strand transfer differently, so re-deriving the
-    rotation read-back is the highest-risk work in the feature. FR-006 (identical rotation results)
-    is the check that it was done right.
-  - **FR-003 / SC-004** — the audit gate. Its whole value is that no deletion lands against an open
-    entry; a plan that interleaves deletion with verification defeats the phase ordering the user
-    asked for.
+- Iteration 3 (during `/speckit-plan`): **FR-008a was amended.** It had required the rotation
+  read-back to be re-derived against the surviving rendering's tile shapes, on the assumption that
+  the different transfer stepping would demand it. Phase 0 research disproved the premise — over
+  175,536 diagrams (170,928 with transfers, all rotating successfully under both renderings) the two
+  agree on 100% of results, and the existing suite passes with the pin flipped. FR-008a now requires
+  that *evidence* rather than the rewrite. The user's clarification decision is untouched: the
+  read-back is pointed at the surviving rendering and the split-cell shapes survive nowhere. See
+  [research.md](../research.md) R1.
+- **FR-003 / SC-004** remains the requirement to watch. Its whole value is that no deletion lands
+  against an open audit entry; a plan that interleaves deletion with verification defeats the phase
+  ordering the user asked for. The plan keeps every restatement in Phase 1 and every deletion in
+  Phase 3 or later.
