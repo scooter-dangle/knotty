@@ -90,8 +90,8 @@ recorded pictures in `src/snapshots/` and `src/diagram/snapshots/`, surfaces at
 
 **Depends on**: T006–T007 — the differential test is what makes this safe, and it must be landed and passing first.
 
-- [ ] T013 [US2] In `src/diagram.rs`, change `full_render_lines` (around line 909) to build with `RenderMode::OpeningCentered` in both places — the `VerboseDiagram::from_abbreviated` call and the `line.display::<false>(...)` call — and replace the three-line "Pinned to Standard" comment above it with one recording that the read-back reads the surviving rendering. **Do not edit `src/rotate.rs`**: `research.md` R1 establishes over 175,536 diagrams that `scan_row` and its six regexes already read opening-centered pictures identically
-- [ ] T014 [US2] Run `cargo test rotate` and then the full `cargo test`, confirming the eight rotation tests, `test_try_rotate_90_ccw_period_4`, `test_try_rotate_90_ccw_period_4_regressions` and `rotate_then_render_out_of_bounds_regression` all pass with expectations unchanged, and that `git diff src/rotate.rs` is empty
+- [X] T013 [US2] In `src/diagram.rs`, change `full_render_lines` (around line 909) to build with `RenderMode::OpeningCentered` in both places — the `VerboseDiagram::from_abbreviated` call and the `line.display::<false>(...)` call — and replace the three-line "Pinned to Standard" comment above it with one recording that the read-back reads the surviving rendering. **Do not edit `src/rotate.rs`**: `research.md` R1 establishes over 175,536 diagrams that `scan_row` and its six regexes already read opening-centered pictures identically
+- [X] T014 [US2] Run `cargo test rotate` and then the full `cargo test`, confirming the eight rotation tests, `test_try_rotate_90_ccw_period_4`, `test_try_rotate_90_ccw_period_4_regressions` and `rotate_then_render_out_of_bounds_regression` all pass with expectations unchanged, and that `git diff src/rotate.rs` is empty
 
 **Checkpoint**: Nothing outside display depends on the split-cell rendering any more.
 

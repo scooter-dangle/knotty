@@ -908,16 +908,16 @@ impl AbbreviatedDiagram {
     }
 
     fn full_render_lines(&self) -> Result<Vec<String>, String> {
-        // Pinned to Standard: `rotate::scan_row` recovers notation from the
-        // picture with regexes that encode the Standard tile shapes, so
-        // rotation must never see an opening-centered rendering.
-        let verbose = VerboseDiagram::from_abbreviated(self, RenderMode::Standard)?;
+        // `rotate::scan_row` reads openings, closings and crossings out of the
+        // picture, and those are drawn the same either way, so it recovers the
+        // same notation from an opening-centered rendering.
+        let verbose = VerboseDiagram::from_abbreviated(self, RenderMode::OpeningCentered)?;
         Ok({
             verbose
                 .0
                 .iter()
                 .rev()
-                .flat_map(|line| line.display::<false>(RenderMode::Standard))
+                .flat_map(|line| line.display::<false>(RenderMode::OpeningCentered))
                 .map(|mut sub| {
                     let new_len = sub.trim_end_matches('\n').len();
                     sub.truncate(new_len);
