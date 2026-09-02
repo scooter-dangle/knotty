@@ -36,8 +36,8 @@ recorded pictures in `src/snapshots/` and `src/diagram/snapshots/`, surfaces at
 
 **Purpose**: Capture the baseline this whole feature is measured against (SC-002, SC-003, SC-006).
 
-- [ ] T001 Record the pre-change baseline in `specs/005-retire-standard-rendering/baseline.md`: `cargo test` count (expect 92 passing), the output of `cargo check --target wasm32-unknown-unknown` and `cargo check --package knot-so-good --target wasm32-unknown-unknown`, and the current commit SHA
-- [ ] T002 [P] Copy the eight `src/diagram/snapshots/knotty__diagram__tests__snapshot_ascii_print_opening_centered*.snap` files to `specs/005-retire-standard-rendering/baseline-pictures/` so SC-002 can be checked byte-for-byte after Phase 3 renames them
+- [X] T001 Record the pre-change baseline in `specs/005-retire-standard-rendering/baseline.md`: `cargo test` count (expect 92 passing), the output of `cargo check --target wasm32-unknown-unknown` and `cargo check --package knot-so-good --target wasm32-unknown-unknown`, and the current commit SHA
+- [X] T002 [P] Copy the eight `src/diagram/snapshots/knotty__diagram__tests__snapshot_ascii_print_opening_centered*.snap` files to `specs/005-retire-standard-rendering/baseline-pictures/` so SC-002 can be checked byte-for-byte after Phase 3 renames them
 
 ---
 

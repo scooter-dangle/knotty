@@ -15,18 +15,22 @@ cargo test                            # baseline: 92 passing before any change
 ## Baseline gate — run at the end of every phase
 
 ```sh
-cargo test
+cargo test                                           # library: 92 at baseline
+cargo test --manifest-path examples/knot-so-good/Cargo.toml   # app: 26 at baseline
 cargo check --target wasm32-unknown-unknown          # constitution II, non-negotiable
-cargo check --package knot-so-good --target wasm32-unknown-unknown
-cargo run --example ascii_print -- examples/<a knot file>
+cargo check --manifest-path examples/knot-so-good/Cargo.toml --target wasm32-unknown-unknown
 ```
+
+`examples/knot-so-good` is a separate crate, not a workspace member, so the root `cargo test` does
+not cover it — every gate runs both suites. See [baseline.md](./baseline.md).
 
 ## Phase 1 — verification, before anything is deleted
 
 Nothing is removed here; the gate is that coverage arrives while both renderings still exist.
 
 ```sh
-cargo test                            # still 92 passing, plus the new tests, none failing
+cargo test                            # 92 plus the new library tests, none failing
+cargo test --manifest-path examples/knot-so-good/Cargo.toml    # 26 plus the new app test
 git diff --stat                       # expect additions only: no deletions in src/ or examples/
 ```
 
@@ -109,7 +113,7 @@ printf 'A\n' | cargo run --example ascii_print -- -   # and a, ' , j r 2 L
 ```sh
 cargo test
 cargo check --target wasm32-unknown-unknown
-cargo check --package knot-so-good --target wasm32-unknown-unknown
+cargo check --manifest-path examples/knot-so-good/Cargo.toml --target wasm32-unknown-unknown
 ```
 
 Then walk the spec's Success Criteria: SC-001 and SC-013 by the `grep` above; SC-002 by the renamed
