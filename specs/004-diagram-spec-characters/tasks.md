@@ -168,6 +168,13 @@ revised mapping (US1) and the app surfaces it correctly with no separate edit ne
       confirm it succeeds (Constitution Article II; no new dependency was introduced by T002/T003).
 - [X] T013 Walk through every command in `quickstart.md` end-to-end (unit tests, WASM check, manual
       trefoil round trip, in-app symbol table check) and confirm each expected outcome holds.
+- [X] T014 CI (`build-example` job) caught two more old-mapping literals T010/T011 didn't cover:
+      `examples/knot-so-good/src/tests.rs`'s `bordered_render_draws_one_box_per_character`,
+      `both_views_are_empty_for_the_same_diagrams`, and `manual_diagram_text_renders_without_notation`
+      all `.parse::<knotty::VerboseDiagram>()` inline literals containing `.,`/old-`TREFOIL`-style
+      text. Updated all three to the revised characters (T010's finding that `SYMBOL_TABLE` itself
+      needs no edit still holds — this was in the test file, not `main.rs`). Re-ran
+      `cargo test` in `examples/knot-so-good`: 26/26 pass.
 
 ---
 
