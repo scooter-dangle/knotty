@@ -163,10 +163,10 @@ recorded pictures in `src/snapshots/` and `src/diagram/snapshots/`, surfaces at
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T040 Run the full-feature acceptance in `specs/005-retire-standard-rendering/quickstart.md` and walk every Success Criterion SC-001 through SC-013, recording the result in `specs/005-retire-standard-rendering/audit.md`
-- [ ] T041 [P] Delete the orphan snapshot `src/snapshots/knotty__snapshot_raw_lines_expand_above.snap` (`source: src/lib.rs`, matching no current test) recorded in T004(c). **Pre-existing cruft, not created by this feature** — separable, and fine to drop from scope if you would rather keep the diff strictly about the rendering
-- [ ] T042 [P] Delete the scaffolding this feature used but does not ship: `specs/005-retire-standard-rendering/baseline-pictures/` once T022 has verified against it
-- [ ] T043 Review the commit history for the four phases with `git log --oneline` and squash any fixups, so each phase is one conventional commit per the project's minimal-commit style
+- [X] T040 Run the full-feature acceptance in `specs/005-retire-standard-rendering/quickstart.md` and walk every Success Criterion SC-001 through SC-013, recording the result in `specs/005-retire-standard-rendering/audit.md`
+- [X] T041 [P] Delete the orphan snapshot `src/snapshots/knotty__snapshot_raw_lines_expand_above.snap` (`source: src/lib.rs`, matching no current test) recorded in T004(c). **Pre-existing cruft, not created by this feature** — separable, and fine to drop from scope if you would rather keep the diff strictly about the rendering
+- [X] T042 [P] Delete the scaffolding this feature used but does not ship: `specs/005-retire-standard-rendering/baseline-pictures/` once T022 has verified against it
+- [X] T043 Review the commit history for the four phases with `git log --oneline` and squash any fixups, so each phase is one conventional commit per the project's minimal-commit style
 
 ---
 

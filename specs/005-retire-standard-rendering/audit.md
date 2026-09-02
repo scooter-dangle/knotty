@@ -87,3 +87,34 @@ Two entries were **not** in the plan's research and were found by reading the tr
 would lose all coverage) and #34–35 (the split-cell test fixtures). Both are now covered.
 
 Phase 3 may begin.
+
+---
+
+## Acceptance walk (Phase 7)
+
+Every Success Criterion, checked against the tree after the last phase.
+
+| SC | Claim | Result |
+|---|---|---|
+| SC-001 | Nothing names or selects a rendering | `git grep RenderMode\|KNOTTY_OPENING_CENTERED -- src examples README.md` → no matches |
+| SC-002 | Pictures byte-identical to the opening-centered ones before the change | all 8 renamed recordings identical to the copies taken at T002 |
+| SC-003 | Rotation results unchanged | every change in `src/diagram/test.rs` is a dropped mode argument — no expectation edited; all rotation tests and all three regressions pass |
+| SC-004 | No deletion against an open audit entry | 41 entries, 0 open before Phase 3; the four US1 entries landed in Phase 3, deletions began in Phase 5 |
+| SC-005 | Assertion count does not drop | 118 tests at baseline → 110 after. The 8 fewer are comparison tests whose subject no longer exists; each invariant they held is asserted by a surviving test (`a_climb_costs_one_column_per_level`, `pictures_are_rectangular_and_end_flush`, `snapshot_opening_centered_*`, `state_saved_with_a_render_mode_still_loads`, `freed_characters_are_rejected_with_their_position`) |
+| SC-006 | Verification phase green with both renderings present | Phase 3 landed 270 insertions, 0 deletions in `src/`/`examples/`, 124 tests passing |
+| SC-007 | Each phase green on its own | six commits, each with both suites and both wasm checks passing |
+| SC-008 | Pre-feature app state still loads | `state_saved_with_a_render_mode_still_loads` |
+| SC-009 | Compact × borders still reachable in all four combinations | verified from `ascii_print`; the app keeps its two toggles |
+| SC-010 | Surviving text round-trips byte for byte | `round_trips_through_text`, plus a direct check over the trefoil text |
+| SC-011 | Only cells that draw | `Horiz` carries 8 variants |
+| SC-012 | Freed characters rejected with position | all eight → `unrecognized character 'X' at line 2, column 2` |
+| SC-013 | Split-cell tile shapes nowhere in the project | `git grep` finds no `Standard` or `standard_display`; `src/rotate.rs` and `src/moves.rs` are byte-identical to their pre-feature state |
+
+### Corrections made during implementation
+
+1. **`quickstart.md` app commands.** `cargo --package knot-so-good` fails — the app is a separate crate, not a workspace member. Corrected to `--manifest-path`, and every gate now runs both suites, since the root `cargo test` does not cover the app.
+2. **`quickstart.md` Phase 4 rejection check.** It proposed feeding a freed character to `ascii_print`, which parses *knot notation*, not diagram text — it yields a notation error, not the diagram-text parser's message. Replaced with the library test.
+3. **Fixture rewrites moved from Phase 6 to Phase 5.** Audit entries #34–35 were scheduled with the character removal, but removing the *mode* already invalidated them: `from_abbreviated` builds opening-centered grids, so the split-cell `UNKNOT`/`TREFOIL` constants stopped describing what the library produces. Three app fixtures had the same problem.
+4. **`Horiz::in_mode` carried behaviour, not just dispatch.** It also performed spec 003's normalization of undrawn cells during serialization. Deleting it with the mode would have changed text behaviour in Phase 5, so it became `Horiz::drawn` (no mode) there and was deleted in Phase 6 with the cells themselves.
+5. **New entry: `bordered_render_draws_one_box_per_character` and `both_views_are_empty_for_the_same_diagrams`** (app) held split-cell fixtures the audit had not listed. Rewritten in Phase 5.
+6. **New entry: the app's snapshot catalog** previewed an unparseable snapshot as an empty picture — silent discarding, which FR-020b forbids. It now reports "unreadable snapshot".
