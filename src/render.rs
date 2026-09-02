@@ -424,21 +424,21 @@ impl Horiz {
         use Horiz::*;
 
         match self {
-            Empty              => b'_',
-            Line               => b'-',
-            CrossDownOver      => b'\\',
-            CrossDownUnder     => b'/',
+            Empty              => b'.',
+            Line               => b'_',
+            CrossDownOver      => b'x',
+            CrossDownUnder     => b'y',
             CrossUpOver        => b'A',
             CrossUpUnder       => b'a',
             OpenedBelow        => b'(',
-            OpenedAbove        => b'.',
+            OpenedAbove        => b'\'',
             ClosedBelow        => b')',
             ClosedAbove        => b',',
             TransferUpStart    => b'j',
-            TransferUp         => b'i',
+            TransferUp         => b'/',
             TransferUpFinish   => b'r',
             TransferDownStart  => b'2',
-            TransferDown       => b'k',
+            TransferDown       => b'\\',
             TransferDownFinish => b'L',
         }
     }
@@ -448,21 +448,21 @@ impl Horiz {
         use Horiz::*;
 
         Some(match byte {
-            b'_'  => Empty,
-            b'-'  => Line,
-            b'\\' => CrossDownOver,
-            b'/'  => CrossDownUnder,
+            b'.'  => Empty,
+            b'_'  => Line,
+            b'x'  => CrossDownOver,
+            b'y'  => CrossDownUnder,
             b'A'  => CrossUpOver,
             b'a'  => CrossUpUnder,
             b'('  => OpenedBelow,
-            b'.'  => OpenedAbove,
+            b'\'' => OpenedAbove,
             b')'  => ClosedBelow,
             b','  => ClosedAbove,
             b'j'  => TransferUpStart,
-            b'i'  => TransferUp,
+            b'/'  => TransferUp,
             b'r'  => TransferUpFinish,
             b'2'  => TransferDownStart,
-            b'k'  => TransferDown,
+            b'\\' => TransferDown,
             b'L'  => TransferDownFinish,
             _ => return None,
         })
@@ -738,16 +738,16 @@ mod tests {
 
     #[test]
     fn retired_characters_are_read_but_never_written_in_opening_centered() {
-        let retired = "Aa.,\njr2L\n";
+        let retired = "Aa',\njr2L\n";
         let diagram = parse(retired);
 
         assert_eq!(diagram.to_text(RenderMode::Standard), retired);
-        assert_eq!(diagram.to_text(RenderMode::OpeningCentered), "____\n____\n");
+        assert_eq!(diagram.to_text(RenderMode::OpeningCentered), "....\n....\n");
     }
 
     #[test]
     fn opening_centered_text_settles_in_one_pass() {
-        for source in [UNKNOT, TREFOIL, "Aa.,\njr2L\n", "_(-i-)_\n(--k--)\n"] {
+        for source in [UNKNOT, TREFOIL, "Aa',\njr2L\n", ".(_/_).\n(__\\__)\n"] {
             let once = parse(source).to_text(RenderMode::OpeningCentered);
             let twice = parse(&once).to_text(RenderMode::OpeningCentered);
 
@@ -796,21 +796,21 @@ mod tests {
 
     #[test]
     fn unrecognized_bytes_have_no_mapping() {
-        for byte in [b' ', b'\t', b'l', b'B', b'\r', b'0', b'|'] {
+        for byte in [b' ', b'\t', b'l', b'B', b'\r', b'0', b'|', b'-', b'i', b'k'] {
             assert_eq!(Horiz::from_byte(byte), None, "byte {:?}", byte as char);
         }
     }
 
     const UNKNOT: &str = "\
         ()\n\
-        .,\n\
+        ',\n\
     ";
 
     const TREFOIL: &str = "\
-        _(---)_\n\
-        _./-/,_\n\
-        (-A\\A-)\n\
-        .--a--,\n\
+        .(___).\n\
+        .'y_y,.\n\
+        (_AxA_)\n\
+        '__a__,\n\
     ";
 
     fn knot(source: &str) -> AbbreviatedDiagram {
@@ -864,10 +864,10 @@ mod tests {
     #[test]
     fn ragged_rows_are_padded_on_the_right() {
         let ragged = "\
-            _(---)\n\
-            _./-/,\n\
-            (-A\\A-)\n\
-            .--a--,\n\
+            .(___)\n\
+            .'y_y,\n\
+            (_AxA_)\n\
+            '__a__,\n\
         ";
 
         assert_eq!(parse(ragged), parse(TREFOIL));
@@ -881,33 +881,33 @@ mod tests {
 
     #[test]
     fn trailing_newline_is_optional() {
-        assert_eq!(parse("()\n.,\n"), parse("()\n.,"));
+        assert_eq!(parse("()\n',\n"), parse("()\n',"));
     }
 
     #[test]
     fn carriage_returns_terminate_lines() {
-        assert_eq!(parse("()\r\n.,\r\n"), parse("()\n.,"));
+        assert_eq!(parse("()\r\n',\r\n"), parse("()\n',"));
     }
 
     #[test]
     fn blank_line_past_the_terminator_is_an_empty_row() {
-        let with_blank = parse("()\n.,\n\n");
+        let with_blank = parse("()\n',\n\n");
 
         assert_eq!(with_blank.0.len(), 3);
         assert_eq!(with_blank.0[0], VerboseLine(vec![Horiz::Empty; 2]));
-        assert_ne!(with_blank, parse("()\n.,\n"));
+        assert_ne!(with_blank, parse("()\n',\n"));
     }
 
     #[test]
     fn interior_blank_line_is_an_empty_row() {
-        assert_eq!(parse("()\n\n.,").0[1], VerboseLine(vec![Horiz::Empty; 2]));
+        assert_eq!(parse("()\n\n',").0[1], VerboseLine(vec![Horiz::Empty; 2]));
     }
 
     #[test]
     fn error_position_uses_input_line_numbers() {
         // Rows are stored bottom-up, so an implementation that reverses
         // before reporting names line 4 for a mistake on line 1.
-        let error = "b(---)_\n_./-/,_\n(-A\\A-)\n.--a--,"
+        let error = "b(___).\n.'y_y,.\n(_AxA_)\n'__a__,"
             .parse::<VerboseDiagram>()
             .unwrap_err();
 
@@ -950,9 +950,9 @@ mod tests {
     #[test]
     fn snapshot_parsed_diagram_render() {
         let hand_written = "\
-            _j---r_\n\
-            (-2-L-)\n\
-            .--k--,\n\
+            .j___r.\n\
+            (_2_L_)\n\
+            '__\\__,\n\
         ";
 
         insta::assert_snapshot!(render(&parse(hand_written)));
@@ -1002,10 +1002,10 @@ mod tests {
     #[test]
     fn ragged_text_normalizes_to_a_fixed_point() {
         let ragged = "\
-            _(---)\n\
-            _./-/,\n\
-            (-A\\A-)\n\
-            .--a--,\n\
+            .(___)\n\
+            .'y_y,\n\
+            (_AxA_)\n\
+            '__a__,\n\
         ";
 
         let canonical = parse(ragged).to_string();
@@ -1022,7 +1022,7 @@ mod tests {
 
     #[test]
     fn blank_rows_survive_a_round_trip() {
-        let with_blank = "()\n__\n.,\n";
+        let with_blank = "()\n..\n',\n";
 
         assert_eq!(parse(with_blank).to_string(), with_blank);
     }

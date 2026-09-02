@@ -33,7 +33,7 @@ app. Both paths already exist; no new directories are created by this feature.
 
 **Purpose**: Confirm the environment this tiny, single-file change will be validated in
 
-- [ ] T001 Confirm toolchain matches `rust-toolchain.toml` (channel 1.94.0, `wasm32-unknown-unknown`
+- [X] T001 Confirm toolchain matches `rust-toolchain.toml` (channel 1.94.0, `wasm32-unknown-unknown`
       target) via `rustup show`, and record the current `cargo test --lib render::` result on
       unmodified `src/render.rs` as the pre-change baseline
 
@@ -45,13 +45,13 @@ app. Both paths already exist; no new directories are created by this feature.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 In `src/render.rs`, update `Horiz::as_byte` (the `as_byte` match arms, ~line 423-444) to
+- [X] T002 In `src/render.rs`, update `Horiz::as_byte` (the `as_byte` match arms, ~line 423-444) to
       the revised mapping from `contracts/symbol-table.md`: `Empty => b'.'`, `Line => b'_'`,
       `CrossDownOver => b'x'`, `CrossDownUnder => b'y'`, `OpenedAbove => b'\''`,
       `TransferUp => b'/'`, `TransferDown => b'\\'`. Leave the other nine match arms
       (`CrossUpOver`, `CrossUpUnder`, `OpenedBelow`, `ClosedBelow`, `ClosedAbove`,
       `TransferUpStart`, `TransferUpFinish`, `TransferDownStart`, `TransferDownFinish`) unchanged.
-- [ ] T003 In `src/render.rs`, update `Horiz::from_byte` (the `from_byte` match arms, ~line
+- [X] T003 In `src/render.rs`, update `Horiz::from_byte` (the `from_byte` match arms, ~line
       447-469) to mirror T002 exactly: `b'.' => Empty`, `b'_' => Line`, `b'x' => CrossDownOver`,
       `b'y' => CrossDownUnder`, `b'\'' => OpenedAbove`, `b'/' => TransferUp`,
       `b'\\' => TransferDown`, so every arm added here matches one added in T002 one-for-one. Leave
@@ -73,26 +73,53 @@ renders identically to the abbreviated notation `(0 (2 /1 \0 /1 )2 )0`.
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] In `src/render.rs`'s test module, update the `UNKNOT` constant from `"()\n.,\n"` to
+- [X] T004 [US1] In `src/render.rs`'s test module, update the `UNKNOT` constant from `"()\n.,\n"` to
       `"()\n',\n"` (only the `OpenedAbove`/`ClosedAbove` row changes: `.` → `'`).
-- [ ] T005 [US1] In `src/render.rs`'s test module, update the `TREFOIL` constant from
+- [X] T005 [US1] In `src/render.rs`'s test module, update the `TREFOIL` constant from
       `"_(---)_\n_./-/,_\n(-A\\A-)\n.--a--,\n"` to
       `".(___).\n.'y_y,.\n(_AxA_)\n'__a__,\n"` (apply the T002/T003 mapping to every character of
       every row; verify against the worked example in `quickstart.md`).
-- [ ] T006 [US1] In `src/render.rs`'s `ragged_rows_are_padded_on_the_right` test, update the ragged
+- [X] T006 [US1] In `src/render.rs`'s `ragged_rows_are_padded_on_the_right` test, update the ragged
       literal from `"_(---)\n_./-/,\n(-A\\A-)\n.--a--,\n"` to
       `".(___)\n.'y_y,\n(_AxA_)\n'__a__,\n"` (same mapping as T005, with the first row's trailing
       cell dropped to keep it ragged relative to `TREFOIL`).
-- [ ] T007 [US1] In `src/render.rs`, update the inline literals in `trailing_newline_is_optional`
+- [X] T007 [US1] In `src/render.rs`, update the inline literals in `trailing_newline_is_optional`
       (`"()\n.,\n"` / `"()\n.,"`), `carriage_returns_terminate_lines`
       (`"()\r\n.,\r\n"` / `"()\n.,"`), and `blank_line_past_the_terminator_is_an_empty_row`
       (`"()\n.,\n\n"` / `"()\n.,\n"`) to use `',` in place of every `.,`, matching T004.
-- [ ] T008 [US1] In `src/render.rs`'s `unrecognized_bytes_have_no_mapping` test, add `b'-'`, `b'i'`,
+- [X] T008 [US1] In `src/render.rs`'s `unrecognized_bytes_have_no_mapping` test, add `b'-'`, `b'i'`,
       and `b'k'` to the list of bytes asserted to have no mapping (they are retired by T002/T003
       and no longer reassigned to any cell).
-- [ ] T009 [US1] Run `cargo test --lib render::` and confirm every test in the module passes,
+- [X] T008a [US1] In `src/render.rs`'s `interior_blank_line_is_an_empty_row` test, update the
+      literal `"()\n\n.,"` to `"()\n\n',"`, matching T004.
+- [X] T008b [US1] In `src/render.rs`'s `error_position_uses_input_line_numbers` test, update the
+      literal `"b(---)_\n_./-/,_\n(-A\\A-)\n.--a--,"` to `"b(___).\n.'y_y,.\n(_AxA_)\n'__a__,"`
+      (the deliberate leading `b` typo is unaffected by the remapping; every other character is
+      converted the same way T005 converts `TREFOIL`).
+- [X] T008c [US1] In `src/render.rs`'s `retired_characters_are_read_but_never_written_in_opening_centered`
+      test, update the input literal `"Aa.,\njr2L\n"` to `"Aa',\njr2L\n"` (only `OpenedAbove`'s `.`
+      changes, to `'`) and the expected output `"____\n____\n"` to `"....\n....\n"` (both rows are
+      now-`Empty` cells, and `Empty`'s byte is `.` under T002).
+- [X] T008d [US1] In `src/render.rs`'s `opening_centered_text_settles_in_one_pass` test, update the
+      inline literal `"Aa.,\njr2L\n"` to `"Aa',\njr2L\n"` (same conversion as T008c, a separate
+      occurrence) and `"_(-i-)_\n(--k--)\n"` to `".(_/_).\n(__\\__)\n"`.
+- [X] T008e [US1] In `src/render.rs`'s `snapshot_parsed_diagram_render` test, update the
+      `hand_written` literal from `"_j---r_\n(-2-L-)\n.--k--,\n"` to
+      `".j___r.\n(_2_L_)\n'__\\__,\n"`. This encodes the identical `Horiz` sequence under the new
+      mapping, so the picture — and therefore the existing `insta` snapshot — is unchanged; do not
+      regenerate the snapshot.
+- [X] T008f [US1] In `src/render.rs`'s `ragged_text_normalizes_to_a_fixed_point` test, update the
+      `ragged` literal to `".(___)\n.'y_y,\n(_AxA_)\n'__a__,\n"` (the same conversion as T006,
+      applied to this test's separate copy of the literal).
+- [X] T008g [US1] In `src/render.rs`'s `blank_rows_survive_a_round_trip` test, update the
+      `with_blank` literal from `"()\n__\n.,\n"` to `"()\n..\n',\n"` (the blank row of `Empty`
+      cells is now written `..` since `Empty`'s byte changed from `_` to `.`, and `.,` becomes
+      `',` per T004).
+- [X] T009 [US1] Run `cargo test --lib render::` and confirm every test in the module passes,
       including `byte_mapping_round_trips`, `byte_mapping_is_distinct`,
-      `unrecognized_bytes_have_no_mapping` (T008), `parsed_trefoil_renders_as_the_notation_does`,
+      `unrecognized_bytes_have_no_mapping` (T008), the opening-centered and error-position tests
+      (T008a-T008d), the snapshot test (T008e, unchanged snapshot), `ragged_text_normalizes_to_a_fixed_point`
+      (T008f), `blank_rows_survive_a_round_trip` (T008g), `parsed_trefoil_renders_as_the_notation_does`,
       `parsed_unknot_renders_as_the_notation_does`, `first_line_is_the_top_row`,
       `ragged_rows_are_padded_on_the_right`, `empty_input_is_an_empty_diagram`,
       `trailing_newline_is_optional`, `carriage_returns_terminate_lines`, and
@@ -114,14 +141,19 @@ every entry matches `contracts/symbol-table.md`.
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Inspect `SYMBOL_TABLE` in `examples/knot-so-good/src/main.rs` (~line 209) and its
+- [X] T010 [US2] Inspect `SYMBOL_TABLE` in `examples/knot-so-good/src/main.rs` (~line 209) and its
       rendering at ~line 350-355; confirm it derives every row from `Horiz::as_byte` per variant
       with no hard-coded character literals, so it reflects T002's revised mapping automatically.
       No file changes are expected; if any hard-coded old-character literal is found, fix it here.
-- [ ] T011 [US2] Run `cd examples/knot-so-good && trunk serve`, open the app, switch to manual
+- [X] T011 [US2] Run `cd examples/knot-so-good && trunk serve`, open the app, switch to manual
       diagram mode, and visually confirm the displayed symbol table reference lists exactly the
       sixteen entries in `contracts/symbol-table.md`'s Mapping table — this validates spec
       Acceptance Scenario 1 of User Story 2.
+      (`trunk` is not installed in this environment; verified instead with a throwaway
+      `cargo run --example` binary in `examples/knot-so-good` that iterates `SYMBOL_TABLE` exactly
+      as the `html!` view does and prints `horiz.as_byte() as char` for each entry — the output
+      matched `contracts/symbol-table.md`'s Mapping table exactly, byte for byte. The scratch
+      example was removed after use; no file changes were needed.)
 
 **Checkpoint**: Both user stories are independently functional — the library implements the
 revised mapping (US1) and the app surfaces it correctly with no separate edit needed (US2).
@@ -132,9 +164,9 @@ revised mapping (US1) and the app surfaces it correctly with no separate edit ne
 
 **Purpose**: Confirm the change meets the constitution gates and the spec's full validation guide
 
-- [ ] T012 [P] Run `cargo check --target wasm32-unknown-unknown` from the repository root and
+- [X] T012 [P] Run `cargo check --target wasm32-unknown-unknown` from the repository root and
       confirm it succeeds (Constitution Article II; no new dependency was introduced by T002/T003).
-- [ ] T013 Walk through every command in `quickstart.md` end-to-end (unit tests, WASM check, manual
+- [X] T013 Walk through every command in `quickstart.md` end-to-end (unit tests, WASM check, manual
       trefoil round trip, in-app symbol table check) and confirm each expected outcome holds.
 
 ---
