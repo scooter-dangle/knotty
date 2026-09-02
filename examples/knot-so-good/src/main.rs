@@ -15,16 +15,6 @@ enum PersistedDisplayMode {
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
-enum PersistedRenderMode {
-    #[default]
-    Standard,
-    OpeningCentered,
-    #[serde(other)]
-    Other,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Default, Clone, PartialEq, Debug)]
-#[serde(rename_all = "snake_case")]
 enum PersistedMode {
     #[default]
     Notation,
@@ -53,8 +43,6 @@ struct PersistedState {
     manual_snapshots: Vec<PersistedManualSnapshot>,
     #[serde(default)]
     manual_borders: bool,
-    #[serde(default)]
-    render_mode: PersistedRenderMode,
 }
 
 impl PersistedState {
@@ -75,10 +63,6 @@ impl PersistedState {
             manual_diagram: model.manual_diagram.clone(),
             manual_snapshots: model.manual_snapshots.clone(),
             manual_borders: model.manual_borders,
-            render_mode: match model.render_mode {
-                knotty::RenderMode::Standard => PersistedRenderMode::Standard,
-                knotty::RenderMode::OpeningCentered => PersistedRenderMode::OpeningCentered,
-            },
         }
     }
 }
@@ -135,7 +119,6 @@ fn clear_storage() {
 
 enum Msg {
     SetMode(Mode),
-    SetRenderMode(knotty::RenderMode),
     ManualDiagram(Option<String>),
     ManualBorders(bool),
     ManualSnapshot,
@@ -169,7 +152,6 @@ enum Mode {
 struct Model {
     mode: Mode,
     display_mode: DisplayMode,
-    render_mode: knotty::RenderMode,
     compact: bool,
     manual_borders: bool,
     raw_base_diagram: String,
@@ -250,9 +232,9 @@ impl Model {
     fn compact_text(&self) -> Option<String> {
         let knot = self.modified_diagram.as_ref().ok()?;
         Some(
-            knotty::VerboseDiagram::from_abbreviated(knot, self.render_mode)
+            knotty::VerboseDiagram::from_abbreviated(knot)
                 .ok()?
-                .to_text(self.render_mode),
+                .to_text(),
         )
     }
 
@@ -268,22 +250,6 @@ impl Model {
                     { "Dismiss" }
                 </button>
             </p>
-        }
-    }
-
-    fn render_mode_toggle(&self, link: &html::Scope<Self>) -> Html {
-        let (other, label) = match self.render_mode {
-            knotty::RenderMode::Standard => (
-                knotty::RenderMode::OpeningCentered,
-                "switch to opening-centered view",
-            ),
-            knotty::RenderMode::OpeningCentered => {
-                (knotty::RenderMode::Standard, "switch to standard view")
-            }
-        };
-
-        html! {
-            <button onclick={link.callback(move |_| Msg::SetRenderMode(other))}>{ label }</button>
         }
     }
 
@@ -325,7 +291,6 @@ impl Model {
             <>
                 { self.storage_error_html(link) }
                 { self.mode_toggle(link) }
-                { self.render_mode_toggle(link) }
                 <button onclick={link.callback(move |_| Msg::ManualBorders(other_borders))}>
                     { if self.manual_borders { "switch to plain view" } else { "switch to bordered view" } }
                 </button>
@@ -335,7 +300,7 @@ impl Model {
                     onclick={link.callback(|_| Msg::ManualSnapshot)}
                 >{ "snapshot" }</button>
                 if let Some(ref diagram) = self.manual_render {
-                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.render_mode, self.manual_borders)) }</pre></p>
+                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre></p>
                 }
                 if let Some(ref err) = self.manual_error {
                     <p class="manual-error">{ format!("Error: {err}") }</p>
@@ -364,7 +329,7 @@ impl Model {
                             let preview = snapshot
                                 .diagram
                                 .parse::<knotty::VerboseDiagram>()
-                                .map(|diagram| render_manual(&diagram, self.render_mode, self.manual_borders))
+                                .map(|diagram| render_manual(&diagram, self.manual_borders))
                                 .unwrap_or_default();
 
                             html! {
@@ -392,7 +357,7 @@ impl Model {
 
                 // An empty diagram draws nothing, so there is no picture
                 // to keep once the text goes bad.
-                let has_picture = diagram.display::<false>(self.render_mode).next().is_some();
+                let has_picture = diagram.display::<false>().next().is_some();
                 self.manual_render = has_picture.then_some(diagram);
             }
             // Keep the last valid render so a mistyped character does
@@ -409,9 +374,9 @@ impl Model {
 
         self.ascii_modified_diagram = self.modified_diagram.clone().and_then(|knot| {
             if self.compact {
-                knot.try_ascii_print_compact::<false>(self.render_mode)
+                knot.try_ascii_print_compact::<false>()
             } else {
-                knot.try_ascii_print::<false>(self.render_mode)
+                knot.try_ascii_print::<false>()
             }
         });
 
@@ -425,15 +390,11 @@ impl Model {
     }
 }
 
-fn render_manual(
-    diagram: &knotty::VerboseDiagram,
-    mode: knotty::RenderMode,
-    borders: bool,
-) -> String {
+fn render_manual(diagram: &knotty::VerboseDiagram, borders: bool) -> String {
     if borders {
-        diagram.display::<true>(mode).collect()
+        diagram.display::<true>().collect()
     } else {
-        diagram.display::<false>(mode).collect()
+        diagram.display::<false>().collect()
     }
 }
 
@@ -517,7 +478,6 @@ impl Component for Model {
             manual_diagram,
             manual_snapshots,
             manual_borders,
-            render_mode,
         } = persisted;
 
         let display_mode = match display_mode {
@@ -530,15 +490,6 @@ impl Component for Model {
             PersistedMode::Notation | PersistedMode::Other => Mode::Notation,
         };
 
-        // One choice shared by both app modes: the rendering is a property of
-        // the picture, not of how the diagram was entered.
-        let render_mode = match render_mode {
-            PersistedRenderMode::OpeningCentered => knotty::RenderMode::OpeningCentered,
-            PersistedRenderMode::Standard | PersistedRenderMode::Other => {
-                knotty::RenderMode::Standard
-            }
-        };
-
         let parsed_base_diagram = raw_base_diagram.parse();
         let parsed_moves_result = raw_moves.parse::<knotty::DiagramMoves>();
         let parsed_moves_valid = parsed_moves_result.is_ok();
@@ -547,7 +498,6 @@ impl Component for Model {
         let mut model = Self {
             mode,
             display_mode,
-            render_mode,
             compact,
             manual_borders,
             raw_base_diagram,
@@ -600,15 +550,6 @@ impl Component for Model {
                 self.manual_diagram = diagram;
                 self.update_manual();
                 true
-            }
-            SetRenderMode(mode) => {
-                if self.render_mode == mode {
-                    false
-                } else {
-                    self.render_mode = mode;
-                    self.update_modified();
-                    true
-                }
             }
             ManualBorders(borders) => {
                 if self.manual_borders == borders {
@@ -862,7 +803,6 @@ impl Component for Model {
                     <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
                 }).collect::<Html>() }
                 <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
-                { self.render_mode_toggle(link) }
                 <button onclick={link.callback(move |_| Msg::Compact(other_compact))}>
                     { if self.compact { "switch to full display" } else { "switch to compact display" } }
                 </button>

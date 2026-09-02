@@ -1,21 +1,21 @@
 ---
-source: src/lib.rs
+source: src/diagram/tests.rs
 expression: verbose
 ---
 VerboseDiagram(
     [
         VerboseLine(
             [
-                OpenedAbove,
-                CrossUpUnder,
-                ClosedAbove,
+                OpenedBelow,
+                CrossDownOver,
+                ClosedBelow,
             ],
         ),
         VerboseLine(
             [
-                OpenedBelow,
-                CrossDownOver,
-                ClosedBelow,
+                Empty,
+                Empty,
+                Empty,
             ],
         ),
     ],

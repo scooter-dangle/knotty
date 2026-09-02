@@ -3,7 +3,7 @@
 // and is not tested here; it is too thin to warrant browser-based tests.
 use super::{
     ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedManualSnapshot,
-    PersistedMode, PersistedRenderMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
+    PersistedMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
 };
 
 #[test]
@@ -167,10 +167,10 @@ fn compact_and_non_compact_differ_for_trefoil() {
         .parse::<knotty::AbbreviatedDiagram>()
         .unwrap();
     let full = trefoil
-        .try_ascii_print::<false>(knotty::RenderMode::Standard)
+        .try_ascii_print::<false>()
         .unwrap();
     let compact = trefoil
-        .try_ascii_print_compact::<false>(knotty::RenderMode::Standard)
+        .try_ascii_print_compact::<false>()
         .unwrap();
     assert_ne!(full, compact);
 }
@@ -179,9 +179,9 @@ fn compact_and_non_compact_differ_for_trefoil() {
 fn non_compact_mode_uses_full_ascii() {
     let unknot = "(0 )0".parse::<knotty::AbbreviatedDiagram>().unwrap();
     let full = unknot
-        .try_ascii_print::<false>(knotty::RenderMode::Standard)
+        .try_ascii_print::<false>()
         .unwrap();
-    let also = unknot.ascii_print::<false>(knotty::RenderMode::Standard);
+    let also = unknot.ascii_print::<false>();
     assert_eq!(full, also);
 }
 
@@ -211,7 +211,6 @@ fn round_trip_carries_manual_state() {
             diagram: "()\n.,\n".into(),
         }],
         manual_borders: false,
-        render_mode: PersistedRenderMode::Standard,
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -286,13 +285,13 @@ fn symbol_table_characters_match_the_library() {
 #[test]
 fn bordered_render_draws_one_box_per_character() {
     // One box per typed character, one row of boxes per line of text.
-    for text in ["(\n", "()\n',\n", ".(___).\n.'y_y,.\n(_AxA_)\n'__a__,\n"] {
+    for text in ["(\n", "..\n()\n", "..___..\n.(._.).\n._y.y_.\n(__x__)\n"] {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
         let plain: String = diagram
-            .display::<false>(knotty::RenderMode::Standard)
+            .display::<false>()
             .collect();
         let bordered: String = diagram
-            .display::<true>(knotty::RenderMode::Standard)
+            .display::<true>()
             .collect();
 
         let rows = text.lines().count();
@@ -314,16 +313,16 @@ fn bordered_render_draws_one_box_per_character() {
 fn both_views_are_empty_for_the_same_diagrams() {
     // The app asks "is there a picture?" once, without knowing which view
     // is selected, so the two must agree.
-    for text in ["", "\n", "()\n',\n"] {
+    for text in ["", "\n", "..\n()\n"] {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
 
         assert_eq!(
             diagram
-                .display::<false>(knotty::RenderMode::Standard)
+                .display::<false>()
                 .next()
                 .is_some(),
             diagram
-                .display::<true>(knotty::RenderMode::Standard)
+                .display::<true>()
                 .next()
                 .is_some(),
             "{text:?}",
@@ -333,9 +332,9 @@ fn both_views_are_empty_for_the_same_diagrams() {
 
 #[test]
 fn manual_diagram_text_renders_without_notation() {
-    let diagram = "()\n',\n".parse::<knotty::VerboseDiagram>().unwrap();
+    let diagram = "..\n()\n".parse::<knotty::VerboseDiagram>().unwrap();
     let rendered: String = diagram
-        .display::<false>(knotty::RenderMode::Standard)
+        .display::<false>()
         .collect();
 
     assert_eq!(
@@ -343,7 +342,7 @@ fn manual_diagram_text_renders_without_notation() {
         "(0 )0"
             .parse::<knotty::AbbreviatedDiagram>()
             .unwrap()
-            .ascii_print::<false>(knotty::RenderMode::Standard),
+            .ascii_print::<false>(),
     );
 }
 
@@ -370,35 +369,4 @@ fn state_saved_with_a_render_mode_still_loads() {
     assert!(state.compact);
     assert_eq!(state.manual_diagram, "()\n',\n");
     assert!(state.manual_borders);
-}
-
-#[test]
-fn missing_render_mode_field_defaults_to_standard() {
-    // The guarantee that silently regresses if `#[serde(default)]` is dropped:
-    // state saved before this feature must load in the standard rendering.
-    let json = r#"{"diagram":"(0 )0","moves":""}"#;
-    let state: PersistedState = serde_json::from_str(json).unwrap();
-
-    assert_eq!(state.render_mode, PersistedRenderMode::Standard);
-}
-
-#[test]
-fn unknown_render_mode_string_deserializes_to_other() {
-    let json = r#"{"render_mode":"kaleidoscope"}"#;
-    let state: PersistedState = serde_json::from_str(json).unwrap();
-
-    assert_eq!(state.render_mode, PersistedRenderMode::Other);
-}
-
-#[test]
-fn round_trip_carries_the_render_mode() {
-    let state = PersistedState {
-        render_mode: PersistedRenderMode::OpeningCentered,
-        ..Default::default()
-    };
-
-    let json = serde_json::to_string(&state).unwrap();
-    let back: PersistedState = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(back.render_mode, PersistedRenderMode::OpeningCentered);
 }

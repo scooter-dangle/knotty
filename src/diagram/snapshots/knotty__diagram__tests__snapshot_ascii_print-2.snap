@@ -1,6 +1,6 @@
 ---
-source: src/lib.rs
-expression: "ascii_print_compact::<false>(trefoil)"
+source: src/diagram/tests.rs
+expression: "ascii_print_compact::<false>(knot)"
 ---
     _________    
    /         \   
@@ -11,5 +11,4 @@ expression: "ascii_print_compact::<false>(trefoil)"
   __/ \   / \__  
  /     \ /     \ 
 (       /       )
- \_____/ \_____/ 
-
+ \_____/ \_____/

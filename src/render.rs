@@ -21,13 +21,6 @@ pub enum Horiz {
     TransferDownFinish,
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RenderMode {
-    #[default]
-    Standard,
-    OpeningCentered,
-}
-
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct VerboseLine(pub(crate) Vec<Horiz>);
 
@@ -42,98 +35,8 @@ pub(crate) const DISPLAY_WITH_BORDERS_LINES: usize = display_lines(true);
 pub(crate) const DISPLAY_LINES: usize = display_lines(false);
 
 impl Horiz {
-    pub const fn display(&self, mode: RenderMode) -> [&'static str; DISPLAY_LINES] {
-        match mode {
-            RenderMode::Standard => self.standard_display(),
-            RenderMode::OpeningCentered => self.opening_centered_display(),
-        }
-    }
-
     #[rustfmt::skip]
-    const fn standard_display(&self) -> [&'static str; DISPLAY_LINES] {
-        use Horiz::*;
-
-        match self {
-            Empty => [
-                r#"   "#,
-                r#"   "#,
-                r#"   "#,
-            ],
-            Line => [
-                r#"___"#,
-                r#"   "#,
-                r#"   "#,
-            ],
-            CrossDownOver => [
-                r#"   "#,
-                r#"\ /"#,
-                r#" \ "#,
-            ],
-            CrossDownUnder => [
-                r#"   "#,
-                r#"\ /"#,
-                r#" / "#,
-            ],
-            CrossUpOver | CrossUpUnder => [
-                r#"/ \"#,
-                r#"   "#,
-                r#"   "#,
-            ],
-            OpenedBelow => [
-                r#"   "#,
-                r#"  /"#,
-                r#" ( "#,
-            ],
-            OpenedAbove => [
-                r#"  \"#,
-                r#"   "#,
-                r#"   "#,
-            ],
-            ClosedBelow => [
-                r#"   "#,
-                r#"\  "#,
-                r#" ) "#,
-            ],
-            ClosedAbove => [
-                r#"/  "#,
-                r#"   "#,
-                r#"   "#,
-            ],
-            TransferUpStart => [
-                r#"__/"#,
-                r#"   "#,
-                r#"   "#,
-            ],
-            TransferUp => [
-                r#"  /"#,
-                r#" / "#,
-                r#"/  "#,
-            ],
-            TransferUpFinish => [
-                r#"  _"#,
-                r#" / "#,
-                r#"/  "#,
-            ],
-            TransferDownStart => [
-                r#"_  "#,
-                r#" \ "#,
-                r#"  \"#,
-            ],
-            TransferDown => [
-                r#"\  "#,
-                r#" \ "#,
-                r#"  \"#,
-            ],
-            TransferDownFinish => [
-                r#"\__"#,
-                r#"   "#,
-                r#"   "#,
-            ],
-        }
-    }
-
-    #[rustfmt::skip]
-    const fn opening_centered_display(&self) -> [&'static str; DISPLAY_LINES] {
+    pub const fn display(&self) -> [&'static str; DISPLAY_LINES] {
         use Horiz::*;
 
         match self {
@@ -192,118 +95,8 @@ impl Horiz {
         }
     }
 
-    pub const fn display_with_borders(
-        &self,
-        mode: RenderMode,
-    ) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
-        match mode {
-            RenderMode::Standard => self.standard_display_with_borders(),
-            RenderMode::OpeningCentered => self.opening_centered_display_with_borders(),
-        }
-    }
-
     #[rustfmt::skip]
-    const fn standard_display_with_borders(&self) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
-        use Horiz::*;
-
-        match self {
-            Empty => [
-                r#"+---"#,
-                r#"|   "#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-            Line => [
-                r#"+---"#,
-                r#"|___"#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-            CrossDownOver => [
-                r#"+---"#,
-                r#"|   "#,
-                r#"|\ /"#,
-                r#"| \ "#,
-            ],
-            CrossDownUnder => [
-                r#"+---"#,
-                r#"|   "#,
-                r#"|\ /"#,
-                r#"| / "#,
-            ],
-            CrossUpOver | CrossUpUnder => [
-                r#"+---"#,
-                r#"|/ \"#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-            OpenedBelow => [
-                r#"+---"#,
-                r#"|   "#,
-                r#"|  /"#,
-                r#"| ( "#,
-            ],
-            OpenedAbove => [
-                r#"+---"#,
-                r#"|  \"#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-            ClosedBelow => [
-                r#"+---"#,
-                r#"|   "#,
-                r#"|\  "#,
-                r#"| ) "#,
-            ],
-            ClosedAbove => [
-                r#"+---"#,
-                r#"|/  "#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-            TransferUpStart => [
-                r#"+---"#,
-                r#"|__/"#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-            TransferUp => [
-                r#"+---"#,
-                r#"|  /"#,
-                r#"| / "#,
-                r#"|/  "#,
-            ],
-            TransferUpFinish => [
-                r#"+---"#,
-                r#"|  _"#,
-                r#"| / "#,
-                r#"|/  "#,
-            ],
-            TransferDownStart => [
-                r#"+---"#,
-                r#"|_  "#,
-                r#"| \ "#,
-                r#"|  \"#,
-            ],
-            TransferDown => [
-                r#"+---"#,
-                r#"|\  "#,
-                r#"| \ "#,
-                r#"|  \"#,
-            ],
-            TransferDownFinish => [
-                r#"+---"#,
-                r#"|\__"#,
-                r#"|   "#,
-                r#"|   "#,
-            ],
-        }
-    }
-
-    #[rustfmt::skip]
-    const fn opening_centered_display_with_borders(
-        &self,
-    ) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
+    pub const fn display_with_borders(&self) -> [&'static str; DISPLAY_WITH_BORDERS_LINES] {
         use Horiz::*;
 
         match self {
@@ -368,50 +161,25 @@ impl Horiz {
     }
 
     #[rustfmt::skip]
-    pub const fn subsequent(&self) -> Self {
+    /// The cells the split-cell rendering drew and this one does not. They stay
+    /// readable, but they draw nothing, so canonical text writes them as the
+    /// empty cell. Goes away when the cells themselves do.
+    #[rustfmt::skip]
+    const fn drawn(self) -> Self {
         use Horiz::*;
 
         match self {
-            | Empty
-            | ClosedBelow
-            | ClosedAbove
-            | TransferUpStart
-            | TransferUp
-            | TransferDownStart
-            | TransferDown
-            => Empty,
-
-            | Line
-            | CrossDownOver
-            | CrossDownUnder
             | CrossUpOver
             | CrossUpUnder
-            | OpenedBelow
             | OpenedAbove
+            | ClosedAbove
+            | TransferUpStart
             | TransferUpFinish
+            | TransferDownStart
             | TransferDownFinish
-            => Line,
-        }
-    }
+            => Empty,
 
-    #[rustfmt::skip]
-    const fn in_mode(self, mode: RenderMode) -> Self {
-        use Horiz::*;
-
-        match (mode, self) {
-            (RenderMode::Standard, horiz) => horiz,
-            (
-                RenderMode::OpeningCentered,
-                | CrossUpOver
-                | CrossUpUnder
-                | OpenedAbove
-                | ClosedAbove
-                | TransferUpStart
-                | TransferUpFinish
-                | TransferDownStart
-                | TransferDownFinish,
-            ) => Empty,
-            (RenderMode::OpeningCentered, horiz) => horiz,
+            horiz => horiz,
         }
     }
 
@@ -470,14 +238,11 @@ impl Horiz {
 }
 
 impl VerboseLine {
-    pub fn display<const GRID_BORDERS: bool>(
-        &self,
-        mode: RenderMode,
-    ) -> impl 'static + Iterator<Item = String> {
+    pub fn display<const GRID_BORDERS: bool>(&self) -> impl 'static + Iterator<Item = String> {
         let horiz_len: usize = if GRID_BORDERS {
-            Horiz::Empty.display_with_borders(mode)[0].len()
+            Horiz::Empty.display_with_borders()[0].len()
         } else {
-            Horiz::Empty.display(mode)[0].len()
+            Horiz::Empty.display()[0].len()
         };
 
         let mut l0 = " ".repeat(self.0.len() * horiz_len) + "\n";
@@ -491,9 +256,9 @@ impl VerboseLine {
 
         for (idx, horiz) in self.0.iter().enumerate() {
             let [h0, h1, h2, h3] = if GRID_BORDERS {
-                horiz.display_with_borders(mode)
+                horiz.display_with_borders()
             } else {
-                let [h0, h1, h2] = horiz.display(mode);
+                let [h0, h1, h2] = horiz.display();
                 [h0, h1, h2, ""]
             };
             let range = (idx * horiz_len)..((idx + 1) * horiz_len);
@@ -513,32 +278,24 @@ impl VerboseLine {
 }
 
 impl VerboseDiagram {
-    pub fn display<'a, const GRID_BORDERS: bool>(
-        &'a self,
-        mode: RenderMode,
-    ) -> impl 'a + Iterator<Item = String> {
-        let (last_idx, inner) = match self.0.len().checked_sub(1) {
-            Some(idx) => (idx, self.0.as_slice()),
-            None => (0, &[][..]),
+    pub fn display<'a, const GRID_BORDERS: bool>(&'a self) -> impl 'a + Iterator<Item = String> {
+        let inner = if self.0.is_empty() {
+            &[][..]
+        } else {
+            self.0.as_slice()
         };
 
         let total = display_lines(GRID_BORDERS);
         let border_lines = usize::from(GRID_BORDERS);
 
         inner.iter().rev().enumerate().flat_map(move |(idx, line)| {
-            line.display::<GRID_BORDERS>(mode)
+            line.display::<GRID_BORDERS>()
                 .enumerate()
-                .filter(move |&(line_idx, _)| match mode {
-                    // Standard hangs a strand from the top of its cell, so
-                    // the bottom row of the picture holds nothing below its
-                    // first line.
-                    RenderMode::Standard => idx != last_idx || line_idx + 2 < total,
-                    // Opening-centered hangs it from the bottom instead, so
-                    // the empty pair is at the top of the picture. Keep the
-                    // last content line, and the rule above it if there is one.
-                    RenderMode::OpeningCentered => {
-                        idx != 0 || line_idx + 1 == total || line_idx < border_lines
-                    }
+                // A strand hangs from the bottom of its cell, so the empty
+                // pair is at the top of the picture. Keep the last content
+                // line, and the rule above it if there is one.
+                .filter(move |&(line_idx, _)| {
+                    idx != 0 || line_idx + 1 == total || line_idx < border_lines
                 })
                 .map(|(_, line)| line)
         })
@@ -546,7 +303,7 @@ impl VerboseDiagram {
 }
 
 impl VerboseDiagram {
-    pub fn to_text(&self, mode: RenderMode) -> String {
+    pub fn to_text(&self) -> String {
         // Defensive: a VerboseDiagram built any way other than by
         // parsing or `from_abbreviated` could be ragged, and an
         // unpadded row would break the byte-for-byte round trip.
@@ -559,7 +316,7 @@ impl VerboseDiagram {
             .flat_map(|line| {
                 line.0
                     .iter()
-                    .map(|horiz| horiz.in_mode(mode))
+                    .map(|horiz| horiz.drawn())
                     .chain(std::iter::repeat(Horiz::Empty).take(width - line.0.len()))
                     .map(|horiz| horiz.as_byte() as char)
                     .chain(std::iter::once('\n'))
@@ -616,7 +373,7 @@ impl FromStr for VerboseDiagram {
 
 impl fmt::Display for VerboseDiagram {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.to_text(RenderMode::Standard))
+        formatter.write_str(&self.to_text())
     }
 }
 
@@ -689,15 +446,15 @@ mod tests {
         ];
 
         for (horiz, cell) in table {
-            assert_eq!(horiz.display(RenderMode::OpeningCentered), cell, "{horiz:?}");
+            assert_eq!(horiz.display(), cell, "{horiz:?}");
         }
     }
 
     #[test]
-    fn retired_cells_are_blank_in_opening_centered() {
+    fn retired_cells_are_blank() {
         for horiz in RETIRED {
             assert_eq!(
-                horiz.display(RenderMode::OpeningCentered),
+                horiz.display(),
                 ["   "; DISPLAY_LINES],
                 "{horiz:?}",
             );
@@ -705,76 +462,33 @@ mod tests {
     }
 
     #[test]
-    fn transfer_cells_are_the_same_in_both_modes() {
-        for horiz in [Horiz::TransferUp, Horiz::TransferDown] {
-            assert_eq!(
-                horiz.display(RenderMode::Standard),
-                horiz.display(RenderMode::OpeningCentered),
-                "{horiz:?}",
-            );
-        }
-    }
-
-    #[test]
     fn bordered_cells_are_the_plain_cells_behind_a_rule() {
-        // The border is drawn by the renderer, not by the cell, so this must
-        // hold in every mode — including one added later.
-        for mode in [RenderMode::Standard, RenderMode::OpeningCentered] {
-            for horiz in ALL_HORIZ {
-                let plain = horiz.display(mode);
-                let bordered = horiz.display_with_borders(mode);
+        // The border is drawn by the renderer, not by the cell.
+        for horiz in ALL_HORIZ {
+            let plain = horiz.display();
+            let bordered = horiz.display_with_borders();
 
-                assert_eq!(bordered[0], "+---", "{horiz:?}");
-                for (idx, line) in plain.iter().enumerate() {
-                    assert_eq!(
-                        bordered[idx + 1],
-                        format!("|{line}"),
-                        "{horiz:?} line {idx}"
-                    );
-                }
+            assert_eq!(bordered[0], "+---", "{horiz:?}");
+            for (idx, line) in plain.iter().enumerate() {
+                assert_eq!(bordered[idx + 1], format!("|{line}"), "{horiz:?} line {idx}");
             }
         }
     }
 
     #[test]
-    fn retired_characters_are_read_but_never_written_in_opening_centered() {
-        let retired = "Aa',\njr2L\n";
-        let diagram = parse(retired);
+    fn retired_characters_are_read_but_never_written() {
+        let diagram = parse("Aa',\njr2L\n");
 
-        assert_eq!(diagram.to_text(RenderMode::Standard), retired);
-        assert_eq!(diagram.to_text(RenderMode::OpeningCentered), "....\n....\n");
+        assert_eq!(diagram.to_text(), "....\n....\n");
     }
 
     #[test]
-    fn opening_centered_text_settles_in_one_pass() {
+    fn text_settles_in_one_pass() {
         for source in [UNKNOT, TREFOIL, "Aa',\njr2L\n", ".(_/_).\n(__\\__)\n"] {
-            let once = parse(source).to_text(RenderMode::OpeningCentered);
-            let twice = parse(&once).to_text(RenderMode::OpeningCentered);
+            let once = parse(source).to_text();
+            let twice = parse(&once).to_text();
 
             assert_eq!(once, twice, "{source:?}");
-        }
-    }
-
-    #[test]
-    fn standard_text_still_round_trips_every_character() {
-        let all: String = ALL_HORIZ
-            .iter()
-            .map(|horiz| horiz.as_byte() as char)
-            .collect::<String>()
-            + "\n";
-
-        assert_eq!(parse(&all).to_text(RenderMode::Standard), all);
-        assert_eq!(parse(&all).to_string(), all);
-    }
-
-    #[test]
-    fn to_text_matches_display_in_standard_mode() {
-        for source in [UNKNOT, TREFOIL, "", "()\n__\n.,\n"] {
-            assert_eq!(
-                parse(source).to_text(RenderMode::Standard),
-                parse(source).to_string(),
-                "{source:?}",
-            );
         }
     }
 
@@ -802,15 +516,15 @@ mod tests {
     }
 
     const UNKNOT: &str = "\
+        ..\n\
         ()\n\
-        ',\n\
     ";
 
     const TREFOIL: &str = "\
-        .(___).\n\
-        .'y_y,.\n\
-        (_AxA_)\n\
-        '__a__,\n\
+        ..___..\n\
+        .(._.).\n\
+        ._y.y_.\n\
+        (__x__)\n\
     ";
 
     fn knot(source: &str) -> AbbreviatedDiagram {
@@ -822,14 +536,14 @@ mod tests {
     }
 
     fn render(diagram: &VerboseDiagram) -> String {
-        diagram.display::<false>(RenderMode::Standard).collect()
+        diagram.display::<false>().collect()
     }
 
     #[test]
     fn parsed_trefoil_renders_as_the_notation_does() {
         assert_eq!(
             render(&parse(TREFOIL)),
-            knot("(0 (2 /1 \\0 /1 )2 )0").ascii_print::<false>(RenderMode::Standard),
+            knot("(0 (2 /1 \\0 /1 )2 )0").ascii_print::<false>(),
         );
     }
 
@@ -837,7 +551,7 @@ mod tests {
     fn parsed_unknot_renders_as_the_notation_does() {
         assert_eq!(
             render(&parse(UNKNOT)),
-            knot("(0 )0").ascii_print::<false>(RenderMode::Standard)
+            knot("(0 )0").ascii_print::<false>()
         );
     }
 
@@ -848,7 +562,7 @@ mod tests {
         // check would accept.
         assert_eq!(
             parse(TREFOIL),
-            VerboseDiagram::from_abbreviated(&knot("(0 (2 /1 \\0 /1 )2 )0"), RenderMode::Standard)
+            VerboseDiagram::from_abbreviated(&knot("(0 (2 /1 \\0 /1 )2 )0"))
                 .unwrap(),
         );
 
@@ -864,10 +578,10 @@ mod tests {
     #[test]
     fn ragged_rows_are_padded_on_the_right() {
         let ragged = "\
-            .(___)\n\
-            .'y_y,\n\
-            (_AxA_)\n\
-            '__a__,\n\
+            ..___\n\
+            .(._.)\n\
+            ._y.y_\n\
+            (__x__)\n\
         ";
 
         assert_eq!(parse(ragged), parse(TREFOIL));
@@ -943,16 +657,17 @@ mod tests {
     #[test]
     fn snapshot_parsed_diagram_render_with_borders() {
         insta::assert_snapshot!(parse(TREFOIL)
-            .display::<true>(RenderMode::Standard)
+            .display::<true>()
             .collect::<String>());
     }
 
     #[test]
     fn snapshot_parsed_diagram_render() {
         let hand_written = "\
-            .j___r.\n\
-            (_2_L_)\n\
-            '__\\__,\n\
+            ...__...\n\
+            ../..\\..\n\
+            ./.().\\.\n\
+            (______)\n\
         ";
 
         insta::assert_snapshot!(render(&parse(hand_written)));
@@ -966,7 +681,7 @@ mod tests {
     ];
 
     fn verbose(source: &str) -> VerboseDiagram {
-        VerboseDiagram::from_abbreviated(&knot(source), RenderMode::Standard).unwrap()
+        VerboseDiagram::from_abbreviated(&knot(source)).unwrap()
     }
 
     #[test]
@@ -1002,10 +717,10 @@ mod tests {
     #[test]
     fn ragged_text_normalizes_to_a_fixed_point() {
         let ragged = "\
-            .(___)\n\
-            .'y_y,\n\
-            (_AxA_)\n\
-            '__a__,\n\
+            ..___\n\
+            .(._.)\n\
+            ._y.y_\n\
+            (__x__)\n\
         ";
 
         let canonical = parse(ragged).to_string();
@@ -1022,7 +737,7 @@ mod tests {
 
     #[test]
     fn blank_rows_survive_a_round_trip() {
-        let with_blank = "()\n..\n',\n";
+        let with_blank = "()\n..\n()\n";
 
         assert_eq!(parse(with_blank).to_string(), with_blank);
     }
