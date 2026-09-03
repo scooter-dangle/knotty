@@ -64,25 +64,34 @@ cross-checked against the fixture heights.
 
 ## Shape
 
-> **OPEN — to be fixed by the Component A fixtures before T010 lands.**
+> **RESOLVED 2026-09-03 — per strand, two values per opening event.**
 >
-> The design docs and the feature request describe this differently, and the
-> difference is material:
+> [research.md](../research.md) R2 and [data-model.md](../data-model.md) describe
+> a **per-pair** value (one row per opening event). That is an oversimplification
+> and is superseded. Heights are calculated **per strand**: a pair's two strands
+> can diverge, because an opening occurring between them raises the upper without
+> raising the lower. Tracing `OpeningCentered::append` on main, a pair opened at
+> levels 3,4 followed by `(4` ends up spanning levels 3 and 6.
 >
-> - [research.md](../research.md) R2 and [data-model.md](../data-model.md)
->   describe a **per-pair** value — "the maximum bottom-row it occupies between
->   its `(` and its matching `)`" — i.e. one row per opening event.
-> - The feature request describes **"the starting heights for each strand in
->   each strand pair"** — i.e. two values per opening event, one per strand.
->
-> These coincide only if the two strands of a pair are always placed adjacent
-> (`r` and `r+1`) and never diverge before closing. The abbreviated notation does
-> not obviously guarantee that: an opening between them shifts one and not the
-> other, and the `)` that retires a strand need not be the partner of the `(`
-> that created it.
->
-> The part-1 fixtures resolve this by construction — the expected values either
-> carry one row per opening or two. Do not implement A until they do.
+> Component A therefore yields **two maxima per opening event** — one for the
+> lower strand, one for the upper. Amend research R2 and data-model.md to match.
+
+### Derived: the opening placement row
+
+Component B does not place a cap at either strand's maximum. Per spec FR-002 the
+cap is drawn at the floored midpoint of the pair's two maxima:
+
+```text
+opening_row = floor((lower_max + upper_max) / 2)
+```
+
+Flooring is exact rather than lossy: the opening glyph renders halfway up its
+tile, so tile `floor(m)` places the cap at height `m` whenever the midpoint ends
+in `.5`. Each strand then transfers from the cap to its own maximum (FR-015).
+
+Whether this derivation belongs to A or B is an implementation choice, but the
+**contract carries the two maxima**, not the derived row — B needs both maxima
+anyway to emit the two boundary transfers.
 
 Three further details the fixtures must pin down, whichever shape wins:
 
