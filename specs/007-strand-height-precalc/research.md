@@ -1,5 +1,11 @@
 # Phase 0 Research: Height-Precalculated Strand Placement
 
+> **⚠️ R3 and R5 are invalid against current main.** They are written around
+> `raw_lines::{append, expand_above, contract_above}`, which PR #42 deleted when
+> it retired the split-cell rendering. R1, R2, R4, and R6 survive in substance
+> but need their integration points restated against `OpeningCentered`. See the
+> **Rebase impact** section at the top of [plan.md](./plan.md).
+
 This document resolves the open design questions for the height-precalculated
 rendering mode. The spec's clarifications already settled the product-level
 decisions (unconditional max-row placement; rotation-feature semantics; mode as

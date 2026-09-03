@@ -4,6 +4,52 @@
 
 **Input**: Feature specification from `specs/007-strand-height-precalc/spec.md`
 
+## ⚠️ Rebase impact — this design predates PRs #38–#44 (READ FIRST)
+
+This plan, `research.md`, `data-model.md`, `contracts/public-api.md`,
+`quickstart.md`, and `tasks.md` were written against the codebase at `d9a1f16`.
+Main has since landed specs 001–006, two of which rewrote the exact code this
+feature targets:
+
+- **#40 (spec 003)** added the *opening-centered* rendering.
+- **#42 (spec 005)** **retired the split-cell rendering entirely**, leaving one
+  rendering and, in its own words, "no choice to make".
+
+### What is now invalid
+
+| Assumption in these docs | Reality on main |
+|---|---|
+| `raw_lines::{append, expand_above, contract_above, is_empty_above, advance}` are the placement path to extend | **All deleted.** `src/raw_lines.rs` is now `struct OpeningCentered { lines, live }` with `new`/`into_lines`/`column`/`raise_once`/`lower_once`/`append` |
+| `RenderMode::Legacy` names the existing renderer | The legacy (split-cell) renderer **no longer exists**. The surviving default is opening-centered, so `Legacy` is the wrong name for the default variant |
+| `Legacy` routes through the untouched `append` path (research R5) | There is no such path to route through; the parity baseline is now the opening-centered output |
+| A crossing is two half-glyphs on adjacent rows | A crossing is **one glyph in one cell** (`CrossDownOver`/`CrossDownUnder` at `idx` alone); `CrossUpUnder`/`CrossUpOver` are unused. **FR-011's "never drawn between non-adjacent rows" must be re-derived** — this is Component B's hardest part and its premise moved |
+| Transfers use part-way-through-a-cell halves | `raise_once`/`lower_once` move **one whole level per cell**. Affects FR-004 and the SC-002 transfer counting |
+| 16 existing snapshot files (tasks T002) | **24** |
+| `src/raw_lines.rs:135`, `:21`, `:74` (tasks T022 and others) | All stale line references |
+
+### What still holds
+
+`AbbreviatedDiagram` is still a tuple struct at `src/diagram.rs:115` with 37
+`self.0` sites, and no `RenderMode` exists — so the Phase 2 plumbing
+(T003–T009) is unaffected. `height()`, `full_render_lines`, `try_rotate_90_ccw`,
+`new_from_tuples`, `try_apply_all`, the `ascii_print` family, and `scan_row` all
+survive with their signatures. The two-component seam in
+[contracts/strand-heights.md](./contracts/strand-heights.md) is
+architecture-level and survives intact; only Component B's *integration point*
+moves from free functions to `OpeningCentered`.
+
+### Open product question
+
+Spec 005 deliberately removed rendering-mode selection. This feature
+re-introduces a mode choice (FR-012, FR-013) — a direct tension with a
+just-landed decision. It may be that height-precalculated placement should
+*replace* opening-centered placement rather than sit alongside it. Settle this
+with the feature owner before implementing.
+
+**Recommended**: re-run `/speckit-plan`, then `/speckit-analyze`, against current
+main before `/speckit-implement`. The spec's requirements and success criteria
+are largely unaffected; the technical design below is what needs revision.
+
 ## Summary
 
 Add a second, opt-in diagram rendering mode that places each opening strand at the maximum vertical row it will ever occupy (precalculated from the abbreviated notation), so passing strands run flat instead of zig-zagging up and back down via transfer diagonals. The mode is an **operating context** carried on `AbbreviatedDiagram` (default = the existing legacy renderer), so rendering and the rotation move both honor it without changing any existing method signature. Because rotation re-derives notation by scanning the rendered grid, reducing avoidable (reversed-direction) transfers keeps the scanned feature count stable across repeated rotations — the motivating use case. Crossings whose partners are no longer adjacent under max-height placement are brought together with localized crossing-alignment transfers (which are scanned but do not inflate feature counts).

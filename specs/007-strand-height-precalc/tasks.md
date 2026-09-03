@@ -4,6 +4,14 @@
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/public-api.md](./contracts/public-api.md), [contracts/strand-heights.md](./contracts/strand-heights.md), [quickstart.md](./quickstart.md)
 
+> **⚠️ STALE against current main — do not run `/speckit-implement` on this yet.**
+> PRs #40 and #42 rewrote `src/raw_lines.rs` and retired the split-cell
+> rendering, so every task below that names `append`/`expand_above`/
+> `contract_above`, a `src/raw_lines.rs:NNN` line number, `RenderMode::Legacy`,
+> or the 16-snapshot baseline is wrong. Phase 2 (T003–T009) and the
+> two-component structure are unaffected. See the **Rebase impact** section at
+> the top of [plan.md](./plan.md) for the full assessment.
+
 **Tests**: Test tasks ARE included. Constitution Principle III (Test-First) is
 binding: new behavior in `src/` requires `#[test]` coverage, and a new diagram
 operation requires `insta` snapshot tests specifically.
