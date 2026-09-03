@@ -333,7 +333,7 @@ impl Model {
                     </table>
                 </details>
                 if !self.manual_snapshots.is_empty() {
-                    <div class="snapshot-catalog">
+                    <section class="snapshot-catalog" aria-label="snapshots">
                         { self.manual_snapshots.iter().enumerate().map(|(idx, snapshot)| {
                             // A snapshot saved before a character stopped
                             // naming a cell still lists and still restores;
@@ -344,22 +344,26 @@ impl Model {
                                 .map(|diagram| render_manual(&diagram, self.manual_borders));
 
                             html! {
-                                <div class="snapshot-entry">
-                                    if let Ok(ref preview) = preview {
-                                        <pre class="ascii manual-render">{ ascii_diagram_to_html(preview) }</pre>
-                                    } else {
-                                        <p class="manual-error">{ "unreadable snapshot" }</p>
-                                    }
-                                    <button onclick={link.callback(move |_| Msg::RestoreManualSnapshot(idx))}>
-                                        { "restore" }
-                                    </button>
-                                    <button onclick={link.callback(move |_| Msg::DeleteManualSnapshot(idx))}>
-                                        { "delete" }
-                                    </button>
-                                </div>
+                                <article class="snapshot-entry">
+                                    <div class="snapshot-preview">
+                                        if let Ok(ref preview) = preview {
+                                            <pre class="ascii manual-render">{ ascii_diagram_to_html(preview) }</pre>
+                                        } else {
+                                            <p class="manual-error">{ "unreadable snapshot" }</p>
+                                        }
+                                    </div>
+                                    <div class="snapshot-actions">
+                                        <button onclick={link.callback(move |_| Msg::RestoreManualSnapshot(idx))}>
+                                            { "restore" }
+                                        </button>
+                                        <button onclick={link.callback(move |_| Msg::DeleteManualSnapshot(idx))}>
+                                            { "delete" }
+                                        </button>
+                                    </div>
+                                </article>
                             }
                         }).collect::<Html>() }
-                    </div>
+                    </section>
                 }
                 </div>
             </>
@@ -927,24 +931,26 @@ impl Component for Model {
                 </div>
 
                 if !self.snapshots.is_empty() {
-                    <div class="snapshot-catalog">
+                    <section class="snapshot-catalog" aria-label="snapshots">
                         { self.snapshots.iter().enumerate().map(|(idx, snapshot)| {
                             html! {
-                                <div class="snapshot-entry">
+                                <article class="snapshot-entry">
                                     <div class="snapshot-preview">
                                         <RawHtml inner_html={make_svg_scalable(&snapshot.svg)} />
                                     </div>
-                                    <pre>{ &snapshot.current_diagram_encoding }</pre>
-                                    <button onclick={link.callback(move |_| Msg::RestoreSnapshot(idx))}>
-                                        { "restore" }
-                                    </button>
-                                    <button onclick={link.callback(move |_| Msg::DeleteSnapshot(idx))}>
-                                        { "delete" }
-                                    </button>
-                                </div>
+                                    <pre class="encoding">{ &snapshot.current_diagram_encoding }</pre>
+                                    <div class="snapshot-actions">
+                                        <button onclick={link.callback(move |_| Msg::RestoreSnapshot(idx))}>
+                                            { "restore" }
+                                        </button>
+                                        <button onclick={link.callback(move |_| Msg::DeleteSnapshot(idx))}>
+                                            { "delete" }
+                                        </button>
+                                    </div>
+                                </article>
                             }
                         }).collect::<Html>() }
-                    </div>
+                    </section>
                 }
                 </div>
             </>

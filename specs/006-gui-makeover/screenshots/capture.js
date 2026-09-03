@@ -35,7 +35,9 @@ async function run(name, opts) {
     check: () => page.locator('.segmented label').filter({ hasText: new RegExp(`^${label}$`) }).click(),
   });
   const textareas = () => page.locator('textarea');
-  const topOf = async (locator) => (await locator.boundingBox())?.y;
+  // Page coordinates, so an earlier scroll (typing into a picker scrolls it
+  // into view) does not masquerade as a layout shift.
+  const topOf = (locator) => locator.evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
 
   await page.goto(BASE);
   await page.evaluate(() => localStorage.clear());
