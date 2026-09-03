@@ -279,9 +279,9 @@ impl Model {
         });
 
         let render_class = if self.manual_error.is_some() {
-            "manual-render stale"
+            "ascii manual-render stale"
         } else {
-            "manual-render"
+            "ascii manual-render"
         };
 
         html! {
@@ -346,7 +346,7 @@ impl Model {
                             html! {
                                 <div class="snapshot-entry">
                                     if let Ok(ref preview) = preview {
-                                        <pre class="manual-render">{ ascii_diagram_to_html(preview) }</pre>
+                                        <pre class="ascii manual-render">{ ascii_diagram_to_html(preview) }</pre>
                                     } else {
                                         <p class="manual-error">{ "unreadable snapshot" }</p>
                                     }
@@ -862,7 +862,7 @@ impl Component for Model {
                 <div class="workspace">
                 { match self.display_mode {
                     DisplayMode::Ascii => html! {
-                        <p><pre>{ self.ascii_html_diagram.clone() }</pre></p>
+                        <p><pre class="ascii">{ self.ascii_html_diagram.clone() }</pre></p>
                     },
                     DisplayMode::Svg => html! {
                         <p><RawHtml inner_html={svg.clone()}></RawHtml></p>
@@ -979,13 +979,29 @@ fn error_to_html(error: &str) -> Html {
     html! { <p>{ format!("Error: {error}") }</p> }
 }
 
+/// The bordered view rules its cell grid with `+`, `-` and `|`, and no
+/// monospace font draws those edge to edge, so the stylesheet draws them as
+/// full-cell rules behind the (transparent) glyph. The diagram's own
+/// characters are left alone.
+fn grid_class(byte: u8) -> Option<&'static str> {
+    match byte {
+        b'+' => Some("grid grid-cross"),
+        b'-' => Some("grid grid-h"),
+        b'|' => Some("grid grid-v"),
+        _ => None,
+    }
+}
+
 fn ascii_diagram_to_html(diagram: &str) -> Html {
     diagram
         .bytes()
         .map(|byte| match byte {
             byte
             @ (b' ' | b'(' | b')' | b'/' | b'\\' | b'_' | b'-' | b'+' | b'|' | b'0'..=b'9') => {
-                html! { {byte as char} }
+                match grid_class(byte) {
+                    Some(class) => html! { <span class={class}>{ byte as char }</span> },
+                    None => html! { {byte as char} },
+                }
             }
             b'\n' => html! { <br/> },
             _ => unreachable!("bug!"),

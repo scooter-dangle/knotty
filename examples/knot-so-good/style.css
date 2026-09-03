@@ -123,8 +123,55 @@ button.snapshot[disabled] {
 }
 
 .manual-input {
-  font-family: monospace;
   white-space: pre;
+}
+
+/*
+ * A drawing made of / \ ( ) _ only reads as continuous strands when the row
+ * pitch is shorter than the glyphs, so adjacent rows overlap by a pixel or
+ * two. 0.8 closes every join on the DejaVu Sans Mono / Menlo geometry (see
+ * specs/006-gui-makeover/research.md R1). The padding keeps the overhanging
+ * ink of the first and last rows inside the box.
+ */
+pre.ascii {
+  font-size: 0.875rem;
+  line-height: 0.8;
+  padding: 0.3em 0;
+  margin: 0;
+  white-space: pre;
+}
+
+/* The bordered view's grid: full-cell rules instead of the glyphs. */
+.grid {
+  display: inline-block;
+  position: relative;
+  width: 1ch;
+  height: 0.8em;
+  vertical-align: top;
+  color: transparent;
+}
+
+.grid::before,
+.grid::after {
+  content: "";
+  position: absolute;
+  background: #9a9a9a;
+}
+
+.grid-h::after,
+.grid-cross::after {
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+}
+
+.grid-v::before,
+.grid-cross::before {
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
 }
 
 /* Marks a picture that no longer matches the text being edited. */
