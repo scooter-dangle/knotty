@@ -2,7 +2,7 @@
 
 **Branch**: `claude/diagram-strand-height-precalc-p4l2lo` | **Date**: 2026-06-25 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `specs/001-strand-height-precalc/spec.md`
+**Input**: Feature specification from `specs/007-strand-height-precalc/spec.md`
 
 ## Summary
 
@@ -54,7 +54,7 @@ the spec requires.
 ### Documentation (this feature)
 
 ```text
-specs/001-strand-height-precalc/
+specs/007-strand-height-precalc/
 ├── plan.md              # This file (/speckit-plan output)
 ├── research.md          # Phase 0 output
 ├── data-model.md        # Phase 1 output

@@ -1,6 +1,6 @@
 # Tasks: Height-Precalculated Strand Placement (Rendering Mode)
 
-**Input**: Design documents from `/specs/001-strand-height-precalc/`
+**Input**: Design documents from `/specs/007-strand-height-precalc/`
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/public-api.md](./contracts/public-api.md), [contracts/strand-heights.md](./contracts/strand-heights.md), [quickstart.md](./quickstart.md)
 
@@ -92,7 +92,7 @@ operating context, and define the seam type both components code against.
 - [ ] T007 Add the accessors `mode(&self) -> RenderMode`, `set_mode(&mut self, RenderMode)`, and the `with_mode(self, RenderMode) -> Self` builder to the `AbbreviatedDiagram` impl in `src/diagram.rs`, per contracts/public-api.md (depends on T004)
 - [ ] T008 Re-export `RenderMode` from `src/lib.rs` alongside `AbbreviatedDiagram` and `AbbreviatedItem` (depends on T003)
 - [ ] T009 Audit `insta::assert_debug_snapshot!` call sites for any that serialize an `AbbreviatedDiagram` and would gain the new `mode` field (research R1 cost note); re-accept only those, in `src/diagram/snapshots/` (depends on T004)
-- [ ] T010 **Resolve the open Shape question and define the seam type.** Read the Component A fixtures to determine whether heights are per-pair or per-strand, then define the internal height-map type in `src/raw_lines.rs`, record the resolution in `specs/001-strand-height-precalc/contracts/strand-heights.md`, and amend research R2 in `specs/001-strand-height-precalc/research.md` to match. **This unblocks Phases 3 and 4 simultaneously** (depends on T012)
+- [ ] T010 **Resolve the open Shape question and define the seam type.** Read the Component A fixtures to determine whether heights are per-pair or per-strand, then define the internal height-map type in `src/raw_lines.rs`, record the resolution in `specs/007-strand-height-precalc/contracts/strand-heights.md`, and amend research R2 in `specs/007-strand-height-precalc/research.md` to match. **This unblocks Phases 3 and 4 simultaneously** (depends on T012)
 - [ ] T011 Gate the phase: run `cargo test` and confirm every pre-existing snapshot is byte-for-byte unchanged versus the T002 baseline, then run `cargo check --target wasm32-unknown-unknown` (depends on T004, T005, T006, T007, T008, T009, T010)
 
 **Checkpoint**: `RenderMode` exists and defaults to `Legacy`, no public signature
@@ -161,7 +161,7 @@ Requires no Component A.
 - [ ] T022 Implement placement from supplied heights in `src/raw_lines.rs` alongside the existing `append`/`expand_above`/`contract_above` (`src/raw_lines.rs:135`, `:21`, `:74`): open each strand at its supplied height, keep placed strands flat for their lifetime, and emit the boundary diagonals intrinsic to entering at the opening index and leaving at the closing index (FR-002, FR-003, FR-009, research R3) (depends on T010, T019)
 - [ ] T023 Implement crossing-partner gap detection in `src/raw_lines.rs`: at each `\N`/`/N`, determine whether the two participating strands sit on adjacent rendered rows under the supplied heights (depends on T022)
 - [ ] T024 Implement the localized crossing-alignment transfer in `src/raw_lines.rs` — bring the two partners adjacent immediately before the crossing column and restore their placement immediately after, so a crossing is never drawn between non-adjacent rows (FR-007, FR-011, research R4) (depends on T023)
-- [ ] T025 Confirm `src/render.rs` needs no new `Horiz` glyphs (research R3 predicts the existing `TransferUp*`/`TransferDown*`/`Opened*`/`Closed*` set suffices); if a gap is found, add the minimum glyph and record the deviation in `specs/001-strand-height-precalc/research.md` (depends on T024)
+- [ ] T025 Confirm `src/render.rs` needs no new `Horiz` glyphs (research R3 predicts the existing `TransferUp*`/`TransferDown*`/`Opened*`/`Closed*` set suffices); if a gap is found, add the minimum glyph and record the deviation in `specs/007-strand-height-precalc/research.md` (depends on T024)
 - [ ] T026 Close the component: run `cargo test` confirming every T018 fixture passes, and run `cargo check --target wasm32-unknown-unknown` (depends on T024, T025)
 
 **Checkpoint**: Component B is correct against the supplied samples, standalone.
@@ -267,10 +267,10 @@ the `Legacy` render.
 - [ ] T052 [P] Add edge-case coverage for the empty diagram, a strand whose opening row already equals its maximum row, and closings at the bottom row — each rendering without error and equivalent to `Legacy` where no avoidable movement exists (FR-010, C8) in `src/diagram/tests.rs`
 - [ ] T053 [P] Add an end-to-end determinism test rendering the same diagram twice in `PrecalculatedHeights` (FR-008, C7, SC-005) in `src/diagram/tests.rs`
 - [ ] T054 [P] Add a knot-equivalence check across both modes for every fixture in `src/diagram/tests.rs`, confirming the two renders decode to the same knot (FR-006, C5, SC-003)
-- [ ] T055 Report the SC-002 measurement: record per-example open/close-displacement and crossing-alignment transfer counts for `terrace`, `basket`, and `ugly_trefoil` in `specs/001-strand-height-precalc/quickstart.md`, making the crossing-heavy tradeoff explicit
+- [ ] T055 Report the SC-002 measurement: record per-example open/close-displacement and crossing-alignment transfer counts for `terrace`, `basket`, and `ugly_trefoil` in `specs/007-strand-height-precalc/quickstart.md`, making the crossing-heavy tradeoff explicit
 - [ ] T056 [P] Optionally expose a mode flag in `examples/ascii_print.rs` for manual inspection, keeping the library the sole owner of the behavior (Principle I)
 - [ ] T057 [P] Optionally expose a mode toggle in the mini app at `examples/knot-so-good/src/main.rs`, with any GUI-only dependency confined to `examples/knot-so-good/Cargo.toml` (Principle V)
-- [ ] T058 Walk the four scenarios in `specs/001-strand-height-precalc/quickstart.md` end to end and confirm each pass condition holds
+- [ ] T058 Walk the four scenarios in `specs/007-strand-height-precalc/quickstart.md` end to end and confirm each pass condition holds
 - [ ] T059 Final constitution gate: `cargo build`, `cargo test`, `cargo check --target wasm32-unknown-unknown`, and confirm `Cargo.toml` gained no dependency (Principles II and V)
 
 ---
