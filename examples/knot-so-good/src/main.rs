@@ -282,15 +282,24 @@ impl Model {
         html! {
             <>
                 { self.storage_error_html(link) }
-                { self.mode_toggle(link) }
-                <button onclick={link.callback(move |_| Msg::ManualBorders(other_borders))}>
-                    { if self.manual_borders { "switch to plain view" } else { "switch to bordered view" } }
-                </button>
-                <button
-                    class="snapshot"
-                    disabled={self.manual_snapshot_disabled()}
-                    onclick={link.callback(|_| Msg::ManualSnapshot)}
-                >{ "snapshot" }</button>
+                <nav class="toolbar">
+                    <div class="group group-mode">
+                        { self.mode_toggle(link) }
+                    </div>
+                    <div class="group group-view">
+                        <button onclick={link.callback(move |_| Msg::ManualBorders(other_borders))}>
+                            { if self.manual_borders { "switch to plain view" } else { "switch to bordered view" } }
+                        </button>
+                    </div>
+                    <div class="group group-actions">
+                        <button
+                            class="snapshot"
+                            disabled={self.manual_snapshot_disabled()}
+                            onclick={link.callback(|_| Msg::ManualSnapshot)}
+                        >{ "snapshot" }</button>
+                    </div>
+                </nav>
+                <div class="workspace">
                 if let Some(ref diagram) = self.manual_render {
                     <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre></p>
                 }
@@ -344,6 +353,7 @@ impl Model {
                         }).collect::<Html>() }
                     </div>
                 }
+                </div>
             </>
         }
     }
@@ -796,19 +806,30 @@ impl Component for Model {
         html! {
             <>
                 { self.storage_error_html(link) }
-                { self.mode_toggle(link) }
-                { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
-                    <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
-                }).collect::<Html>() }
-                <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
-                <button onclick={link.callback(move |_| Msg::Compact(other_compact))}>
-                    { if self.compact { "switch to full display" } else { "switch to compact display" } }
-                </button>
-                <button
-                    class="snapshot"
-                    disabled={self.snapshot_disabled()}
-                    onclick={link.callback(|_| Msg::Snapshot)}
-                >{ "snapshot" }</button>
+                <nav class="toolbar">
+                    <div class="group group-mode">
+                        { self.mode_toggle(link) }
+                    </div>
+                    <div class="group group-presets">
+                        { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
+                            <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
+                        }).collect::<Html>() }
+                    </div>
+                    <div class="group group-display">
+                        <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
+                        <button onclick={link.callback(move |_| Msg::Compact(other_compact))}>
+                            { if self.compact { "switch to full display" } else { "switch to compact display" } }
+                        </button>
+                    </div>
+                    <div class="group group-actions">
+                        <button
+                            class="snapshot"
+                            disabled={self.snapshot_disabled()}
+                            onclick={link.callback(|_| Msg::Snapshot)}
+                        >{ "snapshot" }</button>
+                    </div>
+                </nav>
+                <div class="workspace">
                 { match self.display_mode {
                     DisplayMode::Ascii => html! {
                         <p><pre>{ self.ascii_html_diagram.clone() }</pre></p>
@@ -876,6 +897,7 @@ impl Component for Model {
                         }).collect::<Html>() }
                     </div>
                 }
+                </div>
             </>
         }
     }

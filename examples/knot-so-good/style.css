@@ -20,6 +20,41 @@ pre {
   font-family: "DejaVu Sans Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.8rem;
+  min-height: 2.5rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+  background: #f4f4f4;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+button:focus-visible {
+  outline: 2px solid #2a6fdb;
+  outline-offset: 2px;
+}
+
 input.select-move[disabled] {
   border-color: #b8a0a0;
   background-color: #a0a0a0;
