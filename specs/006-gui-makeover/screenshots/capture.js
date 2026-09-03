@@ -29,6 +29,11 @@ async function run(name, opts) {
     console.log(`${name}/${state}: ${w}x${h}`);
   };
   const button = (label) => page.getByRole('button', { name: label, exact: true });
+  // Segmented pairs: the radio itself is visually hidden, so select an
+  // option the way a person does, by clicking its label.
+  const radio = (label) => ({
+    check: () => page.locator('.segmented label').filter({ hasText: new RegExp(`^${label}$`) }).click(),
+  });
   const textareas = () => page.locator('textarea');
   const topOf = async (locator) => (await locator.boundingBox())?.y;
 
@@ -46,11 +51,11 @@ async function run(name, opts) {
   measurements.notationValidTextareaTop = await topOf(textareas().first());
 
   // 3. Trefoil, ASCII display (full, then compact).
-  await button('switch to Ascii display').click();
+  await radio('characters').check();
   await shot('notation-trefoil-ascii');
-  await button('switch to compact display').click();
+  await radio('compact').check();
   await shot('notation-trefoil-ascii-compact');
-  await button('switch to full display').click();
+  await radio('full').check();
 
   // 4. Large knot: 5_1 plus several complecting moves.
   await button('knot 5_1').click();
@@ -64,7 +69,7 @@ async function run(name, opts) {
     await page.waitForTimeout(100);
   }
   await shot('notation-large-ascii');
-  await button('switch to Svg display').click();
+  await radio('picture').check();
   await shot('notation-large-svg');
 
   // 5. Error states.
@@ -88,7 +93,7 @@ async function run(name, opts) {
   // 7. Manual mode, empty.
   for (let i = 0; i < 9; i++) await button('delete').first().click();
   await textareas().first().fill('');
-  await button('switch to manual diagram mode').click();
+  await radio('manual').check();
   await page.locator('textarea.manual-input').fill('');
   await shot('manual-empty');
   measurements.manualEmptyTextareaTop = await topOf(page.locator('textarea.manual-input'));
@@ -97,9 +102,9 @@ async function run(name, opts) {
   await page.locator('textarea.manual-input').fill(TREFOIL_TEXT);
   await shot('manual-trefoil');
   measurements.manualValidTextareaTop = await topOf(page.locator('textarea.manual-input'));
-  await button('switch to bordered view').click();
+  await radio('bordered').check();
   await shot('manual-trefoil-bordered');
-  await button('switch to plain view').click();
+  await radio('plain').check();
 
   // 9. Manual error (keeps stale render).
   await page.locator('textarea.manual-input').fill(TREFOIL_TEXT + '\n?');

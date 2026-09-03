@@ -246,14 +246,21 @@ impl Model {
     }
 
     fn mode_toggle(&self, link: &html::Scope<Self>) -> Html {
-        let (other, label) = match self.mode {
-            Mode::Notation => (Mode::Manual, "switch to manual diagram mode"),
-            Mode::Manual => (Mode::Notation, "switch to knot notation mode"),
-        };
-
-        html! {
-            <button onclick={link.callback(move |_| Msg::SetMode(other))}>{ label }</button>
-        }
+        segmented_pair(
+            "mode",
+            [
+                (
+                    "notation",
+                    self.mode == Mode::Notation,
+                    link.callback(|_| Msg::SetMode(Mode::Notation)),
+                ),
+                (
+                    "manual",
+                    self.mode == Mode::Manual,
+                    link.callback(|_| Msg::SetMode(Mode::Manual)),
+                ),
+            ],
+        )
     }
 
     fn manual_view(&self, link: &html::Scope<Self>) -> Html {
@@ -271,8 +278,6 @@ impl Model {
             Msg::ManualDiagram(value)
         });
 
-        let other_borders = !self.manual_borders;
-
         let render_class = if self.manual_error.is_some() {
             "manual-render stale"
         } else {
@@ -287,9 +292,10 @@ impl Model {
                         { self.mode_toggle(link) }
                     </div>
                     <div class="group group-view">
-                        <button onclick={link.callback(move |_| Msg::ManualBorders(other_borders))}>
-                            { if self.manual_borders { "switch to plain view" } else { "switch to bordered view" } }
-                        </button>
+                        { segmented_pair("view", [
+                            ("plain", !self.manual_borders, link.callback(|_| Msg::ManualBorders(false))),
+                            ("bordered", self.manual_borders, link.callback(|_| Msg::ManualBorders(true))),
+                        ]) }
                     </div>
                     <div class="group group-actions">
                         <button
@@ -306,7 +312,9 @@ impl Model {
                 if let Some(ref err) = self.manual_error {
                     <p class="manual-error">{ format!("Error: {err}") }</p>
                 }
+                <label for="diagram-text">{ "diagram text" }</label>
                 <textarea
+                    id="diagram-text"
                     class="manual-input"
                     rows="10"
                     cols="40"
@@ -395,6 +403,30 @@ impl Model {
 
         self.svg_diagram =
             ascii_diagram_to_svg(self.ascii_modified_diagram.as_deref().unwrap_or(""));
+    }
+}
+
+/// One control for a two-state setting: both states named, the active one
+/// checked. Native radios give keyboard and screen-reader handling for free.
+fn segmented_pair(name: &str, options: [(&str, bool, Callback<Event>); 2]) -> Html {
+    html! {
+        <fieldset class="segmented" role="radiogroup" aria-label={name.to_string()}>
+            { options.into_iter().map(|(label, checked, onchange)| {
+                let id = format!("{name}-{label}");
+                html! {
+                    <>
+                        <input
+                            type="radio"
+                            id={id.clone()}
+                            name={name.to_string()}
+                            checked={checked}
+                            {onchange}
+                        />
+                        <label for={id}>{ label }</label>
+                    </>
+                }
+            }).collect::<Html>() }
+        </fieldset>
     }
 }
 
@@ -786,12 +818,6 @@ impl Component for Model {
                 .map_err(|err| web_sys::console::log_1(&err.into()))
         });
 
-        let other_mode = match self.display_mode {
-            DisplayMode::Ascii => DisplayMode::Svg,
-            DisplayMode::Svg => DisplayMode::Ascii,
-        };
-        let other_compact = !self.compact;
-
         let Moves {
             changing,
             complecting,
@@ -816,10 +842,14 @@ impl Component for Model {
                         }).collect::<Html>() }
                     </div>
                     <div class="group group-display">
-                        <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
-                        <button onclick={link.callback(move |_| Msg::Compact(other_compact))}>
-                            { if self.compact { "switch to full display" } else { "switch to compact display" } }
-                        </button>
+                        { segmented_pair("display", [
+                            ("picture", self.display_mode == DisplayMode::Svg, link.callback(|_| Msg::DisplayMode(DisplayMode::Svg))),
+                            ("characters", self.display_mode == DisplayMode::Ascii, link.callback(|_| Msg::DisplayMode(DisplayMode::Ascii))),
+                        ]) }
+                        { segmented_pair("drawing", [
+                            ("full", !self.compact, link.callback(|_| Msg::Compact(false))),
+                            ("compact", self.compact, link.callback(|_| Msg::Compact(true))),
+                        ]) }
                     </div>
                     <div class="group group-actions">
                         <button
@@ -847,12 +877,16 @@ impl Component for Model {
                     <pre>{ self.compact_text().unwrap_or_default() }</pre>
                 </details>
                 <br/>
+                <label for="knot-notation">{ "knot notation" }</label>
                 <textarea
+                    id="knot-notation"
                     value={self.raw_base_diagram.clone()}
                     oninput={diagram_oninput}
                 />
                 <br/>
+                <label for="moves">{ "moves" }</label>
                 <textarea
+                    id="moves"
                     value={self.raw_moves.clone()}
                     oninput={moves_oninput}
                 />
