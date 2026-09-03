@@ -1,36 +1,30 @@
 ---
-source: src/lib.rs
-expression: lines
+source: src/raw_lines.rs
+expression: lines.lines
 ---
 [
     [
-        Line,
+        OpenedBelow,
         Line,
         Line,
         Line,
     ],
     [
-        Line,
-        TransferUpStart,
         Empty,
+        TransferUp,
         Empty,
+        OpenedBelow,
     ],
     [
-        Line,
-        TransferUpStart,
+        Empty,
+        Empty,
         TransferUp,
         Empty,
     ],
     [
         Empty,
         Empty,
-        TransferUp,
-        TransferUpFinish,
-    ],
-    [
         Empty,
-        Empty,
-        Empty,
-        TransferUpFinish,
+        Line,
     ],
 ]

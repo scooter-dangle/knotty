@@ -1,9 +1,8 @@
 ---
-source: src/lib.rs
-expression: "ascii_print_compact::<false>(unknot)"
+source: src/diagram/tests.rs
+expression: "ascii_print_compact::<false>(knot)"
 ---
     
  /\ 
 (  )
- \/ 
-
+ \/

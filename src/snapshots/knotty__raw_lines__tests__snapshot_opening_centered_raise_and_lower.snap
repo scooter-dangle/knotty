@@ -1,0 +1,36 @@
+---
+source: src/raw_lines.rs
+expression: lines.lines
+---
+[
+    [
+        OpenedBelow,
+        TransferUp,
+        Empty,
+        OpenedBelow,
+    ],
+    [
+        Empty,
+        TransferUp,
+        TransferUp,
+        Empty,
+    ],
+    [
+        Empty,
+        Empty,
+        TransferUp,
+        Line,
+    ],
+    [
+        Empty,
+        Empty,
+        Empty,
+        Line,
+    ],
+    [
+        Empty,
+        Empty,
+        Empty,
+        Empty,
+    ],
+]

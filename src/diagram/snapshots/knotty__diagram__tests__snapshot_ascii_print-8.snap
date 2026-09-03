@@ -1,15 +1,14 @@
 ---
-source: src/lib.rs
-expression: "ascii_print_compact::<false>(weird_thing_that_broke_once)"
+source: src/diagram/tests.rs
+expression: "ascii_print_compact::<false>(knot)"
 ---
-    _                __        
-   / \      /\      /  \       
-  (   \    (  )    /    \      
-   \_  \    \/    /  _   \     
-     \  \        /  / \   \    
-      \  \      /  /   )   \   
-  __   \  \____/  /   /     \  
- /  \   \        /   /       \ 
-(    )   \      /   (         )
- \__/     \____/     \_______/ 
-
+    __                ____        
+   /  \      /\      /    \       
+  (    \    (  )    /      \      
+   \__  \    \/    /  __    \     
+      \  \        /  /  \    \    
+       \  \      /  /    )    \   
+  __    \  \____/  /    /      \  
+ /  \    \        /    /        \ 
+(    )    \      /    (          )
+ \__/      \____/      \________/

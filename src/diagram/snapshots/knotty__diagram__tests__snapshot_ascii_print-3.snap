@@ -1,15 +1,14 @@
 ---
-source: src/lib.rs
-expression: "ascii_print_compact::<false>(donut)"
+source: src/diagram/tests.rs
+expression: "ascii_print_compact::<false>(knot)"
 ---
-        __        
-       /  \       
-      /    \      
-     /      \     
-    /   /\   \    
-   /   (  )   \   
-  /     \/     \  
- /              \ 
-(                )
- \______________/ 
-
+        ____        
+       /    \       
+      /      \      
+     /        \     
+    /    /\    \    
+   /    (  )    \   
+  /      \/      \  
+ /                \ 
+(                  )
+ \________________/

@@ -3,7 +3,7 @@
 // and is not tested here; it is too thin to warrant browser-based tests.
 use super::{
     ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedManualSnapshot,
-    PersistedMode, PersistedRenderMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
+    PersistedMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
 };
 
 #[test]
@@ -167,10 +167,10 @@ fn compact_and_non_compact_differ_for_trefoil() {
         .parse::<knotty::AbbreviatedDiagram>()
         .unwrap();
     let full = trefoil
-        .try_ascii_print::<false>(knotty::RenderMode::Standard)
+        .try_ascii_print::<false>()
         .unwrap();
     let compact = trefoil
-        .try_ascii_print_compact::<false>(knotty::RenderMode::Standard)
+        .try_ascii_print_compact::<false>()
         .unwrap();
     assert_ne!(full, compact);
 }
@@ -179,9 +179,9 @@ fn compact_and_non_compact_differ_for_trefoil() {
 fn non_compact_mode_uses_full_ascii() {
     let unknot = "(0 )0".parse::<knotty::AbbreviatedDiagram>().unwrap();
     let full = unknot
-        .try_ascii_print::<false>(knotty::RenderMode::Standard)
+        .try_ascii_print::<false>()
         .unwrap();
-    let also = unknot.ascii_print::<false>(knotty::RenderMode::Standard);
+    let also = unknot.ascii_print::<false>();
     assert_eq!(full, also);
 }
 
@@ -211,7 +211,6 @@ fn round_trip_carries_manual_state() {
             diagram: "()\n.,\n".into(),
         }],
         manual_borders: false,
-        render_mode: PersistedRenderMode::Standard,
     };
     let json = serde_json::to_string(&state).unwrap();
     let restored: PersistedState = serde_json::from_str(&json).unwrap();
@@ -277,22 +276,42 @@ fn symbol_table_characters_match_the_library() {
         .map(|(horiz, _)| horiz.as_byte())
         .collect();
 
-    assert_eq!(bytes.len(), 16);
+    assert_eq!(bytes.len(), 8);
     bytes.sort_unstable();
     bytes.dedup();
-    assert_eq!(bytes.len(), 16, "symbol table has duplicate characters");
+    assert_eq!(bytes.len(), 8, "symbol table has duplicate characters");
+
+    // Every row names a cell the parser accepts, and nothing the table omits
+    // is accepted -- the table is the format, not a subset of it.
+    for byte in bytes {
+        let text = format!("{}\n", byte as char);
+        assert!(
+            text.parse::<knotty::VerboseDiagram>().is_ok(),
+            "{:?} is in the table but not accepted",
+            byte as char,
+        );
+    }
+
+    for byte in [b'A', b'a', b'\'', b',', b'j', b'r', b'2', b'L'] {
+        let text = format!("{}\n", byte as char);
+        assert!(
+            text.parse::<knotty::VerboseDiagram>().is_err(),
+            "{:?} is accepted but not in the table",
+            byte as char,
+        );
+    }
 }
 
 #[test]
 fn bordered_render_draws_one_box_per_character() {
     // One box per typed character, one row of boxes per line of text.
-    for text in ["(\n", "()\n',\n", ".(___).\n.'y_y,.\n(_AxA_)\n'__a__,\n"] {
+    for text in ["(\n", "..\n()\n", "..___..\n.(._.).\n._y.y_.\n(__x__)\n"] {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
         let plain: String = diagram
-            .display::<false>(knotty::RenderMode::Standard)
+            .display::<false>()
             .collect();
         let bordered: String = diagram
-            .display::<true>(knotty::RenderMode::Standard)
+            .display::<true>()
             .collect();
 
         let rows = text.lines().count();
@@ -314,16 +333,16 @@ fn bordered_render_draws_one_box_per_character() {
 fn both_views_are_empty_for_the_same_diagrams() {
     // The app asks "is there a picture?" once, without knowing which view
     // is selected, so the two must agree.
-    for text in ["", "\n", "()\n',\n"] {
+    for text in ["", "\n", "..\n()\n"] {
         let diagram = text.parse::<knotty::VerboseDiagram>().unwrap();
 
         assert_eq!(
             diagram
-                .display::<false>(knotty::RenderMode::Standard)
+                .display::<false>()
                 .next()
                 .is_some(),
             diagram
-                .display::<true>(knotty::RenderMode::Standard)
+                .display::<true>()
                 .next()
                 .is_some(),
             "{text:?}",
@@ -333,9 +352,9 @@ fn both_views_are_empty_for_the_same_diagrams() {
 
 #[test]
 fn manual_diagram_text_renders_without_notation() {
-    let diagram = "()\n',\n".parse::<knotty::VerboseDiagram>().unwrap();
+    let diagram = "..\n()\n".parse::<knotty::VerboseDiagram>().unwrap();
     let rendered: String = diagram
-        .display::<false>(knotty::RenderMode::Standard)
+        .display::<false>()
         .collect();
 
     assert_eq!(
@@ -343,37 +362,54 @@ fn manual_diagram_text_renders_without_notation() {
         "(0 )0"
             .parse::<knotty::AbbreviatedDiagram>()
             .unwrap()
-            .ascii_print::<false>(knotty::RenderMode::Standard),
+            .ascii_print::<false>(),
     );
 }
 
+/// The guarantee that has to survive the rendering mode being removed: state
+/// saved while the toggle existed still loads, and nothing else in it is lost.
+/// `PersistedState` does not set `deny_unknown_fields`, so a `render_mode` key
+/// it no longer knows is ignored rather than fatal — pinned here so that stays
+/// true by test rather than by luck.
 #[test]
-fn missing_render_mode_field_defaults_to_standard() {
-    // The guarantee that silently regresses if `#[serde(default)]` is dropped:
-    // state saved before this feature must load in the standard rendering.
-    let json = r#"{"diagram":"(0 )0","moves":""}"#;
+fn state_saved_with_a_render_mode_still_loads() {
+    let json = r#"{
+        "diagram": "(0 )0",
+        "moves": "swap",
+        "compact": true,
+        "manual_diagram": "()\n',\n",
+        "manual_borders": true,
+        "render_mode": "standard"
+    }"#;
+
     let state: PersistedState = serde_json::from_str(json).unwrap();
 
-    assert_eq!(state.render_mode, PersistedRenderMode::Standard);
+    assert_eq!(state.diagram, "(0 )0");
+    assert_eq!(state.moves, "swap");
+    assert!(state.compact);
+    assert_eq!(state.manual_diagram, "()\n',\n");
+    assert!(state.manual_borders);
 }
 
+/// A snapshot saved before the half-cells were removed holds text that no
+/// longer parses. It must stay in the catalog and stay restorable -- the app
+/// reports it rather than dropping it, and nothing else breaks.
 #[test]
-fn unknown_render_mode_string_deserializes_to_other() {
-    let json = r#"{"render_mode":"kaleidoscope"}"#;
-    let state: PersistedState = serde_json::from_str(json).unwrap();
+fn a_snapshot_naming_a_freed_character_survives_as_invalid() {
+    let saved = "()\n',\n";
 
-    assert_eq!(state.render_mode, PersistedRenderMode::Other);
-}
+    assert!(saved.parse::<knotty::VerboseDiagram>().is_err());
 
-#[test]
-fn round_trip_carries_the_render_mode() {
     let state = PersistedState {
-        render_mode: PersistedRenderMode::OpeningCentered,
+        manual_snapshots: vec![PersistedManualSnapshot {
+            diagram: saved.into(),
+        }],
         ..Default::default()
     };
 
     let json = serde_json::to_string(&state).unwrap();
     let back: PersistedState = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(back.render_mode, PersistedRenderMode::OpeningCentered);
+    assert_eq!(back.manual_snapshots.len(), 1);
+    assert_eq!(back.manual_snapshots[0].diagram, saved);
 }

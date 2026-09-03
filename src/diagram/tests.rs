@@ -1,4 +1,5 @@
 use super::*;
+use crate::render::Horiz;
 use crate::moves::Lean;
 use pretty_assertions::assert_eq;
 
@@ -6,7 +7,7 @@ use pretty_assertions::assert_eq;
 fn snapshot_from_abbreviated() {
     let knot = AbbreviatedDiagram::new_from_tuples(vec![(b'(', 0), (b'\\', 0), (b')', 0)]).unwrap();
 
-    let verbose = VerboseDiagram::from_abbreviated(&knot, RenderMode::Standard).unwrap();
+    let verbose = VerboseDiagram::from_abbreviated(&knot).unwrap();
     insta::assert_debug_snapshot!(verbose);
 }
 
@@ -170,133 +171,61 @@ fn sample_knots() -> [(&'static str, Vec<(u8, usize)>); 8] {
     ]
 }
 
-fn has_transfer(knot: &[(u8, usize)]) -> bool {
-    use Horiz::*;
-
-    let diagram = AbbreviatedDiagram::new_from_tuples(knot.to_vec()).unwrap();
-
-    VerboseDiagram::from_abbreviated(&diagram, RenderMode::Standard)
-        .unwrap()
-        .0
-        .iter()
-        .flat_map(|line| line.0.iter())
-        .any(|horiz| {
-            matches!(
-                horiz,
-                TransferUpStart
-                    | TransferUp
-                    | TransferUpFinish
-                    | TransferDownStart
-                    | TransferDown
-                    | TransferDownFinish
-            )
-        })
-}
-
 #[test]
 fn snapshot_ascii_print() {
     for (_name, knot) in sample_knots() {
-        insta::assert_snapshot!(ascii_print_compact::<false>(knot, RenderMode::Standard));
+        insta::assert_snapshot!(ascii_print_compact::<false>(knot));
     }
 }
 
-#[test]
-fn snapshot_ascii_print_opening_centered() {
-    for (_name, knot) in sample_knots() {
-        insta::assert_snapshot!(ascii_print_compact::<false>(
-            knot,
-            RenderMode::OpeningCentered
-        ));
-    }
-}
-
-#[test]
-fn transfer_free_knots_render_identically_in_both_modes() {
-    // "Identically" is about the picture itself; see the bordered case below.
-    let mut checked = 0;
-
-    for (name, knot) in sample_knots() {
-        if has_transfer(&knot) {
-            continue;
-        }
-        checked += 1;
-
-        assert_eq!(
-            ascii_print::<false>(knot.clone(), RenderMode::Standard),
-            ascii_print::<false>(knot.clone(), RenderMode::OpeningCentered),
-            "{name}",
-        );
-        // With the cell boundaries drawn the two must *differ*, even here:
-        // the picture is the same, but which cell owns which mark is the
-        // whole point of the mode.
-        assert_ne!(
-            ascii_print::<true>(knot.clone(), RenderMode::Standard),
-            ascii_print::<true>(knot.clone(), RenderMode::OpeningCentered),
-            "{name}",
-        );
-        assert_eq!(
-            ascii_print_compact::<false>(knot.clone(), RenderMode::Standard),
-            ascii_print_compact::<false>(knot, RenderMode::OpeningCentered),
-            "{name}",
-        );
-    }
-
-    // Without this the test passes vacuously the day `has_transfer` breaks.
-    assert!(checked >= 2, "only {checked} transfer-free sample knots");
-}
-
-fn grid(knot: &[(u8, usize)], mode: RenderMode) -> VerboseDiagram {
+fn grid(knot: &[(u8, usize)]) -> VerboseDiagram {
     let diagram = AbbreviatedDiagram::new_from_tuples(knot.to_vec()).unwrap();
 
-    VerboseDiagram::from_abbreviated(&diagram, mode).unwrap()
+    VerboseDiagram::from_abbreviated(&diagram).unwrap()
 }
 
-fn transfer_columns(knot: &[(u8, usize)], mode: RenderMode) -> usize {
+fn transfer_columns(knot: &[(u8, usize)]) -> usize {
     use Horiz::*;
 
-    let grid = grid(knot, mode);
+    let grid = grid(knot);
     let width = grid.0.iter().map(|line| line.0.len()).max().unwrap_or(0);
 
     (0..width)
         .filter(|&column| {
             grid.0.iter().any(|line| {
-                matches!(
-                    line.0[column],
-                    TransferUpStart
-                        | TransferUp
-                        | TransferUpFinish
-                        | TransferDownStart
-                        | TransferDown
-                        | TransferDownFinish
-                )
+                matches!(line.0[column], TransferUp | TransferDown)
             })
         })
         .count()
 }
 
+/// FR-024 stated on its own terms. The comparison against the standard
+/// rendering's three-columns-per-two-levels says the same thing, but only for
+/// as long as there is something to compare against.
 #[test]
-fn opening_centered_never_emits_a_retired_cell() {
+fn a_climb_costs_one_column_per_level() {
     use Horiz::*;
 
-    for (name, knot) in sample_knots() {
-        let grid = grid(&knot, RenderMode::OpeningCentered);
+    // Each opening that has to make room, and each closing that has to give it
+    // back, moves the levels above it twice: once for its own row, once for the
+    // row above. Every one of those moves is a whole cell, so it is a column.
+    let expected = [
+        ("unknot", 0),
+        ("trefoil", 0),
+        ("donut", 4),
+        ("c_thingy", 2),
+        ("terrace", 12),
+        ("basket", 8),
+        ("ugly_trefoil", 4),
+        ("weird_thing_that_broke_once", 6),
+    ];
 
-        for horiz in grid.0.iter().flat_map(|line| line.0.iter()) {
-            assert!(
-                !matches!(
-                    horiz,
-                    CrossUpOver
-                        | CrossUpUnder
-                        | OpenedAbove
-                        | ClosedAbove
-                        | TransferUpStart
-                        | TransferUpFinish
-                        | TransferDownStart
-                        | TransferDownFinish
-                ),
-                "{name} emitted {horiz:?}",
-            );
-        }
+    let mut measured = 0;
+
+    for ((name, knot), (expected_name, columns)) in sample_knots().into_iter().zip(expected) {
+        assert_eq!(name, expected_name);
+
+        let grid = grid(&knot);
 
         // Every feature sits at row `idx`, and the highest is at `height - 2`,
         // so the top row can only ever carry strands.
@@ -306,67 +235,60 @@ fn opening_centered_never_emits_a_retired_cell() {
             "{name} top row: {:?}",
             top.0,
         );
-    }
-}
 
-#[test]
-fn opening_centered_spends_two_columns_where_standard_spends_three() {
-    // Standard raises a stack two levels over three columns, using halves
-    // that start and finish a climb part way through a cell. Opening-centered
-    // climbs one whole level per cell, so the same climb costs two.
-    let mut measured = 0;
-
-    for (name, knot) in sample_knots() {
-        let standard = transfer_columns(&knot, RenderMode::Standard);
-        let opening_centered = transfer_columns(&knot, RenderMode::OpeningCentered);
-
-        if standard == 0 {
-            assert_eq!(opening_centered, 0, "{name}");
-            continue;
+        // A cell that starts or finishes a climb part way through would make a
+        // level cost less than a whole column. There is no such cell left to
+        // use, so the ones that remain cross their own cell corner to corner —
+        // one level, one cell, one column.
+        for horiz in [TransferUp, TransferDown] {
+            let [top, _, bottom] = horiz.display();
+            assert_ne!(top.trim(), "", "{horiz:?}");
+            assert_ne!(bottom.trim(), "", "{horiz:?}");
         }
-        measured += 1;
 
-        assert_eq!(opening_centered * 3, standard * 2, "{name}");
+        assert_eq!(
+            transfer_columns(&knot),
+            columns,
+            "{name}",
+        );
+
+        if columns > 0 {
+            measured += 1;
+        }
     }
 
     assert!(measured >= 4, "only {measured} sample knots with transfers");
 }
 
+/// FR-015 without a second rendering to measure against.
 #[test]
-fn both_modes_render_at_the_same_size() {
+fn pictures_are_rectangular_and_end_flush() {
     for (name, knot) in sample_knots() {
-        let standard = ascii_print::<false>(knot.clone(), RenderMode::Standard);
-        let opening_centered = ascii_print::<false>(knot, RenderMode::OpeningCentered);
+        let width = grid(&knot)
+            .0
+            .iter()
+            .map(|line| line.0.len())
+            .max()
+            .unwrap_or(0);
 
-        let lines = |text: &str| text.lines().map(str::to_owned).collect::<Vec<_>>();
-        let (standard, opening_centered) = (lines(&standard), lines(&opening_centered));
+        let picture = ascii_print::<false>(knot);
+        let lines: Vec<&str> = picture.lines().collect();
 
-        assert_eq!(standard.len(), opening_centered.len(), "{name}");
+        for line in &lines {
+            assert_eq!(line.len(), width * 3, "{name}: {line:?}");
+        }
+
+        let blank = |line: &&&str| line.trim().is_empty();
         assert_eq!(
-            standard.iter().map(String::len).max(),
-            opening_centered.iter().map(String::len).max(),
-            "{name}",
-        );
-
-        // FR-015: no blank line the other rendering does not also have.
-        let blank_run = |lines: &[String], rev: bool| -> usize {
-            let mut lines = lines.to_vec();
-            if rev {
-                lines.reverse();
-            }
-            lines
-                .iter()
-                .take_while(|line| line.trim().is_empty())
-                .count()
-        };
-
-        assert!(
-            blank_run(&opening_centered, false) <= blank_run(&standard, false),
-            "{name}: leading blank lines",
-        );
-        assert!(
-            blank_run(&opening_centered, true) <= blank_run(&standard, true),
+            lines.iter().rev().take_while(blank).count(),
+            0,
             "{name}: trailing blank lines",
+        );
+        // The unknot needs one, to leave room above its opening.
+        assert!(
+            lines.iter().take_while(blank).count() <= 1,
+            "{name}: leading blank lines",
         );
     }
 }
+
