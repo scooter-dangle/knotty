@@ -40,7 +40,13 @@ cross-checked against the fixture heights.
 - **Deterministic**: identical input always yields identical output (FR-008).
 - **Total**: every valid encoding yields a result, including the empty diagram
   (FR-010).
-- **Linear**: a single walk of the sequence (research R2).
+- **Linear**: a single forward walk of the sequence, with **no fixpoint iteration**
+  (research R2). This is guaranteed by spec FR-001's definition of a maximum as
+  covering the strand's *flat run only*, excluding the boundary movement by which
+  it meets its cap and cup — without that exclusion a strand's maximum would
+  depend on a cap/cup row computed from that same maximum, and the walk would
+  have to iterate. A Component A implementation that needs a second pass has
+  misread the definition.
 
 ## Component B — render from heights
 
