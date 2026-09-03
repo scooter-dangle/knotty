@@ -236,12 +236,12 @@ impl Model {
         };
 
         html! {
-            <p>
-                { format!("Could not restore saved state (corrupt data was cleared): {err}. ") }
+            <aside class="notice" role="alert">
+                <p>{ format!("Could not restore saved state (corrupt data was cleared): {err}.") }</p>
                 <button onclick={link.callback(|_| Msg::DismissStorageError)}>
                     { "Dismiss" }
                 </button>
-            </p>
+            </aside>
         }
     }
 
@@ -306,12 +306,12 @@ impl Model {
                     </div>
                 </nav>
                 <div class="workspace">
-                if let Some(ref diagram) = self.manual_render {
-                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre></p>
-                }
-                if let Some(ref err) = self.manual_error {
-                    <p class="manual-error">{ format!("Error: {err}") }</p>
-                }
+                { diagram_region(
+                    self.manual_render.as_ref().map(|diagram| html! {
+                        <pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre>
+                    }).unwrap_or_default(),
+                    self.manual_error.as_ref().map(|err| format!("Error: {err}")),
+                ) }
                 <label for="diagram-text">{ "diagram text" }</label>
                 <textarea
                     id="diagram-text"
@@ -399,10 +399,23 @@ impl Model {
         self.ascii_html_diagram = self
             .ascii_modified_diagram
             .as_deref()
-            .map_or_else(|err| error_to_html(err), ascii_diagram_to_html);
+            .map(ascii_diagram_to_html)
+            .unwrap_or_default();
 
         self.svg_diagram =
             ascii_diagram_to_svg(self.ascii_modified_diagram.as_deref().unwrap_or(""));
+    }
+}
+
+/// Where the diagram is drawn. It exists in every state -- empty, drawn, or
+/// erroneous -- at a minimum height, with a message line that is always
+/// there, so the inputs below never move when the text goes bad.
+fn diagram_region(canvas: Html, message: Option<String>) -> Html {
+    html! {
+        <section class="diagram">
+            <div class="canvas">{ canvas }</div>
+            <p class="message" role="status">{ message.unwrap_or_default() }</p>
+        </section>
     }
 }
 
@@ -860,15 +873,19 @@ impl Component for Model {
                     </div>
                 </nav>
                 <div class="workspace">
-                { match self.display_mode {
-                    DisplayMode::Ascii => html! {
-                        <p><pre class="ascii">{ self.ascii_html_diagram.clone() }</pre></p>
+                { diagram_region(
+                    match (&self.ascii_modified_diagram, self.display_mode) {
+                        (Err(_), _) => Html::default(),
+                        (Ok(_), DisplayMode::Ascii) => html! {
+                            <pre class="ascii">{ self.ascii_html_diagram.clone() }</pre>
+                        },
+                        (Ok(_), DisplayMode::Svg) => html! {
+                            <div class="picture"><RawHtml inner_html={svg.clone()} /></div>
+                        },
                     },
-                    DisplayMode::Svg => html! {
-                        <p><RawHtml inner_html={svg.clone()}></RawHtml></p>
-                    },
-                } }
-                <pre>{
+                    self.ascii_modified_diagram.as_ref().err().map(|err| format!("Error: {err}")),
+                ) }
+                <pre class="encoding">{
                     // TODO modify diagram input to allow moves on the same line
                     self.modified_diagram.clone().unwrap_or_default().to_string().replace('\n', " ")
                 }</pre>
@@ -973,10 +990,6 @@ impl FromIterator<DiagramMove> for Moves {
 
         moves
     }
-}
-
-fn error_to_html(error: &str) -> Html {
-    html! { <p>{ format!("Error: {error}") }</p> }
 }
 
 /// The bordered view rules its cell grid with `+`, `-` and `|`, and no

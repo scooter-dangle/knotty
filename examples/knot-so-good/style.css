@@ -97,14 +97,73 @@ button:focus-visible {
   outline-offset: -2px;
 }
 
-input.select-move[disabled] {
-  border-color: #b8a0a0;
-  background-color: #a0a0a0;
+button:disabled,
+input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-button.snapshot[disabled] {
-  border-color: #b8a0a0;
-  background-color: #a0a0a0;
+/*
+ * The diagram region is always there, at least this tall, so the inputs
+ * below it do not move when the drawing goes empty or the text goes bad.
+ */
+.diagram {
+  display: flex;
+  flex-direction: column;
+  min-height: 14rem;
+  margin-bottom: 1rem;
+}
+
+/* The drawing takes the room; the message line stays pinned to the bottom. */
+.canvas {
+  flex: 1;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.picture svg {
+  display: block;
+  max-width: none;
+}
+
+.message {
+  min-height: 1.5em;
+  margin: 0.5rem 0 0;
+  color: #a02020;
+}
+
+/* The notation line keeps its height when there is no diagram to encode. */
+.encoding {
+  min-height: 1.5em;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.notice {
+  border: 1px solid #d9b45a;
+  border-radius: 0.4rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: #fff7dc;
+}
+
+.notice p {
+  margin: 0 0 0.5rem;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  max-width: 40rem;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 .snapshot-catalog {
