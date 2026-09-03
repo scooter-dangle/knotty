@@ -1,0 +1,67 @@
+{
+  "notation-empty": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notation-trefoil-svg": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notationValidTextareaTop": 458.78125,
+  "notation-trefoil-ascii": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notation-trefoil-ascii-compact": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notation-large-ascii": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notation-large-svg": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notation-diagram-error": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notationErrorTextareaTop": 458.78125,
+  "notation-moves-error": {
+    "pageHeight": 886,
+    "pageWidth": 1280
+  },
+  "notation-many-snapshots": {
+    "pageHeight": 1338,
+    "pageWidth": 1280
+  },
+  "manual-empty": {
+    "pageHeight": 800,
+    "pageWidth": 1280
+  },
+  "manualEmptyTextareaTop": 352.390625,
+  "manual-trefoil": {
+    "pageHeight": 800,
+    "pageWidth": 1280
+  },
+  "manualValidTextareaTop": 352.390625,
+  "manual-trefoil-bordered": {
+    "pageHeight": 800,
+    "pageWidth": 1280
+  },
+  "manual-error": {
+    "pageHeight": 800,
+    "pageWidth": 1280
+  },
+  "manualErrorTextareaTop": 352.390625,
+  "manual-many-snapshots": {
+    "pageHeight": 980,
+    "pageWidth": 1280
+  },
+  "storage-error": {
+    "pageHeight": 999,
+    "pageWidth": 1280
+  }
+}
