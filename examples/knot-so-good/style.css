@@ -166,6 +166,50 @@ label {
   margin-bottom: 0.25rem;
 }
 
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* A group keeps its own width until it alone is wider than the row. */
+.toolbar .group {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.moves {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 40rem;
+}
+
+.moves form {
+  margin: 0;
+  width: 100%;
+}
+
+.moves input {
+  font: inherit;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 0.75rem;
+  }
+
+  .group-presets {
+    flex-wrap: wrap;
+  }
+}
+
 .snapshot-catalog {
   margin-top: 8px;
 }

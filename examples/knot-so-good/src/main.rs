@@ -893,40 +893,38 @@ impl Component for Model {
                     <summary>{ "diagram text" }</summary>
                     <pre>{ self.compact_text().unwrap_or_default() }</pre>
                 </details>
-                <br/>
-                <label for="knot-notation">{ "knot notation" }</label>
-                <textarea
-                    id="knot-notation"
-                    value={self.raw_base_diagram.clone()}
-                    oninput={diagram_oninput}
-                />
-                <br/>
-                <label for="moves">{ "moves" }</label>
-                <textarea
-                    id="moves"
-                    value={self.raw_moves.clone()}
-                    oninput={moves_oninput}
-                />
+                <div class="inputs">
+                    <label for="knot-notation">{ "knot notation" }</label>
+                    <textarea
+                        id="knot-notation"
+                        value={self.raw_base_diagram.clone()}
+                        oninput={diagram_oninput}
+                    />
+                    <label for="moves">{ "moves" }</label>
+                    <textarea
+                        id="moves"
+                        value={self.raw_moves.clone()}
+                        oninput={moves_oninput}
+                    />
+                </div>
 
-                {
-                    [
-                        ("simplifying", simplifying),
-                        ("reärranging", rearranging),
-                        ("complecting", complecting),
-                        ("changing", changing),
-                    ].into_iter().flat_map(|(label, moves)| {
-                        [html! { <br/> }, move_select(link, label, &moves, self.parsed_moves_valid)]
-                    }).collect::<Html>()
-                }
-
-                <br/>
-                <button
-                    disabled={!self.parsed_moves_valid}
-                    onclick={link.callback(|_| Msg::AddMove("rotate_90_counter_clockwise@0".to_string()))}
-                >{ "rotate 90° CCW" }</button>
-                <br/>
-                <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
-                <br/>
+                <div class="moves">
+                    {
+                        [
+                            ("simplifying", simplifying),
+                            ("reärranging", rearranging),
+                            ("complecting", complecting),
+                            ("changing", changing),
+                        ].into_iter().map(|(label, moves)| {
+                            move_select(link, label, &moves, self.parsed_moves_valid)
+                        }).collect::<Html>()
+                    }
+                    <button
+                        disabled={!self.parsed_moves_valid}
+                        onclick={link.callback(|_| Msg::AddMove("rotate_90_counter_clockwise@0".to_string()))}
+                    >{ "rotate 90° CCW" }</button>
+                    <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
+                </div>
 
                 if !self.snapshots.is_empty() {
                     <div class="snapshot-catalog">
