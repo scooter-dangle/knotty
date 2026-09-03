@@ -1,4 +1,4 @@
-# Feature Specification: Height-Precalculated Strand Placement (Rendering Mode)
+# Feature Specification: Height-Precalculated Strand Placement (Placement Mode)
 
 **Feature Branch**: `claude/diagram-strand-height-precalc-p4l2lo`
 
@@ -9,6 +9,10 @@
 **Input**: User description: "Diagram rendering mode that precalculates diagram max heights for strands so that it can place the opening features for those strand openings at a diagram height that reduces the need for strands to be moved up and down via diagonals as other strands are opened and closed, respectively, below them in the diagram"
 
 ## Clarifications
+
+### Session 2026-09-03
+
+- Q: How does this mode relate to the "opening-centered" rendering added by spec 003 and left as the sole rendering by spec 005? → A: They are **orthogonal axes**. Opening-centered governs how an already-placed diagram is mapped onto the 2D character grid (glyph mapping). This feature governs how strand heights are *calculated* — which vertical level each strand occupies — and does not change the subsequent mapping to the grid. Adding a choice on the placement axis therefore does not reintroduce the rendering choice that spec 005 removed. Terminology: this feature adds a **placement mode**, not a rendering mode.
 
 ### Session 2026-06-18
 
@@ -26,8 +30,14 @@
   are pulled back down. Today the renderer places every opening at the lowest
   free row, so a strand that is only "passing through" gets shoved up and later
   pulled back down, drawing diagonal "transfer" segments (a staircase) instead
-  of a straight horizontal line. This feature adds a rendering mode that opens
+  of a straight horizontal line. This feature adds a placement mode that opens
   each strand directly at the highest row it will ever need, so it can run flat.
+
+  Scope note (see Clarifications 2026-09-03): "placement" means deciding which
+  vertical level each strand occupies. It is a separate axis from the *grid
+  mapping* — how an already-placed diagram becomes characters in a 2D grid —
+  which is what the opening-centered rendering governs. This feature changes
+  only the former and leaves the latter untouched.
 
   Primary motivation (diagram rotation): the rotation move is performed by
   scanning the *rendered* diagram grid and re-deriving the notation from it.
@@ -45,7 +55,7 @@
 
 ### User Story 1 - Render with reduced up-and-down strand movement (Priority: P1)
 
-A person rendering a knot diagram chooses the height-precalculated rendering mode. For each opening, the renderer first determines the maximum vertical row the resulting strand will occupy at any point before it closes, and opens the strand directly at (or near) that row. Strands that previously zig-zagged up and then back down as other strands opened and closed beneath them instead run as straight horizontal lines.
+A person rendering a knot diagram chooses the height-precalculated placement mode. For each opening, the renderer first determines the maximum vertical row the resulting strand will occupy at any point before it closes, and opens the strand directly at (or near) that row. Strands that previously zig-zagged up and then back down as other strands opened and closed beneath them instead run as straight horizontal lines.
 
 **Why this priority**: This is the core value of the feature — cleaner, easier-to-read diagrams. Without it, nothing else matters. It is independently shippable as a new rendering path.
 
@@ -61,7 +71,7 @@ A person rendering a knot diagram chooses the height-precalculated rendering mod
 
 ### User Story 2 - Keep diagram complexity stable under repeated rotation (Priority: P2)
 
-A person repeatedly applies the rotation move to a diagram. Because rotation re-derives the diagram by scanning the rendered grid, transfers that reverse direction (a strand pushed up then later pulled back down) are re-encoded as additional diagram features and accumulate with each rotation, making the diagram progressively more complicated even though the knot is unchanged. (Many transfers scan to nothing and do not inflate the count.) Using the height-precalculated rendering mode for the scan removes those avoidable reversed-direction transfers, so the scanned feature count stays stable across rotations.
+A person repeatedly applies the rotation move to a diagram. Because rotation re-derives the diagram by scanning the rendered grid, transfers that reverse direction (a strand pushed up then later pulled back down) are re-encoded as additional diagram features and accumulate with each rotation, making the diagram progressively more complicated even though the knot is unchanged. (Many transfers scan to nothing and do not inflate the count.) Using the height-precalculated placement mode for the scan removes those avoidable reversed-direction transfers, so the scanned feature count stays stable across rotations.
 
 **Why this priority**: This is the motivating use case for the feature. Without it, repeated rotation inflates the feature count and degrades usability of the rotation move; it is the primary real-world payoff of reduced transfers. It is independently testable against the existing rotation move.
 
@@ -76,7 +86,7 @@ A person repeatedly applies the rotation move to a diagram. Because rotation re-
 
 ### User Story 3 - Opt in without changing existing output (Priority: P3)
 
-A downstream consumer of the library (or example app) selects a single rendering mode to work in — the existing default rendering or the new height-precalculated rendering — and all subsequent operations run under that active mode. The mode is an operating context, not just a display option: rotation's produced notation depends on it. Existing renders, snapshots, and example outputs are unaffected unless the new mode is explicitly chosen.
+A downstream consumer of the library (or example app) selects a single placement mode to work in — the existing default placement or the new height-precalculated placement — and all subsequent operations run under that active mode. The mode is an operating context, not just a display option: rotation's produced notation depends on it. The grid mapping is unaffected either way. Existing renders, snapshots, and example outputs are unaffected unless the new mode is explicitly chosen.
 
 **Why this priority**: Protects existing behavior and consumers. The feature must be additive; the existing mode stays the default so current snapshots and downstream expectations are unchanged, while the new mode is opt-in until proven and expected to become the default later.
 
@@ -121,7 +131,7 @@ A person renders diagrams that contain crossings as well as openings and closing
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide a selectable rendering mode (distinct from the default) that, before placing strands, precalculates for each opening the maximum vertical row the resulting strand will occupy between its opening and its matching closing.
+- **FR-001**: System MUST provide a selectable placement mode (distinct from the default) that, before placing strands, precalculates for each opening the maximum vertical row the resulting strand will occupy between its opening and its matching closing.
 - **FR-002**: System MUST place each opening feature unconditionally at its precalculated maximum row rather than at the lowest free row, without weighing crossing-alignment cost against displacement savings.
 - **FR-003**: In the new mode, a strand that does not change rows between its opening and closing MUST render as a straight horizontal line with no diagonal transfer segments, wherever the precalculated placement makes that possible.
 - **FR-004**: In the new mode, the number of *open/close displacement* transfer segments (those caused by a strand being pushed up by an opening beneath it and later pulled back down by a closing beneath it) MUST be reduced versus the default mode for any diagram exhibiting such displacement.
@@ -132,8 +142,9 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **FR-009**: The new mode MUST still emit diagonal transfer segments that are intrinsic to a strand entering at its opening index or leaving at its closing index; only avoidable up-then-down movement is removed.
 - **FR-010**: The new mode MUST handle empty and degenerate diagrams without error, producing output equivalent to the default mode where no avoidable movement exists.
 - **FR-011**: When a crossing's two participating strands are not on adjacent rows under the precalculated placement, the new mode MUST insert the transfer segments needed to bring them adjacent for the crossing and to restore their placement afterward. These crossing-alignment transfers are permitted even though they are not open/close displacement transfers, and the rendering MUST never draw a crossing between non-adjacent rows.
-- **FR-012**: The rendering mode MUST be a single operating context a user selects to work in; all diagram operations run under the active mode. Because rotation re-derives notation from the rendered grid, the rotation result MUST reflect the active mode; notation-only moves (swap, wrap-around, change-crossing, Reidemeister, bulge/collapse) MUST produce identical results regardless of the active mode.
-- **FR-013**: The active rendering mode MUST default to the existing (legacy) mode so that current behavior — including rotation results and snapshots — is unchanged unless the user opts into the new mode. (Making the new mode the default, and any migration away from the legacy mode, is out of scope for this feature.)
+- **FR-012**: The placement mode MUST be a single operating context a user selects to work in; all diagram operations run under the active mode. Because rotation re-derives notation from the rendered grid, the rotation result MUST reflect the active mode; notation-only moves (swap, wrap-around, change-crossing, Reidemeister, bulge/collapse) MUST produce identical results regardless of the active mode.
+- **FR-013**: The active placement mode MUST default to the placement behavior the current renderer already performs, so that current behavior — including rotation results and snapshots — is unchanged unless the user opts into the new mode. (Making the new mode the default, and any migration away from the existing placement, is out of scope for this feature.)
+- **FR-014**: The placement mode MUST be independent of the grid mapping (the opening-centered rendering). Selecting either placement mode MUST NOT change how an already-placed diagram is mapped onto the character grid, and MUST NOT reintroduce a choice on the rendering axis that spec 005 removed.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -143,7 +154,8 @@ A person renders diagrams that contain crossings as well as openings and closing
 - **Diagonal transfer segment**: a rendered segment that moves a strand up or down between rows. Two kinds matter here: *open/close displacement transfers*, caused by openings/closings beneath a passing strand (the kind this feature reduces); and *crossing-alignment transfers*, needed to bring two crossing partners adjacent when precalculated placement has separated them (a new cost the default mode never incurs).
 - **Crossing-alignment transfer**: a transfer the new mode adds to make two crossing strands adjacent at the moment they cross (and to restore placement afterward), because the default mode's guarantee that crossing partners are always adjacent no longer holds once strands sit at their maximum rows.
 - **Scanned diagram feature**: an element the rotation move recovers by reading the rendered grid (openings, closings, crossings). Not every transfer becomes one — many scan to nothing. The transfers that inflate this count are (especially, perhaps only) those later reversed by an opposite-direction transfer, i.e. the avoidable up-then-down displacement the new mode removes; crossing-alignment transfers are scanned but do not add features. Reducing the reversed-direction transfers lowers the count without changing the knot, which is what the new mode aims for.
-- **Active rendering mode (operating context)**: the single mode a user has selected to work in. It governs all operations; rotation's produced notation depends on it, while notation-only moves are independent of it. Defaults to the legacy mode; selecting the new mode is opt-in.
+- **Active placement mode (operating context)**: the single mode a user has selected to work in, governing how strand heights are calculated. It governs all operations; rotation's produced notation depends on it, while notation-only moves are independent of it. Defaults to the existing placement behavior; selecting the new mode is opt-in.
+- **Grid mapping (separate axis, out of scope)**: how an already-placed diagram is turned into characters in the 2D grid — what the opening-centered rendering governs. Orthogonal to the placement mode and unchanged by this feature (FR-014).
 
 ## Success Criteria *(mandatory)*
 

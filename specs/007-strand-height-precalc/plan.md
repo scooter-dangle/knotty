@@ -20,9 +20,9 @@ feature targets:
 | Assumption in these docs | Reality on main |
 |---|---|
 | `raw_lines::{append, expand_above, contract_above, is_empty_above, advance}` are the placement path to extend | **All deleted.** `src/raw_lines.rs` is now `struct OpeningCentered { lines, live }` with `new`/`into_lines`/`column`/`raise_once`/`lower_once`/`append` |
-| `RenderMode::Legacy` names the existing renderer | The legacy (split-cell) renderer **no longer exists**. The surviving default is opening-centered, so `Legacy` is the wrong name for the default variant |
-| `Legacy` routes through the untouched `append` path (research R5) | There is no such path to route through; the parity baseline is now the opening-centered output |
-| A crossing is two half-glyphs on adjacent rows | A crossing is **one glyph in one cell** (`CrossDownOver`/`CrossDownUnder` at `idx` alone); `CrossUpUnder`/`CrossUpOver` are unused. **FR-011's "never drawn between non-adjacent rows" must be re-derived** — this is Component B's hardest part and its premise moved |
+| `RenderMode::Legacy` names the existing renderer | Two corrections. The mode this feature adds is a **placement** mode, not a rendering mode (Clarifications 2026-09-03) — `RenderMode` is the wrong name for the type. And its default variant names *the placement behavior the current renderer performs*, not the deleted split-cell renderer, so `Legacy` is the wrong name for the variant |
+| `Legacy` routes through the untouched `append` path (research R5) | There is no such free-function path to route through; the placement logic now lives inside `OpeningCentered` (`live[]` + `raise_once`/`lower_once`). The parity baseline is today's output: existing placement + opening-centered mapping |
+| A crossing is two half-glyphs on adjacent rows | A crossing is **one glyph in one cell** (`CrossDownOver`/`CrossDownUnder` at `idx` alone); `CrossUpUnder`/`CrossUpOver` are unused. This changes only the glyph mapping, so **FR-011 survives**: "partners must be on adjacent levels" is a placement constraint. Only prose describing a crossing as two half-glyphs needs rewording |
 | Transfers use part-way-through-a-cell halves | `raise_once`/`lower_once` move **one whole level per cell**. Affects FR-004 and the SC-002 transfer counting |
 | 16 existing snapshot files (tasks T002) | **24** |
 | `src/raw_lines.rs:135`, `:21`, `:74` (tasks T022 and others) | All stale line references |
@@ -38,13 +38,26 @@ survive with their signatures. The two-component seam in
 architecture-level and survives intact; only Component B's *integration point*
 moves from free functions to `OpeningCentered`.
 
-### Open product question
+### ~~Open product question~~ — RESOLVED 2026-09-03
 
-Spec 005 deliberately removed rendering-mode selection. This feature
-re-introduces a mode choice (FR-012, FR-013) — a direct tension with a
-just-landed decision. It may be that height-precalculated placement should
-*replace* opening-centered placement rather than sit alongside it. Settle this
-with the feature owner before implementing.
+An earlier revision of this section claimed a tension with spec 005, which
+removed rendering-mode selection. **That was wrong.** Per Clarifications
+2026-09-03, the two are orthogonal axes: opening-centered governs the *grid
+mapping* (how an already-placed diagram becomes characters), while this feature
+governs *placement* (which level each strand occupies). Adding a choice on the
+placement axis does not reintroduce the rendering choice spec 005 removed. See
+FR-014, which makes that independence a testable requirement.
+
+### Newly opened by the rebase
+
+A pair's two strands genuinely diverge: a pair opened at levels 3,4 followed by
+`(4` ends up spanning levels **3 and 6**, because `raise_once(4)` and
+`raise_once(5)` lift the upper strand twice while the lower stays. But an
+opening draws a cap across two *adjacent* levels, so both strands cannot start
+at their own maximum when those maxima differ. The spec covers non-adjacent
+crossing partners (FR-011) but not this case. Being settled in clarification;
+it also resolves the per-strand/per-pair Shape question in
+[contracts/strand-heights.md](./contracts/strand-heights.md).
 
 **Recommended**: re-run `/speckit-plan`, then `/speckit-analyze`, against current
 main before `/speckit-implement`. The spec's requirements and success criteria
