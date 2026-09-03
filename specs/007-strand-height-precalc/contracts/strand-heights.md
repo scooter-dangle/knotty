@@ -61,9 +61,13 @@ cross-checked against the fixture heights.
   transfer segments (FR-003).
 - Still emits the boundary diagonals intrinsic to entering at the opening index
   and leaving at the closing index (FR-009).
-- Brings crossing partners adjacent with localized crossing-alignment transfers
-  and restores placement afterward; never draws a crossing between non-adjacent
-  rows (FR-007, FR-011).
+- Brings crossing partners together **at the floored midpoint of their two rows**,
+  crosses there, and returns both to their maxima afterward; never draws a
+  crossing between non-adjacent rows (FR-007, FR-011).
+- Applies one uniform rule to every two-strand feature: a cap, cup, or crossing
+  sits at the floored midpoint of the two strands it joins, with the movement
+  split evenly between them (FR-002, FR-011, FR-016). Caps and cups are
+  boundaries and the strands do not return; after a crossing they do.
 - **Trusts the map.** B does not recompute, validate, or second-guess the
   heights. Given a well-formed map it produces a well-formed grid. A map that
   violates this contract is Component A's defect, not B's.
