@@ -2,9 +2,53 @@
 // The LocalStorage glue (load_from_storage/save_to_storage) wraps web_sys
 // and is not tested here; it is too thin to warrant browser-based tests.
 use super::{
-    ascii_diagram_to_svg, make_svg_scalable, PersistedDisplayMode, PersistedManualSnapshot,
-    PersistedMode, PersistedSnapshot, PersistedState, SYMBOL_TABLE,
+    ascii_diagram_to_svg, grid_class, make_svg_scalable, PersistedDisplayMode,
+    PersistedManualSnapshot, PersistedMode, PersistedSnapshot, PersistedState, BUILT_IN_KNOTS,
+    SYMBOL_TABLE,
 };
+
+/// The three characters the bordered view rules the cell grid with are drawn
+/// as CSS rules; everything the diagram itself is drawn with stays a glyph.
+#[test]
+fn only_grid_characters_get_a_class() {
+    assert_eq!(grid_class(b'+'), Some("grid grid-cross"));
+    assert_eq!(grid_class(b'-'), Some("grid grid-h"));
+    assert_eq!(grid_class(b'|'), Some("grid grid-v"));
+
+    for byte in [b' ', b'(', b')', b'/', b'\\', b'_', b'0'] {
+        assert_eq!(grid_class(byte), None, "{:?}", byte as char);
+    }
+}
+
+/// The plain drawing never contains a grid character, so the class can only
+/// ever land in the bordered view.
+#[test]
+fn plain_drawings_contain_no_grid_characters() {
+    for (name, notation) in BUILT_IN_KNOTS {
+        let knot = notation.parse::<knotty::AbbreviatedDiagram>().unwrap();
+        let full = knot.try_ascii_print::<false>().unwrap();
+        let compact = knot.try_ascii_print_compact::<false>().unwrap();
+
+        for drawing in [full, compact] {
+            assert!(
+                drawing.bytes().all(|byte| grid_class(byte).is_none()),
+                "{name}: {drawing}",
+            );
+        }
+    }
+}
+
+#[test]
+fn bordered_drawing_contains_every_grid_character() {
+    let diagram = "..___..\n.(._.).\n._y.y_.\n(__x__)\n"
+        .parse::<knotty::VerboseDiagram>()
+        .unwrap();
+    let bordered: String = diagram.display::<true>().collect();
+
+    for byte in [b'+', b'-', b'|'] {
+        assert!(bordered.bytes().any(|b| b == byte), "{:?}", byte as char);
+    }
+}
 
 #[test]
 fn round_trip_full() {

@@ -236,24 +236,31 @@ impl Model {
         };
 
         html! {
-            <p>
-                { format!("Could not restore saved state (corrupt data was cleared): {err}. ") }
+            <aside class="notice" role="alert">
+                <p>{ format!("Could not restore saved state (corrupt data was cleared): {err}.") }</p>
                 <button onclick={link.callback(|_| Msg::DismissStorageError)}>
                     { "Dismiss" }
                 </button>
-            </p>
+            </aside>
         }
     }
 
     fn mode_toggle(&self, link: &html::Scope<Self>) -> Html {
-        let (other, label) = match self.mode {
-            Mode::Notation => (Mode::Manual, "switch to manual diagram mode"),
-            Mode::Manual => (Mode::Notation, "switch to knot notation mode"),
-        };
-
-        html! {
-            <button onclick={link.callback(move |_| Msg::SetMode(other))}>{ label }</button>
-        }
+        segmented_pair(
+            "mode",
+            [
+                (
+                    "notation",
+                    self.mode == Mode::Notation,
+                    link.callback(|_| Msg::SetMode(Mode::Notation)),
+                ),
+                (
+                    "manual",
+                    self.mode == Mode::Manual,
+                    link.callback(|_| Msg::SetMode(Mode::Manual)),
+                ),
+            ],
+        )
     }
 
     fn manual_view(&self, link: &html::Scope<Self>) -> Html {
@@ -271,33 +278,43 @@ impl Model {
             Msg::ManualDiagram(value)
         });
 
-        let other_borders = !self.manual_borders;
-
         let render_class = if self.manual_error.is_some() {
-            "manual-render stale"
+            "ascii manual-render stale"
         } else {
-            "manual-render"
+            "ascii manual-render"
         };
 
         html! {
             <>
                 { self.storage_error_html(link) }
-                { self.mode_toggle(link) }
-                <button onclick={link.callback(move |_| Msg::ManualBorders(other_borders))}>
-                    { if self.manual_borders { "switch to plain view" } else { "switch to bordered view" } }
-                </button>
-                <button
-                    class="snapshot"
-                    disabled={self.manual_snapshot_disabled()}
-                    onclick={link.callback(|_| Msg::ManualSnapshot)}
-                >{ "snapshot" }</button>
-                if let Some(ref diagram) = self.manual_render {
-                    <p><pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre></p>
-                }
-                if let Some(ref err) = self.manual_error {
-                    <p class="manual-error">{ format!("Error: {err}") }</p>
-                }
+                <nav class="toolbar">
+                    <div class="group group-mode">
+                        { self.mode_toggle(link) }
+                    </div>
+                    <div class="group group-view">
+                        { segmented_pair("view", [
+                            ("plain", !self.manual_borders, link.callback(|_| Msg::ManualBorders(false))),
+                            ("bordered", self.manual_borders, link.callback(|_| Msg::ManualBorders(true))),
+                        ]) }
+                    </div>
+                    <div class="group group-actions">
+                        <button
+                            class="snapshot"
+                            disabled={self.manual_snapshot_disabled()}
+                            onclick={link.callback(|_| Msg::ManualSnapshot)}
+                        >{ "snapshot" }</button>
+                    </div>
+                </nav>
+                <div class="workspace">
+                { diagram_region(
+                    self.manual_render.as_ref().map(|diagram| html! {
+                        <pre class={render_class}>{ ascii_diagram_to_html(&render_manual(diagram, self.manual_borders)) }</pre>
+                    }).unwrap_or_default(),
+                    self.manual_error.as_ref().map(|err| format!("Error: {err}")),
+                ) }
+                <label for="diagram-text">{ "diagram text" }</label>
                 <textarea
+                    id="diagram-text"
                     class="manual-input"
                     rows="10"
                     cols="40"
@@ -316,7 +333,7 @@ impl Model {
                     </table>
                 </details>
                 if !self.manual_snapshots.is_empty() {
-                    <div class="snapshot-catalog">
+                    <section class="snapshot-catalog" aria-label="snapshots">
                         { self.manual_snapshots.iter().enumerate().map(|(idx, snapshot)| {
                             // A snapshot saved before a character stopped
                             // naming a cell still lists and still restores;
@@ -327,23 +344,28 @@ impl Model {
                                 .map(|diagram| render_manual(&diagram, self.manual_borders));
 
                             html! {
-                                <div class="snapshot-entry">
-                                    if let Ok(ref preview) = preview {
-                                        <pre class="manual-render">{ ascii_diagram_to_html(preview) }</pre>
-                                    } else {
-                                        <p class="manual-error">{ "unreadable snapshot" }</p>
-                                    }
-                                    <button onclick={link.callback(move |_| Msg::RestoreManualSnapshot(idx))}>
-                                        { "restore" }
-                                    </button>
-                                    <button onclick={link.callback(move |_| Msg::DeleteManualSnapshot(idx))}>
-                                        { "delete" }
-                                    </button>
-                                </div>
+                                <article class="snapshot-entry">
+                                    <div class="snapshot-preview">
+                                        if let Ok(ref preview) = preview {
+                                            <pre class="ascii manual-render">{ ascii_diagram_to_html(preview) }</pre>
+                                        } else {
+                                            <p class="manual-error">{ "unreadable snapshot" }</p>
+                                        }
+                                    </div>
+                                    <div class="snapshot-actions">
+                                        <button onclick={link.callback(move |_| Msg::RestoreManualSnapshot(idx))}>
+                                            { "restore" }
+                                        </button>
+                                        <button onclick={link.callback(move |_| Msg::DeleteManualSnapshot(idx))}>
+                                            { "delete" }
+                                        </button>
+                                    </div>
+                                </article>
                             }
                         }).collect::<Html>() }
-                    </div>
+                    </section>
                 }
+                </div>
             </>
         }
     }
@@ -381,10 +403,47 @@ impl Model {
         self.ascii_html_diagram = self
             .ascii_modified_diagram
             .as_deref()
-            .map_or_else(|err| error_to_html(err), ascii_diagram_to_html);
+            .map(ascii_diagram_to_html)
+            .unwrap_or_default();
 
         self.svg_diagram =
             ascii_diagram_to_svg(self.ascii_modified_diagram.as_deref().unwrap_or(""));
+    }
+}
+
+/// Where the diagram is drawn. It exists in every state -- empty, drawn, or
+/// erroneous -- at a minimum height, with a message line that is always
+/// there, so the inputs below never move when the text goes bad.
+fn diagram_region(canvas: Html, message: Option<String>) -> Html {
+    html! {
+        <section class="diagram">
+            <div class="canvas">{ canvas }</div>
+            <p class="message" role="status">{ message.unwrap_or_default() }</p>
+        </section>
+    }
+}
+
+/// One control for a two-state setting: both states named, the active one
+/// checked. Native radios give keyboard and screen-reader handling for free.
+fn segmented_pair(name: &str, options: [(&str, bool, Callback<Event>); 2]) -> Html {
+    html! {
+        <fieldset class="segmented" role="radiogroup" aria-label={name.to_string()}>
+            { options.into_iter().map(|(label, checked, onchange)| {
+                let id = format!("{name}-{label}");
+                html! {
+                    <>
+                        <input
+                            type="radio"
+                            id={id.clone()}
+                            name={name.to_string()}
+                            checked={checked}
+                            {onchange}
+                        />
+                        <label for={id}>{ label }</label>
+                    </>
+                }
+            }).collect::<Html>() }
+        </fieldset>
     }
 }
 
@@ -776,12 +835,6 @@ impl Component for Model {
                 .map_err(|err| web_sys::console::log_1(&err.into()))
         });
 
-        let other_mode = match self.display_mode {
-            DisplayMode::Ascii => DisplayMode::Svg,
-            DisplayMode::Svg => DisplayMode::Ascii,
-        };
-        let other_compact = !self.compact;
-
         let Moves {
             changing,
             complecting,
@@ -796,28 +849,47 @@ impl Component for Model {
         html! {
             <>
                 { self.storage_error_html(link) }
-                { self.mode_toggle(link) }
-                { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
-                    <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
-                }).collect::<Html>() }
-                <button onclick={link.callback(move |_| Msg::DisplayMode(other_mode))}>{format!("switch to {other_mode:?} display")}</button>
-                <button onclick={link.callback(move |_| Msg::Compact(other_compact))}>
-                    { if self.compact { "switch to full display" } else { "switch to compact display" } }
-                </button>
-                <button
-                    class="snapshot"
-                    disabled={self.snapshot_disabled()}
-                    onclick={link.callback(|_| Msg::Snapshot)}
-                >{ "snapshot" }</button>
-                { match self.display_mode {
-                    DisplayMode::Ascii => html! {
-                        <p><pre>{ self.ascii_html_diagram.clone() }</pre></p>
+                <nav class="toolbar">
+                    <div class="group group-mode">
+                        { self.mode_toggle(link) }
+                    </div>
+                    <div class="group group-presets">
+                        { BUILT_IN_KNOTS.iter().map(|(name, diagram)| html! {
+                            <button onclick={link.callback(move |_| Msg::Diagram(Some(diagram.to_string())))}>{ name }</button>
+                        }).collect::<Html>() }
+                    </div>
+                    <div class="group group-display">
+                        { segmented_pair("display", [
+                            ("picture", self.display_mode == DisplayMode::Svg, link.callback(|_| Msg::DisplayMode(DisplayMode::Svg))),
+                            ("characters", self.display_mode == DisplayMode::Ascii, link.callback(|_| Msg::DisplayMode(DisplayMode::Ascii))),
+                        ]) }
+                        { segmented_pair("drawing", [
+                            ("full", !self.compact, link.callback(|_| Msg::Compact(false))),
+                            ("compact", self.compact, link.callback(|_| Msg::Compact(true))),
+                        ]) }
+                    </div>
+                    <div class="group group-actions">
+                        <button
+                            class="snapshot"
+                            disabled={self.snapshot_disabled()}
+                            onclick={link.callback(|_| Msg::Snapshot)}
+                        >{ "snapshot" }</button>
+                    </div>
+                </nav>
+                <div class="workspace">
+                { diagram_region(
+                    match (&self.ascii_modified_diagram, self.display_mode) {
+                        (Err(_), _) => Html::default(),
+                        (Ok(_), DisplayMode::Ascii) => html! {
+                            <pre class="ascii">{ self.ascii_html_diagram.clone() }</pre>
+                        },
+                        (Ok(_), DisplayMode::Svg) => html! {
+                            <div class="picture"><RawHtml inner_html={svg.clone()} /></div>
+                        },
                     },
-                    DisplayMode::Svg => html! {
-                        <p><RawHtml inner_html={svg.clone()}></RawHtml></p>
-                    },
-                } }
-                <pre>{
+                    self.ascii_modified_diagram.as_ref().err().map(|err| format!("Error: {err}")),
+                ) }
+                <pre class="encoding">{
                     // TODO modify diagram input to allow moves on the same line
                     self.modified_diagram.clone().unwrap_or_default().to_string().replace('\n', " ")
                 }</pre>
@@ -825,57 +897,62 @@ impl Component for Model {
                     <summary>{ "diagram text" }</summary>
                     <pre>{ self.compact_text().unwrap_or_default() }</pre>
                 </details>
-                <br/>
-                <textarea
-                    value={self.raw_base_diagram.clone()}
-                    oninput={diagram_oninput}
-                />
-                <br/>
-                <textarea
-                    value={self.raw_moves.clone()}
-                    oninput={moves_oninput}
-                />
+                <div class="inputs">
+                    <label for="knot-notation">{ "knot notation" }</label>
+                    <textarea
+                        id="knot-notation"
+                        value={self.raw_base_diagram.clone()}
+                        oninput={diagram_oninput}
+                    />
+                    <label for="moves">{ "moves" }</label>
+                    <textarea
+                        id="moves"
+                        value={self.raw_moves.clone()}
+                        oninput={moves_oninput}
+                    />
+                </div>
 
-                {
-                    [
-                        ("simplifying", simplifying),
-                        ("reärranging", rearranging),
-                        ("complecting", complecting),
-                        ("changing", changing),
-                    ].into_iter().flat_map(|(label, moves)| {
-                        [html! { <br/> }, move_select(link, label, &moves, self.parsed_moves_valid)]
-                    }).collect::<Html>()
-                }
-
-                <br/>
-                <button
-                    disabled={!self.parsed_moves_valid}
-                    onclick={link.callback(|_| Msg::AddMove("rotate_90_counter_clockwise@0".to_string()))}
-                >{ "rotate 90° CCW" }</button>
-                <br/>
-                <a style="font-size: 8px;" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
-                <br/>
+                <div class="moves">
+                    {
+                        [
+                            ("simplifying", simplifying),
+                            ("reärranging", rearranging),
+                            ("complecting", complecting),
+                            ("changing", changing),
+                        ].into_iter().map(|(label, moves)| {
+                            move_select(link, label, &moves, self.parsed_moves_valid)
+                        }).collect::<Html>()
+                    }
+                    <button
+                        disabled={!self.parsed_moves_valid}
+                        onclick={link.callback(|_| Msg::AddMove("rotate_90_counter_clockwise@0".to_string()))}
+                    >{ "rotate 90° CCW" }</button>
+                    <a class="secondary" href={url.unwrap_or_default()} download="knot.svg">{ "Download SVG" }</a>
+                </div>
 
                 if !self.snapshots.is_empty() {
-                    <div class="snapshot-catalog">
+                    <section class="snapshot-catalog" aria-label="snapshots">
                         { self.snapshots.iter().enumerate().map(|(idx, snapshot)| {
                             html! {
-                                <div class="snapshot-entry">
+                                <article class="snapshot-entry">
                                     <div class="snapshot-preview">
                                         <RawHtml inner_html={make_svg_scalable(&snapshot.svg)} />
                                     </div>
-                                    <pre>{ &snapshot.current_diagram_encoding }</pre>
-                                    <button onclick={link.callback(move |_| Msg::RestoreSnapshot(idx))}>
-                                        { "restore" }
-                                    </button>
-                                    <button onclick={link.callback(move |_| Msg::DeleteSnapshot(idx))}>
-                                        { "delete" }
-                                    </button>
-                                </div>
+                                    <pre class="encoding">{ &snapshot.current_diagram_encoding }</pre>
+                                    <div class="snapshot-actions">
+                                        <button onclick={link.callback(move |_| Msg::RestoreSnapshot(idx))}>
+                                            { "restore" }
+                                        </button>
+                                        <button onclick={link.callback(move |_| Msg::DeleteSnapshot(idx))}>
+                                            { "delete" }
+                                        </button>
+                                    </div>
+                                </article>
                             }
                         }).collect::<Html>() }
-                    </div>
+                    </section>
                 }
+                </div>
             </>
         }
     }
@@ -919,8 +996,17 @@ impl FromIterator<DiagramMove> for Moves {
     }
 }
 
-fn error_to_html(error: &str) -> Html {
-    html! { <p>{ format!("Error: {error}") }</p> }
+/// The bordered view rules its cell grid with `+`, `-` and `|`, and no
+/// monospace font draws those edge to edge, so the stylesheet draws them as
+/// full-cell rules behind the (transparent) glyph. The diagram's own
+/// characters are left alone.
+fn grid_class(byte: u8) -> Option<&'static str> {
+    match byte {
+        b'+' => Some("grid grid-cross"),
+        b'-' => Some("grid grid-h"),
+        b'|' => Some("grid grid-v"),
+        _ => None,
+    }
 }
 
 fn ascii_diagram_to_html(diagram: &str) -> Html {
@@ -929,7 +1015,10 @@ fn ascii_diagram_to_html(diagram: &str) -> Html {
         .map(|byte| match byte {
             byte
             @ (b' ' | b'(' | b')' | b'/' | b'\\' | b'_' | b'-' | b'+' | b'|' | b'0'..=b'9') => {
-                html! { {byte as char} }
+                match grid_class(byte) {
+                    Some(class) => html! { <span class={class}>{ byte as char }</span> },
+                    None => html! { {byte as char} },
+                }
             }
             b'\n' => html! { <br/> },
             _ => unreachable!("bug!"),

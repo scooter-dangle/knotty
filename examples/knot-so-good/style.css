@@ -1,0 +1,329 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  margin: 0 auto;
+  padding: 1rem;
+  max-width: 64rem;
+}
+
+textarea,
+input,
+code,
+pre {
+  font-family: "DejaVu Sans Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+button {
+  font: inherit;
+  padding: 0.35rem 0.7rem;
+  min-height: 2.5rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+  background: #f4f4f4;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+button:focus-visible {
+  outline: 2px solid #2a6fdb;
+  outline-offset: 2px;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #f4f4f4;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  pointer-events: none;
+}
+
+.segmented label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+}
+
+.segmented label + input + label {
+  border-left: 1px solid #b0b0b0;
+}
+
+.segmented input:checked + label {
+  background: #2a6fdb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.segmented input:focus-visible + label {
+  outline: 2px solid #2a6fdb;
+  outline-offset: -2px;
+}
+
+button:disabled,
+input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * The diagram region is always there, at least this tall, so the inputs
+ * below it do not move when the drawing goes empty or the text goes bad.
+ */
+.diagram {
+  display: flex;
+  flex-direction: column;
+  min-height: 14rem;
+}
+
+/* The drawing takes the room; the message line stays pinned to the bottom. */
+.canvas {
+  flex: 1;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.picture svg {
+  display: block;
+  max-width: none;
+}
+
+.message {
+  min-height: 1.5em;
+  margin: 0.5rem 0 0;
+  color: #a02020;
+}
+
+/* The notation line keeps its height when there is no diagram to encode. */
+.encoding {
+  min-height: 1.5em;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.notice {
+  border: 1px solid #d9b45a;
+  border-radius: 0.4rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: #fff7dc;
+}
+
+.notice p {
+  margin: 0 0 0.5rem;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  max-width: 40rem;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* A group keeps its own width until it alone is wider than the row. */
+.toolbar .group {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.moves {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  max-width: 40rem;
+}
+
+.moves form {
+  margin: 0;
+  width: 100%;
+}
+
+.moves input {
+  font: inherit;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.4rem;
+}
+
+.secondary {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 0.75rem;
+  }
+
+  .group-presets {
+    flex-wrap: wrap;
+  }
+}
+
+.snapshot-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.snapshot-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 0.4rem;
+  padding: 0.5rem;
+  min-width: 0;
+}
+
+.snapshot-preview {
+  height: 120px;
+  overflow: auto;
+}
+
+.snapshot-preview svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.snapshot-preview pre.ascii {
+  font-size: 0.6rem;
+}
+
+.snapshot-entry .encoding {
+  font-size: 0.75rem;
+}
+
+.snapshot-actions {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: auto;
+}
+
+.manual-input {
+  white-space: pre;
+}
+
+/*
+ * A drawing made of / \ ( ) _ only reads as continuous strands when the row
+ * pitch is shorter than the glyphs, so adjacent rows overlap by a pixel or
+ * two. 0.8 closes every join on the DejaVu Sans Mono / Menlo geometry (see
+ * specs/006-gui-makeover/research.md R1). The padding keeps the overhanging
+ * ink of the first and last rows inside the box.
+ */
+pre.ascii {
+  font-size: 0.875rem;
+  line-height: 0.8;
+  padding: 0.3em 0;
+  margin: 0;
+  white-space: pre;
+}
+
+/* The bordered view's grid: full-cell rules instead of the glyphs. */
+.grid {
+  display: inline-block;
+  position: relative;
+  width: 1ch;
+  height: 0.8em;
+  vertical-align: top;
+  color: transparent;
+}
+
+.grid::before,
+.grid::after {
+  content: "";
+  position: absolute;
+  background: #9a9a9a;
+}
+
+.grid-h::after,
+.grid-cross::after {
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+}
+
+.grid-v::before,
+.grid-cross::before {
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+}
+
+/* Marks a picture that no longer matches the text being edited. */
+.manual-render.stale {
+  opacity: 0.4;
+}
+
+.manual-error {
+  color: #a02020;
+}
+
+.symbol-table code {
+  font-size: 1.2em;
+}
+
+.symbol-table td {
+  padding-right: 12px;
+}
+
+.compact-text pre {
+  font-size: 0.9em;
+}
