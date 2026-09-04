@@ -1,89 +1,133 @@
 # Phase 1 Data Model: Height-Precalculated Strand Placement
 
-The feature adds a small amount of state and one derived (transient) structure.
-No persistence is involved; all types are in-memory Rust types in the `knotty`
-crate.
+Rewritten 2026-09-03 against `origin/main` at `37b7c09`. All types are in-memory
+Rust types in the `knotty` crate; no persistence.
 
-## New types
+## New public types
 
-### `RenderMode` (enum)
+### `PlacementMode` (enum)
 
-The active operating context that governs how a diagram is rendered (and,
-through rotation, how its notation is re-derived).
+The active operating context governing how strand heights are calculated.
 
 | Variant | Meaning |
 |---------|---------|
-| `Legacy` *(default)* | Existing renderer: each opening placed at the lowest free row; passing strands bumped up/down via transfers. Output is byte-for-byte identical to today. |
-| `PrecalculatedHeights` | New renderer: each opening placed at its precalculated maximum row so passing strands run flat; only boundary and crossing-alignment transfers are emitted. |
+| `IndexAligned` *(default)* | Existing behavior: a feature's notation index and its rendered row are the same number. Output byte-for-byte identical to today. |
+| `PrecalculatedHeights` | Each strand placed at its precalculated maximum; caps, cups and crossings drawn at the floored midpoint of the two strands they join. |
 
-- Derives: `Clone, Copy, PartialEq, Eq, Debug, Default` (`Legacy` is `#[default]`).
-- Re-exported from `lib.rs`.
-- Final variant names are at implementer discretion; `Legacy` / `PrecalculatedHeights` are used throughout these docs.
+- Derives `Clone, Copy, PartialEq, Eq, Debug, Default`; `IndexAligned` is `#[default]`.
+- Re-exported from `lib.rs`. Final variant names are implementer discretion.
+- **Not** a rendering mode: orthogonal to the opening-centered grid mapping (FR-014).
 
-## Changed types
+## Changed public types
 
 ### `AbbreviatedDiagram`
 
-Source of truth for a diagram. Changes from a tuple struct to a named struct so
-it can carry the active mode.
+Tuple struct → named struct so it can carry the active mode.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `items` | `Vec<AbbreviatedItem>` | The ordered diagram features (was the unnamed tuple field `.0`). |
-| `mode` | `RenderMode` | The active operating context. Defaults to `Legacy` for every existing constructor. |
+| `items` | `Vec<AbbreviatedItem>` | The ordered features (was the unnamed field `.0`). |
+| `mode` | `PlacementMode` | The active operating context. `IndexAligned` for every existing constructor. |
 
-Accessors / builders (new):
-- `fn mode(&self) -> RenderMode`
-- `fn set_mode(&mut self, mode: RenderMode)`
-- `fn with_mode(self, mode: RenderMode) -> Self`
+New accessors: `mode(&self) -> PlacementMode`, `set_mode(&mut self, PlacementMode)`,
+`with_mode(self, PlacementMode) -> Self`.
 
 Invariants:
+
 - All existing constructors (`FromStr`, `new_from_tuples`, rotation output) yield
-  `mode = Legacy`, preserving current behavior (FR-005, FR-013, SC-004).
-- The mode is the *only* thing that distinguishes how `items` is rendered; two
-  diagrams with equal `items` and equal `mode` are equivalent.
+  `IndexAligned`, preserving current behavior (FR-005, FR-013, SC-004).
+- Mode is the only thing distinguishing how `items` is rendered: equal `items`
+  plus equal `mode` implies equal output (FR-008).
 
-## Derived / transient structures
+## New internal types
 
-### Peak-row map (internal, not public)
+### Strand maxima (Component A's output)
 
-Produced by the precalculation pass (research R2): a mapping from each opening
-event to the maximum vertical row its strand pair occupies over its lifetime.
-Consumed by the `PrecalculatedHeights` build path; never stored on the diagram.
+Two maxima per opening, in opening order — the lower strand's and the upper
+strand's maximum rows over their flat runs (FR-001). Carried across the seam
+described in [contracts/strand-heights.md](./contracts/strand-heights.md).
 
-### `VerboseDiagram` (unchanged shape)
+Not public. The derived opening row `floor((lower + upper) / 2)` is *not* part of
+this structure — Component B recomputes it, since it needs both maxima anyway to
+emit the two boundary transfers.
 
-The rendered grid (`Vec<VerboseLine>` of `Horiz` cells) remains structurally
-unchanged. What differs by mode is *which* `Horiz` cells are produced for a
-given `AbbreviatedDiagram`. `from_abbreviated` gains awareness of the mode (read
-from the `AbbreviatedDiagram`) to choose the placement path.
+**Governing invariant** (research R2, verified across all 23 pairs in the five
+fixtures):
+
+```text
+upper_max − lower_max − 1  ==  strands ever opened between the pair
+```
+
+**Derived grid height**:
+
+```text
+height = max(all maxima) + 1
+```
+
+which equals `AbbreviatedDiagram::height()` exactly when no pair diverges, and
+exceeds it otherwise (research R7). Component B sizes the grid from this, **not**
+from `height()`.
+
+### Grid state (shared by both placement modes)
+
+Extracted from today's `OpeningCentered` (`src/raw_lines.rs:8`) so both placement
+builders emit glyphs through identical code (research R3, FR-014):
+
+| Member | Type | Role |
+|--------|------|------|
+| `lines` | `Vec<Vec<Horiz>>` | The grid being built, one row per level. |
+| `live` | `Vec<bool>` | Which rows currently carry a strand. |
+| `column()` | fn | Emits one column: places the given `(row, glyph)` pairs, fills live rows with `Line`, applies the shadow rule. |
+
+`live` keeps its meaning under both modes. What changes is *which rows* are live
+— under precalculated placement they need not be contiguous, and a divergent
+pair's gap stays un-live for the pair's whole lifetime.
+
+## Unchanged types
+
+### `VerboseDiagram`
+
+Structurally unchanged: `Vec<VerboseLine>` of `Horiz` cells. What differs by mode
+is which cells are produced. `from_abbreviated` (`src/diagram.rs:118`) gains mode
+awareness and dispatches to the matching placement builder.
+
+### `Horiz`
+
+Unchanged. The fixtures use only the existing eight variants; no new glyph is
+anticipated (research R3).
 
 ## Relationships & flow
 
 ```text
 AbbreviatedDiagram { items, mode }
-        │  from_abbreviated (mode-aware)
-        ▼
-   VerboseDiagram (grid of Horiz)
-        │  display::<GRID_BORDERS>()        │  full_render_lines → scan_row
-        ▼                                   ▼
-   ASCII string                        rotation → new AbbreviatedDiagram (mode carried)
+      │
+      ├─ IndexAligned ────────────────▶ OpeningCentered ──┐
+      │                                                   ├─▶ Grid.column() ─▶ VerboseDiagram
+      └─ PrecalculatedHeights ─▶ [A] maxima ─▶ [B] ───────┘
+                                                            │
+              display::<GRID_BORDERS>() ◀───────────────────┤
+              full_render_lines → scan_row → rotation ◀─────┘
 ```
 
-- Rendering (`ascii_print*`) and rotation (`try_rotate_90_ccw`, via `try_apply`/
-  `try_apply_all`) both consult `self.mode`.
+- Rendering and rotation both consult `self.mode`.
 - Notation-only moves (`Swap`, `WrapAround`, `ChangeCrossing`, Reidemeister,
-  `Bulge`, `Collapse*`) operate on `items` only and are independent of `mode`
-  (US3 acceptance scenario 3).
+  `Bulge`, `Collapse*`) touch `items` only and are mode-independent (FR-012, C9).
+- **Logical level ≠ rendered row** under `PrecalculatedHeights`. A notation index
+  names a level among currently-live strands; Component B maintains that mapping.
+  Component A never sees rendered rows.
 
-## Validation rules (from requirements)
+## Validation rules
 
-- Default mode output unchanged (FR-005, SC-004).
-- `PrecalculatedHeights`: opening placed at precalculated max row (FR-001/FR-002);
-  unchanged-row strands render flat (FR-003); open/close displacement transfers
-  reduced (FR-004); boundary diagonals retained (FR-009); crossings kept adjacent
-  via crossing-alignment transfers, never drawn between non-adjacent rows
-  (FR-007, FR-011).
-- Both modes represent the same knot (FR-006, SC-003); output deterministic
-  (FR-008, SC-005); empty/degenerate handled (FR-010).
-- Rotation scanned-feature count non-increasing / reduced (SC-006).
+| Rule | Source |
+|---|---|
+| Default-mode output unchanged; 24 existing snapshots frozen | FR-005, SC-004, R5 |
+| Maxima per strand, over the flat run only | FR-001 |
+| Cap/cup/crossing at the floored midpoint; odd separation favors the lower strand | FR-002, FR-011, FR-016 |
+| Each strand transfers between cap/cup and its own maximum | FR-015 |
+| Both strands return to their maxima after a crossing | FR-011 |
+| Crossing never drawn between non-adjacent rows | FR-007, FR-011 |
+| Both modes represent the same knot | FR-006, SC-003 |
+| Output deterministic for a given `(items, mode)` | FR-008, SC-005 |
+| Empty and degenerate diagrams handled | FR-010 |
+| Placement independent of grid mapping | FR-014 |
+| Rotation feature count non-increasing | SC-006 |

@@ -40,13 +40,42 @@ cross-checked against the fixture heights.
 - **Deterministic**: identical input always yields identical output (FR-008).
 - **Total**: every valid encoding yields a result, including the empty diagram
   (FR-010).
-- **Linear**: a single forward walk of the sequence, with **no fixpoint iteration**
-  (research R2). This is guaranteed by spec FR-001's definition of a maximum as
-  covering the strand's *flat run only*, excluding the boundary movement by which
-  it meets its cap and cup — without that exclusion a strand's maximum would
-  depend on a cap/cup row computed from that same maximum, and the walk would
-  have to iterate. A Component A implementation that needs a second pass has
-  misread the definition.
+- **Linear, with no fixpoint iteration** — but **two passes, not one** (research
+  R2). Pass 1 walks the sequence counting, for each open pair, how many strands
+  are opened between its two strands. Pass 2 assigns rows, now knowing each
+  pair's required gap. Two passes are needed because a pair's gap depends on
+  openings that come after it.
+
+  The absence of a *fixpoint* is what spec FR-001 guarantees, by defining a
+  maximum over the strand's **flat run only** — excluding the boundary movement
+  by which it meets its cap and cup. Without that exclusion a strand's maximum
+  would depend on a cap/cup row computed from that same maximum, and the passes
+  would have to iterate to convergence. An implementation that finds itself
+  iterating has misread the definition; an implementation that needs a
+  preliminary counting pass has not.
+
+**Governing invariant** — verified against all 23 pairs in all five fixtures:
+
+```text
+upper_max − lower_max − 1  ==  number of strands ever opened between the pair
+```
+
+A pair's strands are adjacent unless something opens between them, and the gap is
+exactly wide enough for everything that ever does. This makes the gap a *count*
+obtainable in one pass rather than a geometric search, and it is the cheapest
+available self-check on a Component A implementation.
+
+**Derived grid height** — Component B sizes the grid from A's output:
+
+```text
+height = max(all maxima) + 1
+```
+
+This equals `AbbreviatedDiagram::height()` when no pair diverges and **exceeds it
+otherwise**: a divergent pair holds its gap open for its whole life, so the
+diagram can span more rows than are ever occupied at once. The encircled fixture
+needs 16 rows while never having more than 12 strands live. Do not size the grid
+with `height()` under this mode.
 
 ## Component B — render from heights
 
@@ -109,15 +138,13 @@ Whether this derivation belongs to A or B is an implementation choice, but the
 **contract carries the two maxima**, not the derived row — B needs both maxima
 anyway to emit the two boundary transfers.
 
-Three further details the fixtures must pin down, whichever shape wins:
+Three further details, **settled by the fixtures**:
 
-| Detail | Question |
-|--------|----------|
-| **Key** | What identifies a strand (or pair)? Position in the `items` sequence, or something derived? |
-| **Origin** | Is the row the logical index used by `raw_lines::append` (0 = bottom), or a rendered row offset? |
-| **Direction** | Does "maximum height" mean the largest index, and does a larger index mean visually higher? |
-
-Once fixed, record the resolution here and amend research R2 to match.
+| Detail | Resolution |
+|--------|------------|
+| **Key** | Opening order. The fixtures list maxima "ordered by strand opening", one `(lower, upper)` pair per opening feature, in the order the openings appear in the encoding. |
+| **Origin** | A **rendered row**, 0 at the bottom, matching the grid `to_text()` produces (which prints top-down, so row 0 is the last line). Not a logical index — the two diverge under this mode. |
+| **Direction** | Larger means visually higher. `upper_max ≥ lower_max` always, and the pair is adjacent (`upper = lower + 1`) unless something opens between them. |
 
 ## Fixture format
 

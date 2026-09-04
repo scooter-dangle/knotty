@@ -1,161 +1,184 @@
 # Phase 0 Research: Height-Precalculated Strand Placement
 
-> **⚠️ R3 and R5 are invalid against current main.** They are written around
-> `raw_lines::{append, expand_above, contract_above}`, which PR #42 deleted when
-> it retired the split-cell rendering. R1, R2, R4, and R6 survive in substance
-> but need their integration points restated against `OpeningCentered`. See the
-> **Rebase impact** section at the top of [plan.md](./plan.md).
+Rewritten 2026-09-03 against `origin/main` at `37b7c09`, after PRs #38–#44 and
+seven clarifications. Supersedes the pre-rebase revision, whose R3 and R5 were
+written around `raw_lines::{append, expand_above, contract_above}` — functions
+PR #42 deleted.
 
-This document resolves the open design questions for the height-precalculated
-rendering mode. The spec's clarifications already settled the product-level
-decisions (unconditional max-row placement; rotation-feature semantics; mode as
-an operating context defaulting to legacy). The questions below are the
-remaining technical unknowns.
+Product-level decisions are settled in the spec's Clarifications. What follows
+are the technical decisions, several of which are now derived from the five
+golden fixtures in [fixtures/](./fixtures/) rather than reasoned in the abstract.
 
-## R1. How is the rendering mode represented and threaded?
+## R1. How is the placement mode represented and threaded?
 
-**Decision**: Introduce `pub enum RenderMode { Legacy, PrecalculatedHeights }`
-(`#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]`, `#[default] Legacy`),
-and store it as a field on `AbbreviatedDiagram`. Convert the tuple struct
-`AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>)` to a named struct
-`AbbreviatedDiagram { items: Vec<AbbreviatedItem>, mode: RenderMode }`. Add
-`mode(&self) -> RenderMode`, `set_mode(&mut self, RenderMode)`, and a
-`with_mode(self, RenderMode) -> Self` builder. Re-export `RenderMode` from
-`lib.rs`.
+**Decision**: `pub enum PlacementMode { #[default] IndexAligned, PrecalculatedHeights }`
+(`Clone, Copy, PartialEq, Eq, Debug, Default`), stored as a field on
+`AbbreviatedDiagram`. Convert the tuple struct
+`AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>)` (`src/diagram.rs:115`) to
+`AbbreviatedDiagram { items, mode }`. Add `mode()`, `set_mode()`, `with_mode()`.
+Re-export from `lib.rs`.
 
-**Rationale**:
-- Directly models FR-012 ("a single operating context a user selects to work
-  in; all operations run under the active mode") and FR-013 (default = legacy).
-- Because rendering and rotation are `&self`/`&mut self` methods, reading
-  `self.mode` means **no existing public signature changes** — `ascii_print`,
-  `try_ascii_print*`, `try_rotate_90_ccw`, `try_apply`, and `try_apply_all` keep
-  their current shapes and simply behave per the active mode. With the default
-  `Legacy`, existing callers (and the example apps) compile and behave
-  identically, satisfying FR-005/SC-004 by construction.
-- Rotation is dispatched at runtime through `DiagramMove::Rotate90CounterClockwise`
-  inside `try_apply_all`; a field lets that path honor the mode without adding a
-  parameter to the move API.
+**Naming**: it is a *placement* mode, not a rendering mode — spec FR-014 makes
+the orthogonality with the opening-centered grid mapping a testable requirement.
+`IndexAligned` names the existing behavior by its defining property: a feature's
+notation index and its rendered row are the same number. The word *legacy* is
+retired — the legacy (split-cell) **rendering** was removed by #42 and is a
+different axis entirely. Final variant names remain implementer discretion.
 
-**Alternatives considered**:
-- *Const generic `<const PRECALC: bool>`* (mirroring `GRID_BORDERS`): rejected —
-  const generics cannot be selected by a runtime `DiagramMove`, so the rotation
-  path could not honor a user-chosen mode; also multiplies the already-large set
-  of `ascii_print` signatures.
-- *Threaded runtime parameter* on each render/rotate/apply call: rejected —
-  forces signature changes that ripple into `examples/ascii_print.rs` and
-  `examples/knot-so-good`, and makes "work in one mode" the caller's burden on
-  every call (easy to get inconsistent), contradicting the operating-context
-  model.
+**Rationale**: reading `self.mode` means no existing public signature changes, so
+`ascii_print*`, `try_rotate_90_ccw`, `try_apply*` keep their shapes and the
+default (`IndexAligned`) preserves today's behavior by construction (FR-005,
+FR-013, SC-004). Rotation dispatches at runtime through
+`DiagramMove::Rotate90CounterClockwise`, so a field — not a const generic — is
+required for that path to honor the mode.
 
-**Cost / risk**: The tuple→named-struct change requires a mechanical
-`self.0 → self.items` / `knot.0 → knot.items` rename (~40 sites in `diagram.rs`)
-and updating constructors (`new_from_tuples`, the `FromStr` parser, rotation's
-`Self::new_from_tuples`). Risk is low (compiler-checked). Any
-`assert_debug_snapshot!` on an `AbbreviatedDiagram` may shift due to the new
-field — audit and re-accept those specific snapshots (the default value keeps
-equality between parsed and constructed diagrams).
+**Alternatives**: const generic (cannot be selected by a runtime `DiagramMove`);
+threaded parameter (ripples into both example crates and makes consistency the
+caller's burden, contradicting the operating-context model of FR-012).
 
-## R2. How are per-strand maximum rows precalculated?
+**Cost**: mechanical `self.0` → `self.items` rename, 37 sites in `src/diagram.rs`
+plus `knot.0.iter()` at `:123`. Compiler-checked, low risk.
 
-**Decision**: Add a single linear pass over the abbreviated sequence that
-simulates the vertical stack and records, for each opened pair, the maximum
-bottom-row it occupies between its `(` and its matching `)`.
+## R2. How are per-strand maxima calculated?
 
-Model: maintain an ordered stack of currently-open pairs. Each `(N` inserts a
-new pair at logical index `N` (pairs at index ≥ N shift up by 2); each `)N`
-removes the pair occupying index `N` (pairs above shift down by 2); crossings
-do not change vertical indices. Track each live pair's current bottom index and
-fold its running maximum. The result is a map *opening-event → peak row*, which
-is the row at which that opening is placed in `PrecalculatedHeights` mode. Total
-diagram height is unchanged (`AbbreviatedDiagram::height()` already computes the
-max simultaneous depth × 2).
+**Decision**: two linear passes over the abbreviated sequence.
 
-**Rationale**: Matches the unconditional max-row decision (Clarifications
-2026-06-18); O(features) and allocation-light (WASM-friendly); reuses the
-existing notion of logical index used throughout `raw_lines::append`.
+1. **Count nesting.** Walk the sequence maintaining an ordered stack of live
+   strands. When an opening inserts at logical index `N`, every currently-open
+   pair whose two strands straddle `N` gains 2 to its nested-strand count.
+2. **Assign rows.** Walk again, now knowing each pair's required gap, assigning
+   each strand the row its ordering and gap demand.
 
-**Alternatives considered**: Cost-aware placement weighing crossing-alignment
-against displacement — explicitly out of scope per clarification.
+**The governing invariant**, derived from the fixtures and verified against all
+23 pairs in all five of them:
 
-**⚠️ Under review — granularity**: this decision is written *per pair* (one peak
-row per opening event). The feature owner describes the calculation as producing
-"the starting heights for each strand in each strand pair" — i.e. *per strand*,
-two values per opening. These coincide only if a pair's two strands are always
-placed adjacent and never diverge before closing, which the notation does not
-obviously guarantee. The distinction is material to the shape of the height map,
-so it is tracked as the open Shape question in
-[contracts/strand-heights.md](./contracts/strand-heights.md) and resolved from
-the part-1 golden fixtures (tasks.md T010). Amend this section once fixed.
+```text
+upper_max − lower_max − 1  ==  number of strands ever opened between the pair
+```
 
-## R3. How is the grid built so placed strands run flat?
+A pair's two strands are adjacent unless something opens between them, and the
+gap is exactly wide enough for everything that ever does. This is what makes the
+calculation tractable: the gap is a *count*, obtainable in one pass, not a
+geometric search.
 
-**Decision**: Add a max-height placement path alongside the existing
-`raw_lines::{append, expand_above, contract_above}`. The legacy path inserts a
-new pair at logical index `idx` and bumps everything above up via `TransferUp`
-(and pulls down via `TransferDown` on close). The new path instead:
+**Why two passes and not one**: a pair's gap depends on openings that occur
+after it, so rows cannot be assigned during the first walk. This refines the
+2026-09-03 clarification, which established that a strand's maximum covers its
+flat run only and therefore involves **no fixpoint iteration**. That still
+holds — two deterministic linear passes are not a fixpoint — but the earlier
+"single forward pass" phrasing was optimistic.
 
-1. Opens each pair directly at its precalculated peak row (from R2).
-2. Keeps a placed strand flat (horizontal `Line`) for its whole lifetime where
-   its rendered row already equals its logical requirement — eliminating the
-   avoidable up-then-down (reversed-direction) transfers (FR-003, FR-004).
-3. Still emits the **boundary** diagonals intrinsic to a pair entering at its
-   opening index and leaving at its closing index (FR-009).
+**Alternatives**: cost-aware placement weighing crossing-alignment against
+displacement — out of scope per the 2026-06-18 clarification.
 
-Reuse the existing `Horiz` transfer glyphs (`TransferUp*`, `TransferDown*`,
-`Opened*`, `Closed*`) — no new glyphs are expected. `render.rs` likely needs no
-change; this will be confirmed when snapshots are generated.
+## R3. Where does the new placement path live?
 
-**Rationale**: Confines the new logic to the placement layer (`raw_lines.rs` +
-the `from_abbreviated` driver in `diagram.rs`), leaving display and scanning
-untouched. Exact glyph-by-glyph output is validated via `insta` snapshots per
-the Test-First constitution principle rather than hand-specified here.
+**Decision**: separate placement from glyph emission inside `src/raw_lines.rs`.
 
-## R4. How are crossings whose partners are no longer adjacent handled?
+Today `OpeningCentered` (`src/raw_lines.rs:8`) does both:
 
-**Decision**: At each crossing `\N`/`/N`, the two participating strands must be
-on adjacent rendered rows. Under max-height placement they may not be. Detect
-the gap and emit a localized **crossing-alignment transfer**: bring the two
-crossing strands adjacent immediately before the crossing column and restore
-their placement immediately after (FR-007, FR-011). A crossing is never drawn
-between non-adjacent rows.
+| Concern | Members | Axis |
+|---|---|---|
+| Glyph emission | `column()`, the `Horiz` values | grid mapping (#40's axis) |
+| Placement | `live`, `raise_once()`, `lower_once()`, `append()` | this feature's axis |
 
-**Rationale**: Preserves the legacy invariant only *locally* (at the crossing),
-which is the minimum needed for a valid planar rendering, instead of globally
-(which is what forces the avoidable transfers in the first place). These
-transfers are scanned during rotation but do **not** increase the scanned
-feature count (Clarifications 2026-06-18), so they are compatible with SC-006.
+`column()` is already mode-agnostic: given `(row, glyph)` pairs it fills the rest
+of the column from `live`, and computes the shadow rule. Extract the grid state
+(`lines`, `live`) and `column()` into a small shared inner struct, then let two
+placement builders drive it — `OpeningCentered` unchanged, and a new
+`PrecalculatedHeights` builder implementing the midpoint rules.
 
-**Open validation point**: The precise alignment construction (how many rows to
-move, and the exact glyph sequence) is the highest-uncertainty implementation
-area and will be developed test-first with small, targeted snapshot fixtures
-(e.g. `basket`, `ugly_trefoil`, and minimal hand-built crossing cases) before
-the general path is generalized.
+**Rationale**: this is the minimum structure that satisfies FR-014. One
+extraction, no trait, no generics — consistent with the repo's standing guidance
+against abstractions beyond what is needed. It also means glyph output is
+literally shared, so the two modes cannot drift on the grid-mapping axis.
+
+**Expected glyph set**: unchanged. The fixtures use only `OpenedBelow`,
+`ClosedBelow`, `CrossDownOver`, `CrossDownUnder`, `TransferUp`, `TransferDown`,
+`Line`, `Empty` — exactly what `Horiz` already provides. No new glyph is
+anticipated.
+
+## R4. How are non-adjacent crossings handled?
+
+**Decision**: the uniform rule, now fully specified by the spec and confirmed by
+fixture. A cap, cup, or crossing is drawn at `floor((a+b)/2)` of the two strands
+it joins; the convergence is split as evenly as the separation allows, with an
+odd separation giving the lower strand the extra step (FR-002); after a
+*crossing* — unlike a cap or cup — both strands return to their maxima (FR-011).
+
+This was the highest-uncertainty area in the pre-rebase revision. It no longer
+is: [fixtures/non-adjacent-crossing.md](./fixtures/non-adjacent-crossing.md)
+supplies expected output for three separate crossings whose partners sit 3 rows
+apart, each drawn at the midpoint with an explicit return column. The
+construction is now specified by example rather than left to the implementer.
+
+**Cost**: alignment dominates column count. That fixture spends 9 of its 19
+columns on transfers.
 
 ## R5. How is default-mode parity guaranteed?
 
-**Decision**: `RenderMode::Legacy` routes through the existing
-`append/expand_above/contract_above` code path unchanged. The CI/test gate is
-that **every existing snapshot remains byte-for-byte identical** (SC-004); new
-snapshots are added only for `PrecalculatedHeights`. A round-trip/equivalence
-check (rotate or re-render) confirms both modes represent the same knot
-(SC-003, FR-006).
+**Decision**: `PlacementMode::IndexAligned` routes through `OpeningCentered`
+unchanged. The gate is that **all 24 existing snapshots stay byte-for-byte
+identical** (SC-004); new snapshots are added only for `PrecalculatedHeights`.
 
-**Rationale**: The cheapest, strongest guarantee against regression is the
-existing snapshot suite plus a parity assertion that legacy output is untouched.
+**Note**: the pre-rebase revision said 16 snapshots. `origin/main` has 24 —
+#40 and #42 added the opening-centered set and removed the split-cell set.
 
-## R6. Rotation stability measurement
+## R6. Rotation
 
-**Decision**: Express SC-006 as a test that counts scanned features
-(`AbbreviatedDiagram` length, i.e. number of `AbbreviatedItem`s) before and
-after rotation in `PrecalculatedHeights` mode, and across a full four-rotation
-cycle. Assert: no increase versus the original, and strictly fewer than the
-legacy-mode rotation for diagrams whose legacy rendering contains
-reversed-direction transfers (e.g. `terrace`). Knot equivalence is asserted via
-the existing rotation round-trip behavior.
+**Decision**: no `scan_row` change anticipated. Its regexes match local glyph
+shapes (`/_*\`, ` _+ `, ` / `, ` \ `, `\/`, `\ /`) and its indices come from
+counters advanced along a scan line; neither depends on a row number. Per the
+feature owner these patterns were written deliberately to work for any generally
+well-formed ASCII knot diagram, this rendering included.
 
-**Rationale**: Feature count is directly observable from the abbreviated form,
-making SC-006 measurable without inspecting glyphs.
+**Rotation results will change**, and that is the intent, not a regression:
+scanning a cleaner picture yields different but equivalent notation. Only
+default-mode output is frozen (SC-004, C1).
+
+SC-006 — that removing reversed-direction transfers stops repeated rotation from
+compounding artifacts — is the feature's **central hypothesis**, measured by
+comparing scanned feature counts before/after a rotation and across a full
+four-rotation cycle. Implementing rotation is what exposed the limit in the
+older placement; SC-006 is what establishes whether this placement removes it.
+
+## R7. Grid dimensions change in both directions
+
+**Decision**: accept it, and derive the grid height from Component A's output
+rather than from `AbbreviatedDiagram::height()`.
+
+Measured, default versus fixture:
+
+| Fixture | Default | New mode | Δ rows | Δ cols |
+|---|---|---|---|---|
+| rotated-5_1 | 8 × 19 | 8 × 18 | 0 | −1 |
+| square-knot | 6 × 18 | 6 × 12 | 0 | −6 |
+| non-adjacent-crossing | 6 × 18 | 6 × 19 | 0 | **+1** |
+| little-dumb-link | 6 × 20 | **8** × 15 | **+2** | −5 |
+| square-knot-links-encircled | 12 × 48 | **16** × 36 | **+4** | −12 |
+
+**Height can grow.** `height()` returns `max simultaneous depth × 2`, which is
+correct when strands are packed adjacently. Under precalculated placement a
+divergent pair holds its gap open for its whole life, so the diagram spans more
+rows than are ever occupied at once — the encircled fixture needs 16 rows while
+never having more than 12 strands live. The required height is
+
+```text
+height = max(all strand maxima) + 1
+```
+
+which reduces to `height()` exactly when no pair diverges. **This invalidates the
+pre-rebase R2 claim that total diagram height is unchanged.** Component B must
+size the grid from A's output.
+
+**Width usually shrinks but can grow.** Removing displacement transfers removes
+columns — dramatically so for the encircled fixture (48 → 36). But crossing
+alignment adds them, and `non-adjacent-crossing` comes out one column *wider*
+than the default. Consistent with SC-002's refusal to guarantee a reduction in
+total transfers.
 
 ## Resolved unknowns
 
-All Technical Context items are resolved; no `NEEDS CLARIFICATION` remains.
+No `NEEDS CLARIFICATION` remains. The two items the pre-rebase revision left
+open — the height-map shape (per-pair vs per-strand) and the crossing-alignment
+construction — are settled by clarification and by fixture respectively.

@@ -1,117 +1,42 @@
-# Implementation Plan: Height-Precalculated Strand Placement (Rendering Mode)
+# Implementation Plan: Height-Precalculated Strand Placement (Placement Mode)
 
-**Branch**: `claude/diagram-strand-height-precalc-p4l2lo` | **Date**: 2026-06-25 | **Spec**: [spec.md](./spec.md)
+**Branch**: `claude/spec-kit-feature-spec-001-psrhij` | **Replanned**: 2026-09-03 against `origin/main` @ `37b7c09` | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `specs/007-strand-height-precalc/spec.md`
 
-## ⚠️ Rebase impact — this design predates PRs #38–#44 (READ FIRST)
-
-This plan, `research.md`, `data-model.md`, `contracts/public-api.md`,
-`quickstart.md`, and `tasks.md` were written against the codebase at `d9a1f16`.
-Main has since landed specs 001–006, two of which rewrote the exact code this
-feature targets:
-
-- **#40 (spec 003)** added the *opening-centered* rendering.
-- **#42 (spec 005)** **retired the split-cell rendering entirely**, leaving one
-  rendering and, in its own words, "no choice to make".
-
-### What is now invalid
-
-| Assumption in these docs | Reality on main |
-|---|---|
-| `raw_lines::{append, expand_above, contract_above, is_empty_above, advance}` are the placement path to extend | **All deleted.** `src/raw_lines.rs` is now `struct OpeningCentered { lines, live }` with `new`/`into_lines`/`column`/`raise_once`/`lower_once`/`append` |
-| `RenderMode::Legacy` names the existing renderer | Two corrections. The mode this feature adds is a **placement** mode, not a rendering mode (Clarifications 2026-09-03) — `RenderMode` is the wrong name for the type. And its default variant names *the placement behavior the current renderer performs*, not the deleted split-cell renderer, so `Legacy` is the wrong name for the variant |
-| `Legacy` routes through the untouched `append` path (research R5) | There is no such free-function path to route through; the placement logic now lives inside `OpeningCentered` (`live[]` + `raise_once`/`lower_once`). The parity baseline is today's output: existing placement + opening-centered mapping |
-| A crossing is two half-glyphs on adjacent rows | A crossing is **one glyph in one cell** (`CrossDownOver`/`CrossDownUnder` at `idx` alone); `CrossUpUnder`/`CrossUpOver` are unused. This changes only the glyph mapping, so **FR-011 survives**: "partners must be on adjacent levels" is a placement constraint. Only prose describing a crossing as two half-glyphs needs rewording |
-| Transfers use part-way-through-a-cell halves | `raise_once`/`lower_once` move **one whole level per cell**. Affects FR-004 and the SC-002 transfer counting |
-| 16 existing snapshot files (tasks T002) | **24** |
-| `src/raw_lines.rs:135`, `:21`, `:74` (tasks T022 and others) | All stale line references |
-
-### What still holds
-
-`AbbreviatedDiagram` is still a tuple struct at `src/diagram.rs:115` with 37
-`self.0` sites, and no `RenderMode` exists — so the Phase 2 plumbing
-(T003–T009) is unaffected. `height()`, `full_render_lines`, `try_rotate_90_ccw`,
-`new_from_tuples`, `try_apply_all`, the `ascii_print` family, and `scan_row` all
-survive with their signatures. The two-component seam in
-[contracts/strand-heights.md](./contracts/strand-heights.md) is
-architecture-level and survives intact; only Component B's *integration point*
-moves from free functions to `OpeningCentered`.
-
-### ~~Open product question~~ — RESOLVED 2026-09-03
-
-An earlier revision of this section claimed a tension with spec 005, which
-removed rendering-mode selection. **That was wrong.** Per Clarifications
-2026-09-03, the two are orthogonal axes: opening-centered governs the *grid
-mapping* (how an already-placed diagram becomes characters), while this feature
-governs *placement* (which level each strand occupies). Adding a choice on the
-placement axis does not reintroduce the rendering choice spec 005 removed. See
-FR-014, which makes that independence a testable requirement.
-
-### Newly opened by the rebase
-
-A pair's two strands genuinely diverge: a pair opened at levels 3,4 followed by
-`(4` ends up spanning levels **3 and 6**, because `raise_once(4)` and
-`raise_once(5)` lift the upper strand twice while the lower stays. But an
-opening draws a cap across two *adjacent* levels, so both strands cannot start
-at their own maximum when those maxima differ. The spec covers non-adjacent
-crossing partners (FR-011) but not this case. **Settled 2026-09-03**: the cap is
-drawn at the floored midpoint of the two maxima (FR-002), each strand transfers
-to its own maximum (FR-015), closings mirror it (FR-016), and the
-per-strand/per-pair Shape question in
-[contracts/strand-heights.md](./contracts/strand-heights.md) is resolved to
-per-strand. Five golden fixtures in [fixtures/](./fixtures/) confirm all of it
-across 63 features.
-
-### `scan_row` and rotation under the new geometry
-
-Historically the renderer drew every diagram so that a feature's notation index
-and its rendered row were the same number. That made diagrams far easier to
-produce — which is why this feature is only being attempted now — but it also
-means every consumer of the rendered grid was written and tested with that
-coincidence holding. This feature breaks it: `\4` renders at row 8 in the
-encircled fixture, `)1` at row 3 in `rotated-5_1`.
-
-`scan_row` (`src/rotate.rs:13`) is the consumer that matters, because rotation
-re-derives notation by scanning the grid (US2, SC-006). It is in better shape
-for this than the invariant's breakage suggests:
-
-- Its regexes match **local glyph shapes** (`/_*\`, ` _+ `, ` / `, ` \ `, `\/`,
-  `\ /`), not positions, and its indices come from running counters
-  (`other_depth`, `close_depth`) advanced along a scan line. Neither depends on
-  a row number.
-- Per the feature owner, this is **by design**: the patterns were written to
-  work for any generally well-formed ASCII knot diagram, including one drawn
-  with precalculated placement. No `scan_row` change is anticipated.
-
-**Rotation results will change, and that is the point.** Scanning a cleaner
-picture yields different — but equivalent — notation. A changed rotation result
-under the new mode is expected and must not be read as a regression; only
-default-mode output is frozen (SC-004, C1).
-
-The residual risk is narrow and worth a regression test rather than a spike: the
-new geometry produces glyph arrangements no existing fixture exercises — strands
-at non-contiguous rows, gaps held open across a pair's whole life, features
-drawn at rows unrelated to their index. The two historical fixes to these
-counters (`drop incorrect modulo gates`, #28; `don't advance other_depth on
-close features`, #31) were defects in *realizing* the general design, each found
-by a specific diagram, which is exactly the failure mode new-geometry coverage
-guards against. Constitution Principle III requires a regression test for any
-`rotate.rs` fix regardless.
-
-SC-006 remains the feature's **central hypothesis, not an established result**:
-that removing reversed-direction transfers stops repeated rotation from
-compounding artifacts. Implementing rotation is what exposed that limit in the
-older rendering; whether the new placement fully removes it is what SC-006 is
-there to measure.
-
-**Recommended**: re-run `/speckit-plan`, then `/speckit-analyze`, against current
-main before `/speckit-implement`. The spec's requirements and success criteria
-are largely unaffected; the technical design below is what needs revision.
-
 ## Summary
 
-Add a second, opt-in diagram rendering mode that places each opening strand at the maximum vertical row it will ever occupy (precalculated from the abbreviated notation), so passing strands run flat instead of zig-zagging up and back down via transfer diagonals. The mode is an **operating context** carried on `AbbreviatedDiagram` (default = the existing legacy renderer), so rendering and the rotation move both honor it without changing any existing method signature. Because rotation re-derives notation by scanning the rendered grid, reducing avoidable (reversed-direction) transfers keeps the scanned feature count stable across repeated rotations — the motivating use case. Crossings whose partners are no longer adjacent under max-height placement are brought together with localized crossing-alignment transfers (which are scanned but do not inflate feature counts).
+Add an opt-in **placement mode** that computes, for every strand, the maximum row
+it will occupy over its flat run, and opens it directly there — so a strand that
+today climbs and descends as other pairs open and close beneath it instead runs
+flat. Caps, cups and crossings are drawn at the floored midpoint of the two
+strands they join, splitting the unavoidable boundary movement between them.
+
+The mode is an **operating context** on `AbbreviatedDiagram` (default = today's
+behavior), so rendering and rotation honor it without any signature change.
+Because rotation re-derives notation by scanning the rendered grid, removing
+reversed-direction transfers is expected to stop repeated rotation from
+compounding artifacts — the motivating use case, and the feature's central
+hypothesis (SC-006).
+
+**Placement is orthogonal to the grid mapping.** The opening-centered rendering
+(#40, sole survivor after #42) governs how an already-placed diagram becomes
+characters. This feature governs which level each strand occupies. Adding a
+choice on the placement axis does not reintroduce the rendering choice #42
+removed — FR-014 makes that independence testable.
+
+## Replanning note
+
+The pre-rebase revision of this plan was written against `d9a1f16`, before
+PRs #38–#44. Its R3 and R5 were built around
+`raw_lines::{append, expand_above, contract_above}`, which #42 deleted along with
+the split-cell rendering. Everything below is rewritten against current `main`.
+Two of its claims are now known false and are corrected in place:
+
+| Old claim | Correction |
+|---|---|
+| "Total diagram height is unchanged" | Height can **increase** — research R7 |
+| Default variant named `Legacy` | The legacy *rendering* is gone; this axis's default is `IndexAligned` — research R1 |
 
 ## Technical Context
 
@@ -119,40 +44,87 @@ Add a second, opt-in diagram rendering mode that places each opening strand at t
 
 **Primary Dependencies**: `itertools`, `regex` (existing); no new runtime dependencies
 
-**Storage**: N/A (in-memory diagram data structures)
+**Storage**: N/A (in-memory diagram structures)
 
-**Testing**: `cargo test` with `insta` snapshot tests (existing) + `pretty_assertions`
+**Testing**: `cargo test` with `insta` snapshots and `pretty_assertions`, plus
+**golden fixtures** — five owner-supplied input/output pairs covering 63
+features, in [fixtures/](./fixtures/). Correctness is asserted against those;
+snapshots provide regression coverage on top.
 
 **Target Platform**: native + `wasm32-unknown-unknown` (NON-NEGOTIABLE per constitution)
 
-**Project Type**: Single Rust library crate (`knotty`) with example binaries under `examples/`
+**Project Type**: Single Rust library crate (`knotty`) with example binaries
 
-**Performance Goals**: Rendering remains O(features × height); the added precalculation pass is a single linear walk of the abbreviated sequence. No interactive-latency regression for the example app.
+**Performance Goals**: rendering stays O(features × height); the added
+precalculation is two linear walks of the abbreviated sequence. No interactive
+latency regression for the example app.
 
-**Constraints**: Default-mode output must be byte-for-byte identical to today (protects existing `insta` snapshots); all `src/` code must compile for `wasm32-unknown-unknown`; abbreviated notation remains the source of truth.
+**Constraints**: default-mode output byte-for-byte identical (protects all 24
+existing snapshots); all `src/` compiles for wasm32; abbreviated notation remains
+the source of truth.
 
-**Scale/Scope**: Diagrams of tens–hundreds of features; one new public enum, a mode field + accessors on `AbbreviatedDiagram`, a new placement path in `raw_lines.rs`/`diagram.rs`, and snapshot coverage.
+**Scale/Scope**: diagrams of tens–hundreds of features; one public enum, a mode
+field plus accessors, a two-pass height calculation, a second placement builder
+in `raw_lines.rs`, and fixture-driven tests.
+
+## Architecture
+
+The feature decomposes at a pure-function seam, documented in
+[contracts/strand-heights.md](./contracts/strand-heights.md):
+
+```text
+         Component A                          Component B
+  encoding → per-strand maxima  ──maxima──▶  encoding + maxima → grid
+  (pure; no grid, no glyphs)                 (placement + midpoint rules)
+```
+
+Component B is built and tested against **fixture-supplied** maxima, never
+against A's output, so the two halves can be developed independently and a defect
+in one cannot mask a defect in the other. They meet at the contract; an
+integration check asserts A's output equals the maxima B's fixtures supply.
+
+### Component A — height calculation
+
+Two linear passes (research R2): count how many strands are opened between each
+pair's two strands, then assign rows knowing each pair's required gap. Two
+passes are needed because a pair's gap depends on later openings; this is not a
+fixpoint, which FR-001 rules out by defining a maximum over the flat run only.
+
+Self-check: `upper_max − lower_max − 1 == strands opened between the pair`,
+verified across all 23 pairs in the five fixtures.
+
+### Component B — render from heights
+
+`src/raw_lines.rs` currently entangles two concerns in `OpeningCentered`:
+`column()` and the `Horiz` values are grid mapping; `live`, `raise_once`,
+`lower_once` and `append` are placement. Extract the grid state and `column()`
+into a shared inner struct and let two placement builders drive it —
+`OpeningCentered` unchanged, plus a new `PrecalculatedHeights` builder. One
+extraction, no trait, no generics. Sharing the emitter is what makes FR-014 true
+by construction rather than by test.
+
+B also owns the **logical level → rendered row** mapping. A notation index names
+a level among currently-live strands, which under this mode is not a grid row;
+A never sees rendered rows.
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*GATE: must pass before Phase 0 and again after Phase 1.*
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Library-First | ✅ PASS | All behavior lands in the core `knotty` crate (`src/`); the new `RenderMode` + mode-aware rendering is independently useful to downstream consumers. Example apps consume it but do not host it. |
-| II. WASM-Compatible (NON-NEGOTIABLE) | ✅ PASS | Pure-logic change; no new deps, no `std`-only crates. Verified per task with `cargo check --target wasm32-unknown-unknown`. |
-| III. Test-First | ✅ PASS | New diagram operation ⇒ `insta` snapshot tests authored alongside; regression tests added for `diagram.rs`/`rotate.rs`. Default-mode snapshots must remain unchanged (proves no regression). |
-| IV. Notation Fidelity | ✅ PASS | Abbreviated notation stays the source of truth; the spec supplies example notation inputs (e.g. `terrace`), and round-trip/equivalence checks confirm the same knot. |
+| I. Library-First | ✅ PASS | All behavior lands in `src/`; `PlacementMode` is independently useful downstream. Example apps consume, never host. |
+| II. WASM-Compatible (NON-NEGOTIABLE) | ✅ PASS | Pure logic, no new deps. Verified per task with `cargo check --target wasm32-unknown-unknown`. |
+| III. Test-First | ✅ PASS | Golden fixtures written before implementation; `insta` snapshots for the new diagram operation; regression tests required for any `rotate.rs` change. |
+| IV. Notation Fidelity | ✅ PASS | Abbreviated notation stays authoritative; fixtures supply notation inputs and expected renders; equivalence checks confirm the same knot. |
 | V. Minimal Dependencies | ✅ PASS | No `Cargo.toml` additions. |
 
-**Result**: No violations. Complexity Tracking table not required.
+**Result**: no violations; Complexity Tracking not required.
 
-**Post-design re-check (after Phase 1)**: Still PASS. The design adds one enum
-and a mode field with accessors, a linear precalculation pass, and a placement
-path in `raw_lines.rs` — no new dependencies, no `std`-only crates, no GUI/CLI
-coupling, and abbreviated notation stays authoritative. The tuple→named-struct
-rename is mechanical and introduces no new abstraction beyond the `RenderMode`
-the spec requires.
+**Post-design re-check**: still PASS. The design adds one enum, a mode field with
+accessors, a two-pass calculation, and one placement builder. The single
+extraction (grid state + `column()`) is required by FR-014 and replaces no
+existing abstraction. Nothing couples the library to a GUI or CLI surface.
 
 ## Project Structure
 
@@ -160,36 +132,57 @@ the spec requires.
 
 ```text
 specs/007-strand-height-precalc/
-├── plan.md              # This file (/speckit-plan output)
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
+├── plan.md                    # This file
+├── spec.md                    # Requirements (7 clarifications integrated)
+├── research.md                # Phase 0 — R1–R7
+├── data-model.md              # Phase 1
+├── quickstart.md              # Phase 1 — validation scenarios
 ├── contracts/
-│   ├── public-api.md      # Phase 1 output (library API + behavioral contract)
-│   └── strand-heights.md  # Internal contract: the seam between the two
-│                          # independently-implementable components
-├── checklists/
-│   └── requirements.md  # Spec quality checklist (existing)
-└── tasks.md             # Phase 2 output (/speckit-tasks)
+│   ├── public-api.md          # Public surface + behavioral guarantees C1–C11
+│   └── strand-heights.md      # Internal seam between Components A and B
+├── fixtures/                  # Five golden fixtures, 63 features, all verified
+│   ├── README.md
+│   ├── rotated-5_1.md
+│   ├── square-knot.md
+│   ├── non-adjacent-crossing.md
+│   ├── little-dumb-link.md
+│   └── square-knot-links-encircled.md
+├── checklists/requirements.md # Spec quality checklist (16/16)
+└── tasks.md                   # Phase 2 output (/speckit-tasks — regenerate)
 ```
 
 ### Source Code (repository root)
 
 ```text
 src/
-├── lib.rs           # CHANGE: re-export RenderMode
-├── diagram.rs       # CHANGE: AbbreviatedDiagram gains `mode` field + accessors;
-│                    #         from_abbreviated/full_render_lines/try_rotate read mode;
-│                    #         self.0 → self.items mechanical rename
-├── raw_lines.rs     # CHANGE: new max-height placement path (append/expand/contract variants)
-├── render.rs        # CHANGE (likely none): Horiz glyphs reused; verify transfer glyphs suffice
-├── rotate.rs        # CHANGE (likely none): scan_row unchanged; rotation feeds it mode-aware render
-├── moves.rs         # CHANGE (likely none): Rotate90 dispatch already routes through try_rotate
-└── snapshots/, diagram/snapshots/   # NEW snapshots for max-height mode; existing ones unchanged
+├── lib.rs           # CHANGE: re-export PlacementMode
+├── diagram.rs       # CHANGE: AbbreviatedDiagram tuple → named struct { items, mode }
+│                    #         + mode()/set_mode()/with_mode(); self.0 → self.items (37 sites)
+│                    #         from_abbreviated (:118) dispatches on mode
+│                    #         full_render_lines (:895) renders under self.mode
+├── raw_lines.rs     # CHANGE: extract grid state + column() from OpeningCentered;
+│                    #         add height calculation (A) and placement builder (B)
+├── render.rs        # CHANGE: none expected — existing Horiz variants suffice
+├── rotate.rs        # CHANGE: none expected — scan_row is shape-based (research R6)
+├── moves.rs         # CHANGE: none expected — Rotate90 already routes via try_apply
+└── snapshots/, diagram/snapshots/   # 24 existing frozen; new ones for the new mode
 
 examples/
-├── ascii_print.rs           # OPTIONAL: expose a flag to select the mode
-└── knot-so-good/            # OPTIONAL: expose mode toggle in the mini app
+├── ascii_print.rs           # OPTIONAL: mode flag
+└── knot-so-good/            # OPTIONAL: mode toggle
 ```
 
-**Structure Decision**: Single-crate library (Option 1). The feature is implemented entirely in `src/`; the existing const-generic display flag (`GRID_BORDERS`) is orthogonal and untouched. The rendering mode is carried as a runtime field on `AbbreviatedDiagram` rather than a const generic, because the rotation move is dispatched at runtime via `DiagramMove::Rotate90CounterClockwise` and must honor the active mode through `try_apply_all` without changing the move API.
+**Structure Decision**: single-crate library. The mode is a runtime field rather
+than a const generic because `DiagramMove::Rotate90CounterClockwise` dispatches at
+runtime and must honor the active mode through `try_apply_all` without changing
+the move API. The existing `GRID_BORDERS` const generic is orthogonal and
+untouched.
+
+## Risks
+
+| Risk | Assessment |
+|---|---|
+| Crossing-alignment construction | **Retired.** Was the highest-uncertainty area; [non-adjacent-crossing](./fixtures/non-adjacent-crossing.md) now specifies it by example. |
+| `scan_row` under the new geometry | **Low.** Its regexes match local glyph shapes and its indices come from counters along a scan line, neither row-dependent — deliberately so, per the feature owner. New-geometry regression tests are still worth having: #28 and #31 were defects in realizing that general design, each found by a specific diagram. |
+| Height growth surprising callers | **Medium.** Callers assuming `height()` bounds rendered rows are correct only under `IndexAligned`. Documented in C-consequences; the example app should be checked. |
+| SC-006 not fully achieved | **Open by design.** SC-006 is the feature's hypothesis, not an established result. If repeated rotation still compounds, the feature is still valuable for FR-003/FR-004 but the motivating claim needs revisiting. |
