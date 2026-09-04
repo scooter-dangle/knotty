@@ -670,3 +670,34 @@ fn free_helpers_build_index_aligned_diagrams() {
             .ascii_print::<false>(),
     );
 }
+
+/// The motivating case. Knot 5_1 compounds without bound under index-aligned
+/// placement — nine features become 549 after eight rotations — and settles
+/// into a bounded cycle under precalculated placement.
+#[test]
+fn repeated_rotation_of_knot_5_1_stays_bounded() {
+    let encoding = r"(0 (2 /1 \0 \0 \0 /1 )2 )0";
+    let original = AbbreviatedDiagram::from_str(encoding).unwrap().len();
+
+    let mut aligned = AbbreviatedDiagram::from_str(encoding).unwrap();
+    let mut precalculated = AbbreviatedDiagram::from_str(encoding)
+        .unwrap()
+        .with_mode(PlacementMode::PrecalculatedHeights);
+
+    for turn in 1..=8 {
+        aligned.try_rotate_90_ccw().unwrap();
+        precalculated.try_rotate_90_ccw().unwrap();
+
+        assert!(
+            precalculated.len() <= 2 * original,
+            "{} features after {turn} rotations, from {original}",
+            precalculated.len(),
+        );
+    }
+
+    assert!(
+        aligned.len() > 10 * original,
+        "index-aligned placement is expected to compound here; got {}",
+        aligned.len(),
+    );
+}
