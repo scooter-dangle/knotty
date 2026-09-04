@@ -152,20 +152,20 @@ fixture's **supplied** heights reproduces the expected grid exactly.
 
 > Write these FIRST; confirm they fail before T025.
 
-- [ ] T020 Land the five fixtures' expected grids as golden fixtures in a `mod render_fixtures` inside the `#[cfg(test)] mod tests` of `src/raw_lines.rs`, transcribed verbatim from [fixtures/](./fixtures/)
-- [ ] T021 Add a fixture-driven test asserting the render of each fixture's encoding against its supplied heights equals the expected grid exactly (depends on T020)
-- [ ] T022 [P] Add an invariant test in `src/raw_lines.rs` asserting no crossing glyph is ever emitted between non-adjacent rows, over every fixture (FR-011, C6)
-- [ ] T023 [P] Add a transfer-counting helper in `src/raw_lines.rs` that counts **per glyph** and classifies each transfer as open/close displacement, boundary, or crossing-alignment, so SC-002's three categories are measurable
-- [ ] T024 [P] Add a test in `src/raw_lines.rs` asserting the rendered grid height equals `max(all heights) + 1` for every fixture — **not** `AbbreviatedDiagram::height()`, which under-counts whenever a pair diverges (FR-017, research R7)
+- [X] T020 Land the five fixtures' expected grids as golden fixtures in a `mod render_fixtures` inside the `#[cfg(test)] mod tests` of `src/raw_lines.rs`, transcribed verbatim from [fixtures/](./fixtures/)
+- [X] T021 Add a fixture-driven test asserting the render of each fixture's encoding against its supplied heights equals the expected grid exactly (depends on T020)
+- [X] T022 [P] Add an invariant test in `src/raw_lines.rs` asserting no crossing glyph is ever emitted between non-adjacent rows, over every fixture (FR-011, C6)
+- [X] T023 [P] Add a transfer-counting helper in `src/raw_lines.rs` that counts **per glyph** and classifies each transfer as open/close displacement, boundary, or crossing-alignment, so SC-002's three categories are measurable
+- [X] T024 [P] Add a test in `src/raw_lines.rs` asserting the rendered grid height equals `max(all heights) + 1` for every fixture — **not** `AbbreviatedDiagram::height()`, which under-counts whenever a pair diverges (FR-017, research R7)
 
 ### Implementation for Component B
 
-- [ ] T025 Implement the placement builder in `src/raw_lines.rs` alongside `OpeningCentered`, driving the shared emitter from T010: size the grid as `max(heights) + 1`, open each pair's cap at `floor((lower + upper) / 2)`, and keep placed strands flat (FR-002, FR-003) (depends on T010, T021)
-- [ ] T026 Implement the logical-level → rendered-row mapping in `src/raw_lines.rs`: a notation index names a level among currently-live strands, not a grid row, and the two diverge under this mode (see [fixtures/rotated-5_1.md](./fixtures/rotated-5_1.md), where `\2` renders at row 6) (depends on T025)
-- [ ] T027 Implement boundary transfers in `src/raw_lines.rs` — each strand moves between a cap or cup and its own height, split as evenly as the separation allows with an odd separation giving the lower strand the extra step. These are the boundary diagonals FR-009 requires be retained (FR-002, FR-009, FR-015, FR-016) (depends on T026)
-- [ ] T028 Implement crossing convergence and return in `src/raw_lines.rs`: bring partners together at the floored midpoint, cross, then return **both** to their heights, since a crossing is not a boundary (FR-011) (depends on T027)
-- [ ] T029 Confirm `src/render.rs` needs no new `Horiz` glyphs — the fixtures use only the existing eight variants; if a gap is found, add the minimum and record the deviation in `specs/007-strand-height-precalc/research.md` (depends on T028)
-- [ ] T030 Close the component: `cargo test` with every T020 fixture passing, then `cargo check --target wasm32-unknown-unknown` (depends on T028, T029)
+- [X] T025 Implement the placement builder in `src/raw_lines.rs` alongside `OpeningCentered`, driving the shared emitter from T010: size the grid as `max(heights) + 1`, open each pair's cap at `floor((lower + upper) / 2)`, and keep placed strands flat (FR-002, FR-003) (depends on T010, T021)
+- [X] T026 Implement the logical-level → rendered-row mapping in `src/raw_lines.rs`: a notation index names a level among currently-live strands, not a grid row, and the two diverge under this mode (see [fixtures/rotated-5_1.md](./fixtures/rotated-5_1.md), where `\2` renders at row 6) (depends on T025)
+- [X] T027 Implement boundary transfers in `src/raw_lines.rs` — each strand moves between a cap or cup and its own height, split as evenly as the separation allows with an odd separation giving the lower strand the extra step. These are the boundary diagonals FR-009 requires be retained (FR-002, FR-009, FR-015, FR-016) (depends on T026)
+- [X] T028 Implement crossing convergence and return in `src/raw_lines.rs`: bring partners together at the floored midpoint, cross, then return **both** to their heights, since a crossing is not a boundary (FR-011) (depends on T027)
+- [X] T029 Confirm `src/render.rs` needs no new `Horiz` glyphs — the fixtures use only the existing eight variants; if a gap is found, add the minimum and record the deviation in `specs/007-strand-height-precalc/research.md` (depends on T028)
+- [X] T030 Close the component: `cargo test` with every T020 fixture passing, then `cargo check --target wasm32-unknown-unknown` (depends on T028, T029)
 
 **Checkpoint**: Component B reproduces all five expected grids from supplied heights.
 
