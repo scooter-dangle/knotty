@@ -55,12 +55,16 @@ The fourth pair **diverges** — separation `7 − 4 − 1 = 2`.
 
 ## What this fixture establishes
 
-**A pair can be opened inside another pair's divergence gap.** Pair 4 has maxima
-`(4, 7)`, so after its boundary transfers it occupies rows 4 and 7 with rows 5
-and 6 empty between them. Pair 5 (`(3` at column 7, maxima `(5, 6)`) then opens
-*into* that gap and closes again, entirely within it. Component B must therefore
-treat the rows between a divergent pair's two strands as genuinely free space,
-not as reserved by the pair that straddles them.
+**A divergence gap is held open longer than it is occupied.** Pair 4's maxima
+`(4, 7)` come from pair 5 opening between its strands — that intervening opening
+is the *only* reason the maxima are non-sequential, so pair 5 occupying rows 5
+and 6 is the cause of the gap, not a surprising use of it. What the fixture does
+show is the duration: pair 4 sits at rows 4 and 7 from column 5 to column 13,
+but pair 5 exists only for columns 7–8. At column 6 the gap stands empty. Under
+precalculated placement a strand holds its maximum for its whole flat run, so a
+divergent pair holds its gap open for its whole life rather than opening it on
+demand — which is the same tradeoff SC-002 measures, seen as vertical space
+rather than as transfer count.
 
 **The largest even split so far.** `)0` at column 14 joins rows 0 and 7 — a
 separation of 6, split 3/3 across three transfer columns. Confirms the FR-015

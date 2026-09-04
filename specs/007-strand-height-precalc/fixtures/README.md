@@ -43,8 +43,25 @@ Each grid was decomposed by column and checked against the spec:
 Across all five fixtures that is **63 features**, all matching.
 
 This process earned its keep once: `square-knot-links-encircled` was supplied
-with `\5` as its 8th feature, which the simulation placed at row 9 against a
-diagram drawing it at row 8. The owner confirmed the encoding was at fault and
-the diagram correct. Simulating the logical stack is what caught it — by eye the
-index looks unremarkable, because under precalculated placement a notation index
-never matches the rendered row anyway.
+with `\5` as its 8th feature, against a diagram drawing it where `\4` belongs.
+The owner confirmed the encoding was at fault and the diagram correct.
+
+## Reading an index off a column
+
+Checking a feature's index needs neither a simulation nor a row count. In the
+feature's own column, **the notation index is the number of live strands below
+the feature's glyph** — count strands upward from the bottom of that column,
+stopping when you reach the feature.
+
+This works because a feature's two participants have already converged to the
+glyph row and the row above it by the time the feature is drawn, so "strands
+below the glyph" and "strands below the lower participant" are the same set.
+
+It is usually less work than counting rows, and less error-prone, because a
+column holds fewer strands than the diagram has rows — in
+`square-knot-links-encircled`, 10 strands against 16 rows. The `\5` above is
+caught this way in one glance: the strands below its glyph at row 8 sit at rows
+0, 3, 4 and 5, so the index is 4.
+
+Verified against every feature in every fixture here: **63/63** indices equal the
+count of live strands below the glyph.

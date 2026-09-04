@@ -112,9 +112,8 @@ row 8, and the grid was internally consistent with row 8 (row 9 of that column
 is empty — the shadow a glyph at row 8 casts), so the diagram was not the error.
 `\4` joins `D_hi`/`C_lo` at rows 8,9 → row 8, matching.
 
-Worth keeping in mind for Component B: **a notation index that "looks wrong"
-against the rendered rows is expected, not a bug.** `\4` renders at row 8 and
-`)3` renders at row 6 — under precalculated placement the index names a logical
-level, never a grid row (see [../contracts/strand-heights.md](../contracts/strand-heights.md)).
-That is precisely what made this discrepancy hard to spot by eye and easy to
-catch by simulating the stack.
+No simulation is needed to see this. The index is readable off the single column
+it appears in — see *Reading an index off a column* in
+[README](./README.md#reading-an-index-off-a-column). At column 15 the strands
+below the glyph at row 8 sit at rows 0, 3, 4 and 5: four of them, so the index is
+4, and `\5` is wrong on inspection.
