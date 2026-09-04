@@ -52,6 +52,7 @@ follow from the height rule (research R2):
 |---|---|---|
 | `(0 (1 )1 (1 )1 )0` | `(0,3), (1,2), (1,2)` | sequential siblings reusing rows |
 | `(0 (1 (2 )2 (3 )3 )1 )0` | `(0,7), (1,4), (2,3), (5,6)` | a sibling stacked above a divergent pair |
+| `(0 (0 )0 (2 )2 )0` | `(2,3), (0,1), (4,5)` | transitive push: two strands that never coexist and never relate still do not share a height, because a third lies between them in the order. Needs 6 rows against the default's 4. |
 
 > Passing the five fixtures alone is **not sufficient**. The natural but wrong
 > gap formula — a pair's gap equals the count of strands opened between it —

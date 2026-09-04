@@ -141,10 +141,29 @@ between its two strands. That framing is the mistake:
 
 The accepted rule sidesteps both by never computing a gap at all. It assigns each
 strand an absolute height from what lies beneath it, and the gap simply falls out
-as `upper − lower − 1`. Both conditions are then automatic: two strands get the
-same height exactly when neither is ever below the other, which is precisely
-"disjoint in time or unordered", and a tall nested pair raises everything above it
-by its full extent without that extent being counted anywhere.
+as `upper − lower − 1`. A tall nested pair raises everything above it by its full
+extent without that extent being counted anywhere, and row reuse is a consequence
+of the longest path rather than a decision made per pair.
+
+**Reuse is not decided pairwise.** It is tempting to say two strands share a
+height exactly when neither is ever below the other; that is **false**.
+Incomparability is necessary but not sufficient — the ordering is strict, so
+`t` ever below `s` forces `height(s) > height(t)`, but two incomparable strands
+can still be pushed apart transitively.
+
+Counterexample `(0 (0 )0 (2 )2 )0` → `A=(2,3)`, `B=(0,1)`, `C=(4,5)`:
+
+```text
+B opens below A and closes.  C then opens above A and closes.
+```
+
+`B` and `C` are never live at the same time and neither is ever below the other,
+yet they do not share a height: `A` lies between them in the order and is itself
+raised by `B`, so `C` is pushed to 4–5. Rows 0–1 stay empty for the rest of the
+diagram, and the grid needs **6 rows where the default placement uses 4**.
+
+This is the rule behaving correctly, not a defect — but it is why the height
+cannot be reasoned about one pair at a time.
 
 **Note on FR-001**: the 2026-09-03 clarification remains correct and untouched.
 Defining a maximum over the strand's **flat run only** removes the *fixpoint* —
