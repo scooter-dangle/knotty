@@ -97,7 +97,10 @@ with `height()` under this mode.
   sits at the floored midpoint of the two strands it joins, with the movement
   split evenly between them (FR-002, FR-011, FR-016). Caps and cups are
   boundaries and the strands do not return; after a crossing they do.
-- **Maintains a logical-level → rendered-row mapping.** A notation index names a
+- **Maintains a logical-level → rendered-row mapping.** *(Derived design detail,
+  not an independent requirement — it follows from FR-002, FR-011 and FR-016
+  placing features at midpoints rather than at notation indices. Recorded here
+  because it is central to B and easy to overlook.)* A notation index names a
   logical level among the currently-live strands, not a grid row. Under the
   default placement the two coincide, because every close pulls the stack back
   down; under precalculated placement they diverge. In the rotated 5₁ fixture

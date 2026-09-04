@@ -162,7 +162,7 @@ fixture's **supplied** heights reproduces the expected grid exactly.
 
 - [ ] T025 Implement the placement builder in `src/raw_lines.rs` alongside `OpeningCentered`, driving the shared emitter from T010: size the grid as `max(heights) + 1`, open each pair's cap at `floor((lower + upper) / 2)`, and keep placed strands flat (FR-002, FR-003) (depends on T010, T021)
 - [ ] T026 Implement the logical-level → rendered-row mapping in `src/raw_lines.rs`: a notation index names a level among currently-live strands, not a grid row, and the two diverge under this mode (see [fixtures/rotated-5_1.md](./fixtures/rotated-5_1.md), where `\2` renders at row 6) (depends on T025)
-- [ ] T027 Implement boundary transfers in `src/raw_lines.rs` — each strand moves between a cap or cup and its own height, split as evenly as the separation allows with an odd separation giving the lower strand the extra step (FR-002, FR-015, FR-016) (depends on T026)
+- [ ] T027 Implement boundary transfers in `src/raw_lines.rs` — each strand moves between a cap or cup and its own height, split as evenly as the separation allows with an odd separation giving the lower strand the extra step. These are the boundary diagonals FR-009 requires be retained (FR-002, FR-009, FR-015, FR-016) (depends on T026)
 - [ ] T028 Implement crossing convergence and return in `src/raw_lines.rs`: bring partners together at the floored midpoint, cross, then return **both** to their heights, since a crossing is not a boundary (FR-011) (depends on T027)
 - [ ] T029 Confirm `src/render.rs` needs no new `Horiz` glyphs — the fixtures use only the existing eight variants; if a gap is found, add the minimum and record the deviation in `specs/007-strand-height-precalc/research.md` (depends on T028)
 - [ ] T030 Close the component: `cargo test` with every T020 fixture passing, then `cargo check --target wasm32-unknown-unknown` (depends on T028, T029)
@@ -195,7 +195,7 @@ vertical movement on strands that previously climbed and descended, with strictl
 fewer displacement transfers than its `IndexAligned` render.
 
 - [ ] T036 [P] [US1] Add a test in `src/diagram/tests.rs` asserting the `PrecalculatedHeights` render of `terrace` has strictly fewer **open/close displacement** segments than its `IndexAligned` render, using the T023 classifier (FR-004, SC-001, C4)
-- [ ] T037 [P] [US1] Add a test in `src/diagram/tests.rs` asserting every strand whose height is constant between its cap and cup renders with zero intermediate transfer segments (FR-003)
+- [ ] T037 [P] [US1] Add a test in `src/diagram/tests.rs` asserting every strand whose height is constant between its cap and cup renders with zero intermediate transfer segments (FR-003, C3)
 - [ ] T038 [US1] Gate: `cargo test` and `cargo check --target wasm32-unknown-unknown` (depends on T036, T037)
 
 ---
@@ -237,7 +237,7 @@ renders identically to today.
 - [ ] T048 [P] [US3] Add a test in `src/diagram/test.rs` asserting `set_mode`/`with_mode` round-trip and that `with_mode(IndexAligned)` renders identically to an untouched diagram (C1)
 - [ ] T049 [US3] Confirm the notation-only move implementations in `src/diagram.rs` and `src/moves.rs` read only `items` and never branch on `mode`, correcting any that do (FR-012) (depends on T007)
 - [ ] T050 [US3] Verify the free `ascii_print` / `try_ascii_print` / `*_compact` helpers at `src/diagram.rs:1563`–`:1579` still build `IndexAligned` diagrams (depends on T006)
-- [ ] T051 [US3] Run the SC-004 gate: `cargo test` with all 24 pre-existing snapshots byte-for-byte identical to the T002 baseline, plus `cargo check --target wasm32-unknown-unknown` (depends on T049, T050)
+- [ ] T051 [US3] Run the FR-005 / SC-004 gate: `cargo test` with all 24 pre-existing snapshots byte-for-byte identical to the T002 baseline, proving the default placement's behavior is unchanged, plus `cargo check --target wasm32-unknown-unknown` (FR-005, SC-004, C1) (depends on T049, T050)
 
 ---
 
