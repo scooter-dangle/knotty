@@ -950,9 +950,11 @@ impl AbbreviatedDiagram {
     }
 
     fn full_render_lines(&self) -> Result<Vec<String>, String> {
-        // `rotate::scan_row` reads openings, closings and crossings out of the
-        // picture, and those are drawn the same either way, so it recovers the
-        // same notation from an opening-centered rendering.
+        // `scan_row` matches glyph shapes, so it reads the same features out of
+        // either grid mapping. It is not independent of the *placement*, though:
+        // it scans whatever picture the active mode draws, and a flatter picture
+        // scans back to fewer features. That is what keeps repeated rotation
+        // from compounding.
         let verbose = VerboseDiagram::from_abbreviated(self)?;
         Ok({
             verbose

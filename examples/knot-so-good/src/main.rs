@@ -391,22 +391,23 @@ impl Model {
     }
 
     fn update_modified(&mut self) {
-        self.modified_diagram = self.parsed_base_diagram.clone().and_then(|mut knot| {
-            knot.try_apply_all(self.parsed_moves.clone())?;
-            Ok(knot)
-        });
-
         let placement = if self.precalculated {
             knotty::PlacementMode::PrecalculatedHeights
         } else {
             knotty::PlacementMode::IndexAligned
         };
 
-        self.ascii_modified_diagram = self
-            .modified_diagram
-            .clone()
-            .map(|knot| knot.with_mode(placement))
-            .and_then(|knot| {
+        // The placement has to be set *before* the moves run: rotation
+        // re-derives notation by scanning the rendered grid, so it is the
+        // placement in force during the move that decides the result, not the
+        // one used to draw the answer.
+        self.modified_diagram = self.parsed_base_diagram.clone().and_then(|knot| {
+            let mut knot = knot.with_mode(placement);
+            knot.try_apply_all(self.parsed_moves.clone())?;
+            Ok(knot)
+        });
+
+        self.ascii_modified_diagram = self.modified_diagram.clone().and_then(|knot| {
             if self.compact {
                 knot.try_ascii_print_compact::<false>()
             } else {
