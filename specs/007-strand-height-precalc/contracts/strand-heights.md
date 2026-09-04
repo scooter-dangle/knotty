@@ -68,6 +68,12 @@ cross-checked against the fixture heights.
   sits at the floored midpoint of the two strands it joins, with the movement
   split evenly between them (FR-002, FR-011, FR-016). Caps and cups are
   boundaries and the strands do not return; after a crossing they do.
+- **Maintains a logical-level → rendered-row mapping.** A notation index names a
+  logical level among the currently-live strands, not a grid row. Under the
+  default placement the two coincide, because every close pulls the stack back
+  down; under precalculated placement they diverge. In the rotated 5₁ fixture
+  `\2` is drawn at row 6 and `)1` at row 3. Resolving indices to rows is
+  Component B's job alone — Component A never sees rendered rows.
 - **Trusts the map.** B does not recompute, validate, or second-guess the
   heights. Given a well-formed map it produces a well-formed grid. A map that
   violates this contract is Component A's defect, not B's.
