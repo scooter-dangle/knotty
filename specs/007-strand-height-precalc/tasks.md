@@ -259,15 +259,15 @@ the `IndexAligned` render.
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T056 [P] Add edge-case coverage in `src/diagram/tests.rs` for the empty diagram, a strand whose height equals its cap row, and closings at the bottom row — each rendering without error and equivalent to `IndexAligned` where no divergence exists (FR-010, C8)
-- [ ] T057 [P] Add an end-to-end determinism test in `src/diagram/tests.rs` rendering the same diagram twice in `PrecalculatedHeights` (FR-008, C7, SC-005)
-- [ ] T058 [P] Add a knot-equivalence check across both modes for every fixture in `src/diagram/tests.rs` (FR-006, C5, SC-003)
-- [ ] T059 Record the SC-002 and SC-007 measurements in `specs/007-strand-height-precalc/quickstart.md`: per-example displacement, boundary and crossing-alignment transfer counts **and rendered height against the default's**, for `terrace`, `basket`, `ugly_trefoil` and the five fixtures, making both tradeoffs explicit (SC-002, SC-007)
-- [ ] T060 Audit callers that assume `AbbreviatedDiagram::height()` bounds the rendered row count — correct only under `IndexAligned` (FR-017, research R7) — checking `examples/ascii_print.rs` and `examples/knot-so-good/src/main.rs`
-- [ ] T061 [P] Optionally expose a mode flag in `examples/ascii_print.rs`, keeping the library the sole owner of the behavior (Principle I)
-- [ ] T062 [P] Optionally expose a mode toggle in `examples/knot-so-good/src/main.rs`, with any GUI-only dependency confined to `examples/knot-so-good/Cargo.toml` (Principle V)
-- [ ] T063 Walk the seven scenarios in `specs/007-strand-height-precalc/quickstart.md` end to end and confirm each pass condition holds
-- [ ] T064 Final constitution gate: `cargo build`, `cargo test`, `cargo check --target wasm32-unknown-unknown`, and confirm `Cargo.toml` gained no dependency (Principles II and V)
+- [X] T056 [P] Add edge-case coverage in `src/diagram/tests.rs` for the empty diagram, a strand whose height equals its cap row, and closings at the bottom row — each rendering without error and equivalent to `IndexAligned` where no divergence exists (FR-010, C8)
+- [X] T057 [P] Add an end-to-end determinism test in `src/diagram/tests.rs` rendering the same diagram twice in `PrecalculatedHeights` (FR-008, C7, SC-005)
+- [X] T058 [P] Add a knot-equivalence check across both modes for every fixture in `src/diagram/tests.rs` (FR-006, C5, SC-003)
+- [X] T059 Record the SC-002 and SC-007 measurements in `specs/007-strand-height-precalc/quickstart.md`: per-example displacement, boundary and crossing-alignment transfer counts **and rendered height against the default's**, for `terrace`, `basket`, `ugly_trefoil` and the five fixtures, making both tradeoffs explicit (SC-002, SC-007)
+- [X] T060 Audit callers that assume `AbbreviatedDiagram::height()` bounds the rendered row count — correct only under `IndexAligned` (FR-017, research R7) — checking `examples/ascii_print.rs` and `examples/knot-so-good/src/main.rs`
+- [X] T061 [P] Optionally expose a mode flag in `examples/ascii_print.rs`, keeping the library the sole owner of the behavior (Principle I)
+- [X] T062 [P] Optionally expose a mode toggle in `examples/knot-so-good/src/main.rs`, with any GUI-only dependency confined to `examples/knot-so-good/Cargo.toml` (Principle V)
+- [X] T063 Walk the seven scenarios in `specs/007-strand-height-precalc/quickstart.md` end to end and confirm each pass condition holds
+- [X] T064 Final constitution gate: `cargo build`, `cargo test`, `cargo check --target wasm32-unknown-unknown`, and confirm `Cargo.toml` gained no dependency (Principles II and V)
 
 ---
 
