@@ -63,7 +63,7 @@ per-strand/per-pair Shape question in
 per-strand. Five golden fixtures in [fixtures/](./fixtures/) confirm all of it
 across 63 features.
 
-### Risk: `scan_row` was written under the index-equals-row invariant
+### `scan_row` and rotation under the new geometry
 
 Historically the renderer drew every diagram so that a feature's notation index
 and its rendered row were the same number. That made diagrams far easier to
@@ -73,24 +73,37 @@ coincidence holding. This feature breaks it: `\4` renders at row 8 in the
 encircled fixture, `)1` at row 3 in `rotated-5_1`.
 
 `scan_row` (`src/rotate.rs:13`) is the consumer that matters, because rotation
-re-derives notation by scanning the grid (US2, SC-006). Two findings:
+re-derives notation by scanning the grid (US2, SC-006). It is in better shape
+for this than the invariant's breakage suggests:
 
-- **Encouraging**: it derives indices from running counters (`other_depth`,
-  `close_depth`) advanced as it walks a scan line — *not* from row position.
-  That is the right shape for a world where index ≠ row: it counts what it
-  encounters, the same move as counting strands below a glyph.
-- **Cautioning**: those counters have already produced two bug fixes —
-  `drop incorrect modulo gates in scan_row` (#28) and `don't advance other_depth
-  on close features in scan_row` (#31) — plus four regression-test commits (#27,
-  #30, #32, #33), one for full-cycle rotation failures. They are the most
-  delicate part of the rotation path, and this feature changes the geometry they
-  scan: strands at non-contiguous rows, gaps held open across a pair's entire
-  life, and features drawn at rows unrelated to their index.
+- Its regexes match **local glyph shapes** (`/_*\`, ` _+ `, ` / `, ` \ `, `\/`,
+  `\ /`), not positions, and its indices come from running counters
+  (`other_depth`, `close_depth`) advanced along a scan line. Neither depends on
+  a row number.
+- Per the feature owner, this is **by design**: the patterns were written to
+  work for any generally well-formed ASCII knot diagram, including one drawn
+  with precalculated placement. No `scan_row` change is anticipated.
 
-`tasks.md` frames this as "confirm `scan_row` needs no change", which is too
-casual given that history. Treat it as an open question for `/speckit-plan` to
-answer with a spike, not a formality — and note that Constitution Principle III
-requires a regression test for any `rotate.rs` fix.
+**Rotation results will change, and that is the point.** Scanning a cleaner
+picture yields different — but equivalent — notation. A changed rotation result
+under the new mode is expected and must not be read as a regression; only
+default-mode output is frozen (SC-004, C1).
+
+The residual risk is narrow and worth a regression test rather than a spike: the
+new geometry produces glyph arrangements no existing fixture exercises — strands
+at non-contiguous rows, gaps held open across a pair's whole life, features
+drawn at rows unrelated to their index. The two historical fixes to these
+counters (`drop incorrect modulo gates`, #28; `don't advance other_depth on
+close features`, #31) were defects in *realizing* the general design, each found
+by a specific diagram, which is exactly the failure mode new-geometry coverage
+guards against. Constitution Principle III requires a regression test for any
+`rotate.rs` fix regardless.
+
+SC-006 remains the feature's **central hypothesis, not an established result**:
+that removing reversed-direction transfers stops repeated rotation from
+compounding artifacts. Implementing rotation is what exposed that limit in the
+older rendering; whether the new placement fully removes it is what SC-006 is
+there to measure.
 
 **Recommended**: re-run `/speckit-plan`, then `/speckit-analyze`, against current
 main before `/speckit-implement`. The spec's requirements and success criteria
