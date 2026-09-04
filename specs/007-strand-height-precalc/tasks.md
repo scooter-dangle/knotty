@@ -176,11 +176,11 @@ fixture's **supplied** heights reproduces the expected grid exactly.
 **Purpose**: Wire the two verified halves together behind the mode dispatch. The
 first point at which any user-visible behavior exists.
 
-- [ ] T031 Make `VerboseDiagram::from_abbreviated` at `src/diagram.rs:118` dispatch on `knot.mode()` — `IndexAligned` through the untouched `OpeningCentered` path, `PrecalculatedHeights` computing heights via A and rendering via B — leaving the signature unchanged (depends on T019, T030)
-- [ ] T032 Assert the seam in `src/raw_lines.rs`: Component A's computed heights equal the heights each Component B fixture supplies, for every fixture. This is what proves the two independently-built halves meet (depends on T019, T030)
-- [ ] T033 Add end-to-end `insta::assert_snapshot!` coverage rendering all five fixture encodings through the full `PrecalculatedHeights` path in `src/diagram/tests.rs`, mirroring the existing `snapshot_ascii_print` style at `src/diagram/tests.rs:117` (depends on T031)
-- [ ] T034 Run `cargo insta review` and accept ONLY the new `PrecalculatedHeights` snapshots; any diff on a pre-existing snapshot is an SC-004 regression to fix, not to accept (depends on T033)
-- [ ] T035 Gate: `cargo test` and `cargo check --target wasm32-unknown-unknown` (depends on T034)
+- [X] T031 Make `VerboseDiagram::from_abbreviated` at `src/diagram.rs:118` dispatch on `knot.mode()` — `IndexAligned` through the untouched `OpeningCentered` path, `PrecalculatedHeights` computing heights via A and rendering via B — leaving the signature unchanged (depends on T019, T030)
+- [X] T032 Assert the seam in `src/raw_lines.rs`: Component A's computed heights equal the heights each Component B fixture supplies, for every fixture. This is what proves the two independently-built halves meet (depends on T019, T030)
+- [X] T033 Add end-to-end `insta::assert_snapshot!` coverage rendering all five fixture encodings through the full `PrecalculatedHeights` path in `src/diagram/tests.rs`, mirroring the existing `snapshot_ascii_print` style at `src/diagram/tests.rs:117` (depends on T031)
+- [X] T034 Run `cargo insta review` and accept ONLY the new `PrecalculatedHeights` snapshots; any diff on a pre-existing snapshot is an SC-004 regression to fix, not to accept (depends on T033)
+- [X] T035 Gate: `cargo test` and `cargo check --target wasm32-unknown-unknown` (depends on T034)
 
 **Checkpoint**: the feature works end to end.
 

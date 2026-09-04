@@ -630,6 +630,25 @@ mod tests {
             assert_eq!(counts, TransferCounts::default(), "flat pair needs no transfers");
         }
 
+        /// The integration proof: Component A's own heights, fed through
+        /// Component B, must reproduce the grid the fixture-supplied heights
+        /// produce. This is where the two independently-built halves meet.
+        #[test]
+        fn component_a_output_drives_component_b() {
+            for fixture in FIXTURES {
+                let knot = AbbreviatedDiagram::from_str(fixture.encoding)
+                    .unwrap()
+                    .with_mode(crate::diagram::PlacementMode::PrecalculatedHeights);
+
+                assert_eq!(
+                    VerboseDiagram::from_abbreviated(&knot).unwrap().to_text(),
+                    fixture.grid.trim_start_matches('\n'),
+                    "{}",
+                    fixture.name,
+                );
+            }
+        }
+
         #[test]
         fn grid_height_is_one_past_the_tallest_strand() {
             for fixture in FIXTURES {

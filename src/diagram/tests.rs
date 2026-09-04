@@ -292,3 +292,20 @@ fn pictures_are_rectangular_and_end_flush() {
     }
 }
 
+
+#[test]
+fn snapshot_precalculated_heights() {
+    for encoding in [
+        r"(0 (2 (4 (6 /1 /3 /5 )4 )2 \0 \2 )1 )0",
+        r"(0 (0 \1 (1 /0 /2 )1 \1 )0 )0",
+        r"(0 (0 /1 (2 )2 \1 /2 \1 )1 )0",
+        r"(0 (0 )2 (2 (4 )2 (3 )3 )1 )0",
+        r"(0 (1 (3 (3 (7 (7 )7 \4 (4 /3 /5 )4 \4 )3 )3 )3 (1 )3 )1 )0",
+    ] {
+        let knot = AbbreviatedDiagram::from_str(encoding)
+            .unwrap()
+            .with_mode(PlacementMode::PrecalculatedHeights);
+
+        insta::assert_snapshot!(knot.ascii_print_compact::<false>());
+    }
+}

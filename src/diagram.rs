@@ -2,7 +2,7 @@ use core::fmt;
 use std::{cmp::Ordering, mem, str::FromStr};
 
 use crate::moves::{CommentLines, DiagramMove, Lean, Move, OverUnder, UpDown};
-use crate::raw_lines::OpeningCentered;
+use crate::raw_lines::{grid_height, strand_heights, OpeningCentered, Precalculated};
 use crate::render::{VerboseDiagram, VerboseLine};
 use crate::rotate::scan_row;
 
@@ -131,15 +131,35 @@ pub struct AbbreviatedDiagram {
 
 impl VerboseDiagram {
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
-        let mut lines = OpeningCentered::new(knot.height(), knot.len());
+        let lines = match knot.mode {
+            PlacementMode::IndexAligned => {
+                let mut lines = OpeningCentered::new(knot.height(), knot.len());
 
-        for AbbreviatedItem { element, index } in knot.items.iter() {
-            lines.append(*element, *index);
-        }
+                for &AbbreviatedItem { element, index } in knot.items.iter() {
+                    lines.append(element, index);
+                }
 
-        Ok(Self(
-            lines.into_lines().into_iter().map(VerboseLine).collect(),
-        ))
+                lines.into_lines()
+            }
+            PlacementMode::PrecalculatedHeights => {
+                let heights = strand_heights(&knot.items);
+                let mut lines = Precalculated::new(grid_height(&heights), knot.len());
+                let mut openings = heights.iter().copied();
+
+                for &AbbreviatedItem { element, index } in knot.items.iter() {
+                    let opening = (element == b'(').then(|| {
+                        openings
+                            .next()
+                            .expect("one pair of heights per opening feature")
+                    });
+                    lines.append(element, index, opening);
+                }
+
+                lines.into_lines()
+            }
+        };
+
+        Ok(Self(lines.into_iter().map(VerboseLine).collect()))
     }
 }
 
