@@ -12,7 +12,7 @@ these feed, and tasks T012 (Component A) / T018 (Component B).
 | [square-knot](./square-knot.md) | 10 | 6×12 | divergent pair `(0,3)`; non-adjacent crossing and closing | ✅ verified |
 | [little-dumb-link](./little-dumb-link.md) | 10 | 8×15 | pair opened *inside* another pair's gap; separation 6 | ✅ verified |
 | [non-adjacent-crossing](./non-adjacent-crossing.md) | 10 | 6×19 | **crossing alignment with return transfers**, repeated | ✅ verified |
-| [square-knot-links-encircled](./square-knot-links-encircled.md) | 20 | 16×36 | deep nesting; separation 14 | ⚠️ one unresolved cell |
+| [square-knot-links-encircled](./square-knot-links-encircled.md) | 20 | 16×36 | deep nesting (6 pairs); separation 14; clasp | ✅ verified |
 
 ## Height format
 
@@ -40,4 +40,11 @@ Each grid was decomposed by column and checked against the spec:
 4. Every bridged separation was checked against the invariant
    `upper − lower − 1` (FR-015).
 
-Across the four clean fixtures that is **43 features**, all matching.
+Across all five fixtures that is **63 features**, all matching.
+
+This process earned its keep once: `square-knot-links-encircled` was supplied
+with `\5` as its 8th feature, which the simulation placed at row 9 against a
+diagram drawing it at row 8. The owner confirmed the encoding was at fault and
+the diagram correct. Simulating the logical stack is what caught it — by eye the
+index looks unremarkable, because under precalculated placement a notation index
+never matches the rendered row anyway.

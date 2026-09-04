@@ -1,20 +1,20 @@
 # Golden Fixture: square knot with links, encircled
 
-Supplied by the feature owner 2026-09-03.
+Supplied by the feature owner 2026-09-03. **Authoritative.** ✅ Fully verified.
 
-> ## ⚠️ NOT YET USABLE AS A GOLDEN FIXTURE
->
-> 19 of its 20 features verify. **One cell is unresolved** — see *Discrepancy*
-> below. Do not land this as a test (task T018) until the owner confirms which
-> of the two readings is correct.
+> The 8th feature was originally supplied as `\5`, which conflicted with the
+> diagram. The owner confirmed 2026-09-03 that the **encoding** was at fault and
+> it should read `\4`; the diagram was correct as drawn. Corrected below. See
+> *Why `\4`* for what the discrepancy pinned down.
 
 ## Input
 
 ```text
-(0 (1 (3 (3 (7 (7 )7 \5 (4 /3 /5 )4 \4 )3 )3 )3 (1 )3 )1 )0
+(0 (1 (3 (3 (7 (7 )7 \4 (4 /3 /5 )4 \4 )3 )3 )3 (1 )3 )1 )0
 ```
 
-20 features: 8 openings, 4 crossings, 8 closings.
+20 features: 8 openings, 4 crossings, 8 closings. The largest fixture, and the
+only one exercising deep nesting and a separation of 14.
 
 ## Expected — Component A
 
@@ -51,35 +51,55 @@ Labelling the openings `A`–`H` in that order.
 
 ## Verification
 
-All 8 openings match FR-002. Of the 12 crossings and closings, 11 match:
+All 20 features match.
 
-| col | feature | strands | rows | `floor` | drawn | check |
-|-----|---------|---------|------|---------|-------|-------|
-| 0 | `(0` | opens A | maxima (0,15) | 7 | 7 | ✅ |
-| 8 | `(1` | opens B | maxima (3,4) | 3 | 3 | ✅ |
-| 9 | `(3` | opens C | maxima (9,10) | 9 | 9 | ✅ |
-| 10 | `(3` | opens D | maxima (5,8) | 6 | 6 | ✅ |
-| 12 | `(7` | opens E | maxima (13,14) | 13 | 13 | ✅ |
-| 13 | `(7` | opens F | maxima (11,12) | 11 | 11 | ✅ |
-| 14 | `)7` | F_lo, F_hi | 11, 12 | 11 | 11 | ✅ |
-| **15** | **`\5`** | **C_lo, C_hi** | **9, 10** | **9** | **8** | ❌ |
-| 16 | `(4` | opens G | maxima (6,7) | 6 | 6 | ✅ |
-| 17 | `/3` | D_lo, G_lo | 5, 6 | 5 | 5 | ✅ |
-| 18 | `/5` | G_hi, D_hi | 7, 8 | 7 | 7 | ✅ |
-| 19 | `)4` | G_lo, G_hi | 6, 7 | 6 | 6 | ✅ |
-| 20 | `\4` | D_hi, C_lo | 8, 9 | 8 | 8 | ✅ |
-| 22 | `)3` | D_lo, D_hi | 5, 8 | 6 | 6 | ✅ gap 2, split 1/1 |
-| 23 | `)3` | C_lo, C_hi | 9, 10 | 9 | 9 | ✅ |
-| 24 | `)3` | E_lo, E_hi | 13, 14 | 13 | 13 | ✅ |
-| 25 | `(1` | opens H | maxima (1,2) | 1 | 1 | ✅ |
-| 26 | `)3` | B_lo, B_hi | 3, 4 | 3 | 3 | ✅ |
-| 27 | `)1` | H_lo, H_hi | 1, 2 | 1 | 1 | ✅ |
-| 35 | `)0` | A_lo, A_hi | 0, 15 | 7 | 7 | ✅ gap 14, split 7/7 |
+| col | feature | strands | rows | `floor` | check |
+|-----|---------|---------|------|---------|-------|
+| 0 | `(0` | opens A | maxima (0,15) | 7 | ✅ |
+| 1–7 | *transfer* | A_lo 7→0, A_hi 8→15 | — | — | separation 14, split 7/7 |
+| 8 | `(1` | opens B | maxima (3,4) | 3 | ✅ |
+| 9 | `(3` | opens C | maxima (9,10) | 9 | ✅ |
+| 10 | `(3` | opens D | maxima (5,8) | 6 | ✅ |
+| 11 | *transfer* | D_lo 6→5, D_hi 7→8 | — | — | separation 2, split 1/1 |
+| 12 | `(7` | opens E | maxima (13,14) | 13 | ✅ |
+| 13 | `(7` | opens F | maxima (11,12) | 11 | ✅ |
+| 14 | `)7` | F_lo, F_hi | 11, 12 | 11 | ✅ |
+| 15 | `\4` | D_hi, C_lo | 8, 9 | 8 | ✅ |
+| 16 | `(4` | opens G | maxima (6,7) | 6 | ✅ |
+| 17 | `/3` | D_lo, G_lo | 5, 6 | 5 | ✅ |
+| 18 | `/5` | G_hi, D_hi | 7, 8 | 7 | ✅ |
+| 19 | `)4` | G_lo, G_hi | 6, 7 | 6 | ✅ |
+| 20 | `\4` | D_hi, C_lo | 8, 9 | 8 | ✅ |
+| 22 | `)3` | D_lo, D_hi | 5, 8 | 6 | ✅ gap 2, split 1/1 |
+| 23 | `)3` | C_lo, C_hi | 9, 10 | 9 | ✅ |
+| 24 | `)3` | E_lo, E_hi | 13, 14 | 13 | ✅ |
+| 25 | `(1` | opens H | maxima (1,2) | 1 | ✅ |
+| 26 | `)3` | B_lo, B_hi | 3, 4 | 3 | ✅ |
+| 27 | `)1` | H_lo, H_hi | 1, 2 | 1 | ✅ |
+| 28–34 | *transfer* | A_lo 0→7, A_hi 15→8 | — | — | separation 14, split 7/7 |
+| 35 | `)0` | A_lo, A_hi | 0, 15 | 7 | ✅ gap 14, split 7/7 |
 
-## Discrepancy — column 15
+## What this fixture establishes
 
-Simulating the logical stack with strand identities, at column 15 the live
-levels are:
+**The outermost pair diverges maximally.** `A` has maxima `(0, 15)` — its two
+strands sit at the very bottom and very top of the diagram, separated by 14. Its
+cap at row 7 costs 7 transfer columns on each side of the diagram, 14 of the 16
+transfer columns in total. This is the FR-015 invariant at the largest scale
+available, and it makes the cost of the midpoint rule vivid: a strand pair that
+straddles the whole diagram pays for it twice, once opening and once closing.
+
+**Nesting depth of 6 pairs.** At column 14 there are 12 live strands across
+16 rows. Component A's ordered-stack walk has to stay correct at this depth, and
+every one of the 8 openings lands on its predicted row.
+
+**Two crossings between the same two strands.** `\4` at columns 15 and 20 both
+join `D_hi` and `C_lo` — a clasp, which is what makes this a *link* rather than
+a knot.
+
+## Why `\4`
+
+The original `\5` would have joined logical levels 5 and 6. At that column the
+live levels are:
 
 ```text
 logical:  0     1     2     3     4     5     6     7     8     9
@@ -87,26 +107,14 @@ strand:  A_lo  B_lo  B_hi  D_lo  D_hi  C_lo  C_hi  E_lo  E_hi  A_hi
 row:      0     3     4     5     8     9    10    13    14    15
 ```
 
-`\5` joins logical levels 5 and 6 — `C_lo` and `C_hi`, at rows 9 and 10 — so
-FR-011 puts it at `floor((9+10)/2) = 9`. The diagram draws it at **row 8**.
+so `\5` means `C_lo`/`C_hi` at rows 9,10 → drawn at row 9. The diagram had it at
+row 8, and the grid was internally consistent with row 8 (row 9 of that column
+is empty — the shadow a glyph at row 8 casts), so the diagram was not the error.
+`\4` joins `D_hi`/`C_lo` at rows 8,9 → row 8, matching.
 
-Row 8 is where `\4` belongs, joining `D_hi` (row 8) and `C_lo` (row 9) — and
-indeed the later `\4` at column 20 is drawn there and verifies.
-
-The grid is *internally* consistent with row 8: row 9 of column 15 is empty,
-which is the shadow a glyph at row 8 casts. So this is not a single mistyped
-character; the whole cell sits one row low.
-
-Two readings, both plausible:
-
-| | Reading | Consequence |
-|---|---|---|
-| **A** | The **diagram** is off: the `x` at column 15 belongs at row 9, with its shadow at row 10. | `\5` is a self-crossing (kink) of pair C. |
-| **B** | The **encoding** is off: the 8th feature should be `\4`, not `\5`. | Two crossings between `D_hi` and `C_lo` — a clasp, which suits a "square knot with links" diagram. |
-
-Reading B looks more likely for a link diagram, but that is a guess about intent
-and this file records the question rather than resolving it. **Owner
-confirmation needed.**
-
-The other four fixtures are unaffected — this discrepancy is local to this one
-column.
+Worth keeping in mind for Component B: **a notation index that "looks wrong"
+against the rendered rows is expected, not a bug.** `\4` renders at row 8 and
+`)3` renders at row 6 — under precalculated placement the index names a logical
+level, never a grid row (see [../contracts/strand-heights.md](../contracts/strand-heights.md)).
+That is precisely what made this discrepancy hard to spot by eye and easy to
+catch by simulating the stack.
