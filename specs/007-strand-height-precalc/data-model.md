@@ -51,12 +51,12 @@ Not public. The derived opening row `floor((lower + upper) / 2)` is *not* part o
 this structure — Component B recomputes it, since it needs both maxima anyway to
 emit the two boundary transfers.
 
-**Governing invariant** (research R2, verified across all 23 pairs in the five
-fixtures):
-
-```text
-upper_max − lower_max − 1  ==  strands ever opened between the pair
-```
+**How the gap is determined is an open question** — see research R2. It is *not*
+the count of strands opened between the pair, though that matches all 23 pairs in
+the five current fixtures; `(0 (1 )1 (1 )1 )0` falsifies it, because sequential
+siblings reuse rows. Nor is it the maximum simultaneous span, which ordering can
+forbid. A nested pair contributes `2 + its own gap`, making the quantity
+recursive over the nesting structure.
 
 **Derived grid height**:
 

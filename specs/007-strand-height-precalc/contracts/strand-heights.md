@@ -40,30 +40,23 @@ cross-checked against the fixture heights.
 - **Deterministic**: identical input always yields identical output (FR-008).
 - **Total**: every valid encoding yields a result, including the empty diagram
   (FR-010).
-- **Linear, with no fixpoint iteration** — but **two passes, not one** (research
-  R2). Pass 1 walks the sequence counting, for each open pair, how many strands
-  are opened between its two strands. Pass 2 assigns rows, now knowing each
-  pair's required gap. Two passes are needed because a pair's gap depends on
-  openings that come after it.
+- **No fixpoint iteration.** Spec FR-001 guarantees this by defining a maximum
+  over the strand's **flat run only** — excluding the boundary movement by which
+  it meets its cap and cup. Without that exclusion a strand's maximum would
+  depend on a cap/cup row computed from that same maximum. An implementation
+  that finds itself iterating to convergence has misread the definition.
+- **Not a flat forward pass.** How a pair's gap is determined is **an open
+  question** — see research R2. It is not the count of strands opened between
+  the pair (sequential siblings reuse rows), and it is not the maximum
+  simultaneous span either (ordering can forbid reuse that timing would allow).
+  A nested pair contributes `2 + its own gap`, which makes the quantity
+  recursive over the nesting structure.
 
-  The absence of a *fixpoint* is what spec FR-001 guarantees, by defining a
-  maximum over the strand's **flat run only** — excluding the boundary movement
-  by which it meets its cap and cup. Without that exclusion a strand's maximum
-  would depend on a cap/cup row computed from that same maximum, and the passes
-  would have to iterate to convergence. An implementation that finds itself
-  iterating has misread the definition; an implementation that needs a
-  preliminary counting pass has not.
-
-**Governing invariant** — verified against all 23 pairs in all five fixtures:
-
-```text
-upper_max − lower_max − 1  ==  number of strands ever opened between the pair
-```
-
-A pair's strands are adjacent unless something opens between them, and the gap is
-exactly wide enough for everything that ever does. This makes the gap a *count*
-obtainable in one pass rather than a geometric search, and it is the cheapest
-available self-check on a Component A implementation.
+> ⚠️ **Do not implement Component A against a formula inferred from the current
+> fixtures.** The obvious one — gap equals the nested-strand count — matches all
+> 23 pairs in all five fixtures and is still wrong; `(0 (1 )1 (1 )1 )0` breaks
+> it. Research R2 lists the two fixtures needed before this component can be
+> specified.
 
 **Derived grid height** — Component B sizes the grid from A's output:
 

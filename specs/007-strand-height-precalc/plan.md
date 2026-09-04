@@ -85,13 +85,23 @@ integration check asserts A's output equals the maxima B's fixtures supply.
 
 ### Component A — height calculation
 
-Two linear passes (research R2): count how many strands are opened between each
-pair's two strands, then assign rows knowing each pair's required gap. Two
-passes are needed because a pair's gap depends on later openings; this is not a
-fixpoint, which FR-001 rules out by defining a maximum over the flat run only.
+⚠️ **The algorithm is not yet determined** — research R2. FR-001 rules out a
+*fixpoint* by defining a maximum over the flat run only, but how a pair's gap is
+computed remains open:
 
-Self-check: `upper_max − lower_max − 1 == strands opened between the pair`,
-verified across all 23 pairs in the five fixtures.
+- It is **not** the count of strands opened between the pair. That matches all 23
+  pairs in the five fixtures and is still wrong — `(0 (1 )1 (1 )1 )0` breaks it,
+  because sequential siblings reuse rows.
+- It is **not** the maximum simultaneous span either. Ordering can forbid reuse
+  that timing permits; the encircled fixture's `H` must stay below `B` and so
+  cannot take rows that `C`/`D`/`E` vacated.
+- A nested pair contributes `2 + its own gap`, so the quantity is **recursive**
+  over the nesting structure. A flat forward pass cannot compute it, and whether
+  a closed form exists is unresolved.
+
+This blocks Component A only. Component B is unaffected: it consumes maxima and
+does not care how they were derived, and its rules are fully specified and
+fixture-backed.
 
 ### Component B — render from heights
 
@@ -182,6 +192,7 @@ untouched.
 
 | Risk | Assessment |
 |---|---|
+| **Component A's gap algorithm** | **HIGH — now the top risk, and blocking.** No verified formulation; see research R2. Needs the owner's intended rule or a design spike, plus two fixtures (sequential siblings, and a divergent pair with a sibling stacked above it) that no current fixture covers. Beware: the natural formula fits all five existing fixtures and is wrong. |
 | Crossing-alignment construction | **Retired.** Was the highest-uncertainty area; [non-adjacent-crossing](./fixtures/non-adjacent-crossing.md) now specifies it by example. |
 | `scan_row` under the new geometry | **Low.** Its regexes match local glyph shapes and its indices come from counters along a scan line, neither row-dependent — deliberately so, per the feature owner. New-geometry regression tests are still worth having: #28 and #31 were defects in realizing that general design, each found by a specific diagram. |
 | Height growth surprising callers | **Medium.** Callers assuming `height()` bounds rendered rows are correct only under `IndexAligned`. Documented in C-consequences; the example app should be checked. |

@@ -43,13 +43,13 @@ Expected:
 The five fixtures in [fixtures/](./fixtures/) supply per-strand maxima for 63
 features. For each, the calculated maxima must equal the supplied maxima exactly.
 
-Self-check without reference to expected values, from research R2's invariant:
+Pass: all fixtures match exactly.
 
-```text
-upper_max − lower_max − 1  ==  strands ever opened between the pair
-```
-
-Pass: all fixtures match, and the invariant holds for every pair.
+> There is **no shortcut self-check** available here. The obvious one — that a
+> pair's gap equals the count of strands opened between it — holds for all 23
+> pairs in these five fixtures and is nonetheless wrong (research R2). Passing
+> the five fixtures is therefore necessary but *not sufficient*; the two
+> additional fixtures R2 asks for are what would make this scenario meaningful.
 
 ## Scenario 2 — Component B against fixtures (US1, US4 / FR-002, FR-011, FR-015, FR-016)
 

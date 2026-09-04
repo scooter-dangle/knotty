@@ -41,35 +41,83 @@ plus `knot.0.iter()` at `:123`. Compiler-checked, low risk.
 
 ## R2. How are per-strand maxima calculated?
 
-**Decision**: two linear passes over the abbreviated sequence.
+**Decision**: ⚠️ **OPEN — no verified formulation yet.** This is now the
+feature's highest-uncertainty area. What follows records what is established and
+what is not, so implementation does not start from a formula that looks right on
+the current fixtures and is wrong in general.
 
-1. **Count nesting.** Walk the sequence maintaining an ordered stack of live
-   strands. When an opening inserts at logical index `N`, every currently-open
-   pair whose two strands straddle `N` gains 2 to its nested-strand count.
-2. **Assign rows.** Walk again, now knowing each pair's required gap, assigning
-   each strand the row its ordering and gap demand.
+### Retracted: gap as a nesting count
 
-**The governing invariant**, derived from the fixtures and verified against all
-23 pairs in all five of them:
+An earlier revision of this section claimed
 
 ```text
 upper_max − lower_max − 1  ==  number of strands ever opened between the pair
 ```
 
-A pair's two strands are adjacent unless something opens between them, and the
-gap is exactly wide enough for everything that ever does. This is what makes the
-calculation tractable: the gap is a *count*, obtainable in one pass, not a
-geometric search.
+and noted it held for all 23 pairs in all five fixtures. **It is wrong**, and the
+fixtures do not contain the case that breaks it.
 
-**Why two passes and not one**: a pair's gap depends on openings that occur
-after it, so rows cannot be assigned during the first walk. This refines the
-2026-09-03 clarification, which established that a strand's maximum covers its
-flat run only and therefore involves **no fixpoint iteration**. That still
-holds — two deterministic linear passes are not a fixpoint — but the earlier
-"single forward pass" phrasing was optimistic.
+Counterexample — `(0 (1 )1 (1 )1 )0` (valid, 6 features):
+
+```text
+A opens.  B opens between A's strands, closes.  C opens between them, closes.  A closes.
+```
+
+Four strands are opened between A's two strands, so the formula demands a gap of
+4. But B and C never coexist: C reuses the rows B vacated, so the gap is 2. The
+formula counts cumulatively where the quantity is a maximum over time.
+
+### Also insufficient: maximum simultaneous span
+
+The obvious repair — take the maximum, over the pair's lifetime, of the span
+consumed by strands between it — is **also wrong**, and the encircled fixture
+proves it. Computing that quantity for pair `A` there gives 12; the fixture has
+14.
+
+The reason is ordering. `H` sits *below* `B`, while `C`, `D`, `E`, `F` all sit
+*above* `B`. `H` is live only after `C`, `D` and `E` have closed, so a purely
+temporal argument says it may reuse their rows — but it may not, because it must
+stay below `B`. Rows 1–2 are reserved for `H` alone and stand empty for most of
+the diagram.
+
+### What is actually established
+
+- **Reuse requires two conditions, not one**: two pairs may share rows only if
+  they are disjoint in time *and* occupy the same position in the vertical order
+  relative to everything else live. Temporal disjointness alone is not enough
+  (the `H` case); order compatibility alone is not enough (they would collide).
+- **A nested pair contributes its span, not its strand count.** A divergent pair
+  holds its own gap open for its whole life, even in columns where nothing
+  occupies it (see [little-dumb-link](./fixtures/little-dumb-link.md), where the
+  gap stands empty at column 6). So a pair's contribution to its parent is
+  `2 + its own gap`, which makes the quantity **recursive** over the nesting
+  structure.
+- **Therefore a flat forward count cannot compute it.** Some bottom-up traversal
+  of the nesting structure is required. Whether a closed form exists that avoids
+  recursion is an open question, and the feature owner's current view is that one
+  may not.
+
+### What this changes downstream
+
+The 2026-09-03 clarification remains correct on its own terms: defining a
+maximum over the strand's **flat run only** removes the *fixpoint* — a strand's
+maximum does not depend on a cap/cup row derived from that same maximum. That is
+a separate question from how the gap is computed, and it still holds. What was
+optimistic was the surrounding claim that the calculation is a flat pass.
+
+**Needed before implementing Component A**:
+
+1. A fixture exercising **sequential sibling nesting** (`(0 (1 )1 (1 )1 )0` or
+   similar), which no current fixture covers and which is exactly the case that
+   falsified the counting formula.
+2. A fixture exercising **a divergent pair with a later sibling stacked above
+   it**, where the held-open gap and the sibling must coexist.
+3. Either the owner's intended rule, or a design spike that derives one and
+   validates it against all fixtures including the two above.
 
 **Alternatives**: cost-aware placement weighing crossing-alignment against
-displacement — out of scope per the 2026-06-18 clarification.
+displacement — out of scope per the 2026-06-18 clarification, and unrelated to
+this question.
 
 ## R3. Where does the new placement path live?
 
