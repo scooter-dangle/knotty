@@ -33,9 +33,13 @@ GUI-only deps belong in `examples/knot-so-good/Cargo.toml`, not the root.
 ## Development Workflow
 
 ### Branching
-Feature branches use the `-story` suffix: `claude/<feature-name>-story`.
-CI runs automatically on these branches (`test.yml` trigger).
-Spec branches (pre-implementation) may use any name; switch to a `-story` branch before writing code.
+Branch names are not constrained, and no branch must be renamed before writing code.
+
+CI does not depend on the branch name. `test.yml` filters on the pull request's
+**base** branch, not its head, so a pull request from any branch into `main` is
+tested. The `**-story` base pattern exists so that *stacked* pull requests — ones
+targeting another feature branch rather than `main` — are tested as well; use
+that suffix only when you intend to stack work on top of a branch.
 
 ### Conventional Commits
 Prefix every commit: `feat:`, `fix:`, `ci:`, `build:`, `refactor:`, `doc:`.
@@ -48,4 +52,13 @@ All GitHub Actions must be pinned to a full commit SHA with a `# vX.Y.Z` or `# m
 
 This constitution supersedes ad-hoc conventions. Amendments require updating this file and the `Last Amended` date below.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-18 | **Last Amended**: 2026-06-18
+**Version**: 1.1.0 | **Ratified**: 2026-06-18 | **Last Amended**: 2026-09-04
+
+### Amendment log
+
+- **1.1.0** (2026-09-04) — Branching: dropped the `-story` head-branch suffix
+  requirement and the "switch branches before writing code" gate. The suffix
+  never affected CI: `test.yml` filters on a pull request's base branch, so the
+  head branch's name is irrelevant to whether tests run. The rule blocked work
+  without protecting anything. The `**-story` base pattern is retained and its
+  actual purpose — testing stacked pull requests — is now stated.

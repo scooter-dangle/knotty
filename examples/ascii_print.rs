@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use knotty::{self, AbbreviatedDiagram};
+use knotty::{self, AbbreviatedDiagram, PlacementMode};
 
 fn read_input(file: Option<String>) -> Result<String, String> {
     let lines = match file.as_deref() {
@@ -23,6 +23,10 @@ fn read_input(file: Option<String>) -> Result<String, String> {
 
 fn main() -> Result<(), String> {
     let mut knot = read_input(std::env::args().nth(1))?.parse::<AbbreviatedDiagram>()?;
+
+    if var("KNOTTY_PRECALC").ok().as_deref() == Some("true") {
+        knot.set_mode(PlacementMode::PrecalculatedHeights);
+    }
     let moves = std::env::args()
         .nth(2)
         .map(|source| {

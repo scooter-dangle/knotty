@@ -1,0 +1,14 @@
+---
+source: src/diagram/tests.rs
+expression: "knot.ascii_print_compact::<false>()"
+---
+  _____________  
+ /             \ 
+(               )
+ \__   ___   __/ 
+    \ /   \ /    
+     \     \     
+    / \   / \    
+   /   \ /   \   
+  (     /     )  
+   \___/ \___/
