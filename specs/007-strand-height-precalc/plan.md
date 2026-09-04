@@ -55,9 +55,42 @@ A pair's two strands genuinely diverge: a pair opened at levels 3,4 followed by
 `raise_once(5)` lift the upper strand twice while the lower stays. But an
 opening draws a cap across two *adjacent* levels, so both strands cannot start
 at their own maximum when those maxima differ. The spec covers non-adjacent
-crossing partners (FR-011) but not this case. Being settled in clarification;
-it also resolves the per-strand/per-pair Shape question in
-[contracts/strand-heights.md](./contracts/strand-heights.md).
+crossing partners (FR-011) but not this case. **Settled 2026-09-03**: the cap is
+drawn at the floored midpoint of the two maxima (FR-002), each strand transfers
+to its own maximum (FR-015), closings mirror it (FR-016), and the
+per-strand/per-pair Shape question in
+[contracts/strand-heights.md](./contracts/strand-heights.md) is resolved to
+per-strand. Five golden fixtures in [fixtures/](./fixtures/) confirm all of it
+across 63 features.
+
+### Risk: `scan_row` was written under the index-equals-row invariant
+
+Historically the renderer drew every diagram so that a feature's notation index
+and its rendered row were the same number. That made diagrams far easier to
+produce — which is why this feature is only being attempted now — but it also
+means every consumer of the rendered grid was written and tested with that
+coincidence holding. This feature breaks it: `\4` renders at row 8 in the
+encircled fixture, `)1` at row 3 in `rotated-5_1`.
+
+`scan_row` (`src/rotate.rs:13`) is the consumer that matters, because rotation
+re-derives notation by scanning the grid (US2, SC-006). Two findings:
+
+- **Encouraging**: it derives indices from running counters (`other_depth`,
+  `close_depth`) advanced as it walks a scan line — *not* from row position.
+  That is the right shape for a world where index ≠ row: it counts what it
+  encounters, the same move as counting strands below a glyph.
+- **Cautioning**: those counters have already produced two bug fixes —
+  `drop incorrect modulo gates in scan_row` (#28) and `don't advance other_depth
+  on close features in scan_row` (#31) — plus four regression-test commits (#27,
+  #30, #32, #33), one for full-cycle rotation failures. They are the most
+  delicate part of the rotation path, and this feature changes the geometry they
+  scan: strands at non-contiguous rows, gaps held open across a pair's entire
+  life, and features drawn at rows unrelated to their index.
+
+`tasks.md` frames this as "confirm `scan_row` needs no change", which is too
+casual given that history. Treat it as an open question for `/speckit-plan` to
+answer with a spike, not a formality — and note that Constitution Principle III
+requires a regression test for any `rotate.rs` fix.
 
 **Recommended**: re-run `/speckit-plan`, then `/speckit-analyze`, against current
 main before `/speckit-implement`. The spec's requirements and success criteria
