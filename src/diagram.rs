@@ -2,8 +2,10 @@ use core::fmt;
 use std::{cmp::Ordering, mem, str::FromStr};
 
 use crate::moves::{CommentLines, DiagramMove, Lean, Move, OverUnder, UpDown};
-use crate::raw_lines::{grid_height, strand_heights, OpeningCentered, Precalculated};
-use crate::render::{VerboseDiagram, VerboseLine};
+use crate::raw_lines::{
+    grid_height, strand_heights, OpeningCentered, Precalculated, TransferCounts,
+};
+use crate::render::{Horiz, VerboseDiagram, VerboseLine};
 use crate::rotate::scan_row;
 
 macro_rules! try_opt {
@@ -131,7 +133,19 @@ pub struct AbbreviatedDiagram {
 
 impl VerboseDiagram {
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
-        let lines = match knot.mode {
+        let (lines, _) = knot.build_lines();
+
+        Ok(Self(lines.into_iter().map(VerboseLine).collect()))
+    }
+}
+
+impl AbbreviatedDiagram {
+    /// Builds the grid under the active placement, reporting the transfer
+    /// glyphs it emitted by cause (SC-002).
+    pub(crate) fn build_lines(&self) -> (Vec<Vec<Horiz>>, TransferCounts) {
+        let knot = self;
+
+        match knot.mode {
             PlacementMode::IndexAligned => {
                 let mut lines = OpeningCentered::new(knot.height(), knot.len());
 
@@ -139,7 +153,9 @@ impl VerboseDiagram {
                     lines.append(element, index);
                 }
 
-                lines.into_lines()
+                let lines_counts = lines.counts();
+
+                (lines.into_lines(), lines_counts)
             }
             PlacementMode::PrecalculatedHeights => {
                 let heights = strand_heights(&knot.items);
@@ -155,11 +171,11 @@ impl VerboseDiagram {
                     lines.append(element, index, opening);
                 }
 
-                lines.into_lines()
-            }
-        };
+                let lines_counts = lines.counts();
 
-        Ok(Self(lines.into_iter().map(VerboseLine).collect()))
+                (lines.into_lines(), lines_counts)
+            }
+        }
     }
 }
 
@@ -969,7 +985,9 @@ impl AbbreviatedDiagram {
             prev = Some(cur);
         }
 
-        *self = Self::new_from_tuples(out)?;
+        // The placement mode is an operating context: it survives the move, so
+        // repeated rotation stays in one mode.
+        *self = Self::new_from_tuples(out)?.with_mode(self.mode);
         Ok(())
     }
 

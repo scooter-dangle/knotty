@@ -550,3 +550,47 @@ fn test_try_wrap_around() {
         [(b'(', 0), (b'(', 1), (b'/', 0), (b')', 2), (b')', 0)],
     );
 }
+
+fn rotated_feature_count(encoding: &str, mode: PlacementMode) -> usize {
+    let mut diagram = AbbreviatedDiagram::from_str(encoding)
+        .unwrap()
+        .with_mode(mode);
+    diagram.try_rotate_90_ccw().unwrap();
+    diagram.len()
+}
+
+#[test]
+fn rotation_does_not_inflate_the_feature_count() {
+    let terrace = r"(0 (2 (4 (6 )5 )3 )1 (1 (3 (5 )6 )4 )2 )0";
+    let original = AbbreviatedDiagram::from_str(terrace).unwrap().len();
+
+    let aligned = rotated_feature_count(terrace, PlacementMode::IndexAligned);
+    let precalculated = rotated_feature_count(terrace, PlacementMode::PrecalculatedHeights);
+
+    assert!(
+        precalculated <= original,
+        "{precalculated} features after rotation, from {original}",
+    );
+    assert!(
+        precalculated < aligned,
+        "{precalculated} features, against {aligned} under index-aligned placement",
+    );
+}
+
+#[test]
+fn a_full_rotation_cycle_does_not_grow_the_diagram() {
+    let mut diagram = AbbreviatedDiagram::from_str(r"(0 (2 (4 (6 )5 )3 )1 (1 (3 (5 )6 )4 )2 )0")
+        .unwrap()
+        .with_mode(PlacementMode::PrecalculatedHeights);
+    let original = diagram.len();
+
+    for turn in 1..=4 {
+        diagram.try_rotate_90_ccw().unwrap();
+        assert!(
+            diagram.len() <= original,
+            "{} features after {turn} rotations, from {original}",
+            diagram.len(),
+        );
+        assert_eq!(diagram.mode(), PlacementMode::PrecalculatedHeights);
+    }
+}

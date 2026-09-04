@@ -194,9 +194,9 @@ first point at which any user-visible behavior exists.
 vertical movement on strands that previously climbed and descended, with strictly
 fewer displacement transfers than its `IndexAligned` render.
 
-- [ ] T036 [P] [US1] Add a test in `src/diagram/tests.rs` asserting the `PrecalculatedHeights` render of `terrace` has strictly fewer **open/close displacement** segments than its `IndexAligned` render, using the T023 classifier (FR-004, SC-001, C4)
-- [ ] T037 [P] [US1] Add a test in `src/diagram/tests.rs` asserting every strand whose height is constant between its cap and cup renders with zero intermediate transfer segments (FR-003, C3)
-- [ ] T038 [US1] Gate: `cargo test` and `cargo check --target wasm32-unknown-unknown` (depends on T036, T037)
+- [X] T036 [P] [US1] Add a test in `src/diagram/tests.rs` asserting the `PrecalculatedHeights` render of `terrace` has strictly fewer **open/close displacement** segments than its `IndexAligned` render, using the T023 classifier (FR-004, SC-001, C4)
+- [X] T037 [P] [US1] Add a test in `src/diagram/tests.rs` asserting every strand whose height is constant between its cap and cup renders with zero intermediate transfer segments (FR-003, C3)
+- [X] T038 [US1] Gate: `cargo test` and `cargo check --target wasm32-unknown-unknown` (depends on T036, T037)
 
 ---
 
@@ -210,13 +210,13 @@ reversed-direction transfers never raises the feature count above the original,
 is strictly lower than the `IndexAligned` rotation, and a four-rotation cycle
 preserves the knot.
 
-- [ ] T039 [US2] Make `AbbreviatedDiagram::full_render_lines` at `src/diagram.rs:895` render under `self.mode`, so `try_rotate_90_ccw` (`src/diagram.rs:912`) scans the mode-aware grid, both signatures unchanged (depends on T031)
-- [ ] T040 [US2] Carry the active mode onto the diagram rotation constructs in `src/diagram.rs`, so the operating context survives `try_rotate_90_ccw` — reconciling with T006's default-`IndexAligned` construction (depends on T039)
-- [ ] T041 [P] [US2] Add a test in `src/diagram/test.rs` near `test_try_rotate_90_ccw_features` at `:224` asserting the scanned feature count after one rotation in `PrecalculatedHeights` is ≤ the original and strictly < the `IndexAligned` rotation, for `terrace`
-- [ ] T042 [P] [US2] Add a four-rotation full-cycle test in `src/diagram/test.rs` asserting the count never grows across the cycle and the final diagram represents the same knot
-- [ ] T043 [US2] Confirm `scan_row` at `src/rotate.rs:13` needs no change — its regexes match local glyph shapes and its indices come from counters along a scan line, neither row-dependent (research R6). If a change *is* needed, add a regression test in `mod test_scan_row` at `src/rotate.rs:111` per Principle III (depends on T039)
-- [ ] T044 [US2] Confirm `DiagramMove::Rotate90CounterClockwise` dispatch in `src/moves.rs` reaches the mode-aware path through `try_apply`/`try_apply_all` without a move-API change (depends on T039)
-- [ ] T045 [US2] Gate: `cargo test`, accept new snapshots, `cargo check --target wasm32-unknown-unknown`. **Rotation results differing from `IndexAligned` is expected, not a regression** — only default-mode output is frozen (depends on T039, T040, T043, T044)
+- [X] T039 [US2] Make `AbbreviatedDiagram::full_render_lines` at `src/diagram.rs:895` render under `self.mode`, so `try_rotate_90_ccw` (`src/diagram.rs:912`) scans the mode-aware grid, both signatures unchanged (depends on T031)
+- [X] T040 [US2] Carry the active mode onto the diagram rotation constructs in `src/diagram.rs`, so the operating context survives `try_rotate_90_ccw` — reconciling with T006's default-`IndexAligned` construction (depends on T039)
+- [X] T041 [P] [US2] Add a test in `src/diagram/test.rs` near `test_try_rotate_90_ccw_features` at `:224` asserting the scanned feature count after one rotation in `PrecalculatedHeights` is ≤ the original and strictly < the `IndexAligned` rotation, for `terrace`
+- [X] T042 [P] [US2] Add a four-rotation full-cycle test in `src/diagram/test.rs` asserting the count never grows across the cycle and the final diagram represents the same knot
+- [X] T043 [US2] Confirm `scan_row` at `src/rotate.rs:13` needs no change — its regexes match local glyph shapes and its indices come from counters along a scan line, neither row-dependent (research R6). If a change *is* needed, add a regression test in `mod test_scan_row` at `src/rotate.rs:111` per Principle III (depends on T039)
+- [X] T044 [US2] Confirm `DiagramMove::Rotate90CounterClockwise` dispatch in `src/moves.rs` reaches the mode-aware path through `try_apply`/`try_apply_all` without a move-API change (depends on T039)
+- [X] T045 [US2] Gate: `cargo test`, accept new snapshots, `cargo check --target wasm32-unknown-unknown`. **Rotation results differing from `IndexAligned` is expected, not a regression** — only default-mode output is frozen (depends on T039, T040, T043, T044)
 
 ---
 

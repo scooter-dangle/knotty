@@ -309,3 +309,43 @@ fn snapshot_precalculated_heights() {
         insta::assert_snapshot!(knot.ascii_print_compact::<false>());
     }
 }
+
+#[test]
+fn precalculated_placement_removes_displacement_transfers() {
+    let knot =
+        AbbreviatedDiagram::from_str(r"(0 (2 (4 (6 )5 )3 )1 (1 (3 (5 )6 )4 )2 )0").unwrap();
+
+    let (_, aligned) = knot.build_lines();
+    let (_, precalculated) = knot
+        .clone()
+        .with_mode(PlacementMode::PrecalculatedHeights)
+        .build_lines();
+
+    assert!(
+        aligned.displacement > 0,
+        "terrace displaces strands under index-aligned placement",
+    );
+    assert!(
+        precalculated.displacement < aligned.displacement,
+        "{} displacement glyphs, down from {}",
+        precalculated.displacement,
+        aligned.displacement,
+    );
+    assert_eq!(precalculated.displacement, 0);
+}
+
+#[test]
+fn unchanging_strands_render_flat() {
+    // The outer pair is pushed up and pulled back down under index-aligned
+    // placement; under precalculated placement it opens at its height and
+    // never moves, so no transfer of any kind is drawn.
+    let knot = AbbreviatedDiagram::from_str(r"(0 (0 )0 )0").unwrap();
+
+    let (_, aligned) = knot.build_lines();
+    assert!(aligned.displacement > 0);
+
+    let (_, precalculated) = knot
+        .with_mode(PlacementMode::PrecalculatedHeights)
+        .build_lines();
+    assert_eq!(precalculated, TransferCounts::default());
+}
