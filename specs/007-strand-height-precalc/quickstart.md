@@ -109,6 +109,35 @@ same knot.
 > `PrecalculatedHeights` rotation result as a regression; only `IndexAligned`
 > output is frozen.
 
+## Measured results (SC-002, SC-007)
+
+Recorded from the implementation. Transfer segments counted **per glyph**;
+`IA` = index-aligned, `PH` = precalculated heights.
+
+| Diagram | IA displacement | PH displacement | PH boundary | PH crossing-align | PH total vs IA | Grid IA → PH |
+|---|---|---|---|---|---|---|
+| `terrace` | 12 | **0** | 0 | 0 | 12 → **0** | 8×26 → 8×14 |
+| `basket` | 16 | **0** | 8 | 0 | 16 → 8 | 6×18 → 6×14 |
+| `ugly_trefoil` | 8 | **0** | 0 | 0 | 8 → **0** | 4×11 → 4×7 |
+| `rotated-5_1` | 10 | **0** | 10 | 0 | 10 → 10 | 8×19 → 8×18 |
+| `square-knot` | 20 | **0** | 4 | 0 | 20 → 4 | 6×18 → 6×12 |
+| `non-adjacent-crossing` | 14 | **0** | 6 | 12 | 14 → **18** | 6×18 → 6×**19** |
+| `little-dumb-link` | 14 | **0** | 10 | 0 | 14 → 10 | 6×20 → **8**×15 |
+| `square-knot-links-encircled` | 76 | **0** | 32 | 0 | 76 → 32 | 12×48 → **16**×36 |
+
+**SC-002 holds**: displacement goes to zero everywhere — strictly reduced, never
+increased. The total falls in six of eight cases, is unchanged in one, and
+**rises in `non-adjacent-crossing`** (14 → 18), where crossing alignment
+dominates. That is conforming: no reduction in the total is claimed.
+
+**SC-007 holds**: height is unchanged in six of eight, and grows in
+`little-dumb-link` (6 → 8) and `square-knot-links-encircled` (12 → 16). Width
+usually falls — dramatically for `terrace` (26 → 14) and the encircled fixture
+(48 → 36) — but rises by one column for `non-adjacent-crossing`.
+
+`terrace` and `ugly_trefoil` are the clean wins: every transfer removed, none
+added.
+
 ## Scenario 7 — Dimensions (research R7)
 
 Grid dimensions change in both directions and neither is a defect:

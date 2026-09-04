@@ -416,3 +416,66 @@ fn nested_openings_never_share_a_row() {
         assert!(lines.iter().all(|line| line.len() == lines[0].len()), "{encoding}");
     }
 }
+
+#[test]
+fn degenerate_diagrams_render_under_precalculated_placement() {
+    for encoding in ["", r"(0 )0", r"(0 (0 )0 )0", r"(0 (2 )2 )0"] {
+        let knot = AbbreviatedDiagram::from_str(encoding)
+            .unwrap()
+            .with_mode(PlacementMode::PrecalculatedHeights);
+
+        let (lines, _) = knot.build_lines();
+        assert_eq!(lines.is_empty(), encoding.is_empty(), "{encoding:?}");
+    }
+}
+
+#[test]
+fn precalculated_rendering_is_deterministic() {
+    let knot = AbbreviatedDiagram::from_str(r"(0 (1 (3 (3 (7 (7 )7 \4 (4 /3 /5 )4 \4 )3 )3 )3 (1 )3 )1 )0")
+        .unwrap()
+        .with_mode(PlacementMode::PrecalculatedHeights);
+
+    assert_eq!(knot.ascii_print::<false>(), knot.ascii_print::<false>());
+}
+
+/// Both placements draw the same features: the notation is the source of
+/// truth and neither mode touches it, so the grids must agree on how many
+/// openings, closings and crossings they contain, and on which crossings.
+#[test]
+fn both_placements_draw_the_same_features() {
+    fn tally(knot: &AbbreviatedDiagram) -> (usize, usize, usize, usize) {
+        let (lines, _) = knot.build_lines();
+        let count = |wanted: Horiz| {
+            lines
+                .iter()
+                .flatten()
+                .filter(|&&glyph| glyph == wanted)
+                .count()
+        };
+
+        (
+            count(Horiz::OpenedBelow),
+            count(Horiz::ClosedBelow),
+            count(Horiz::CrossDownOver),
+            count(Horiz::CrossDownUnder),
+        )
+    }
+
+    for encoding in [
+        r"(0 (2 (4 (6 /1 /3 /5 )4 )2 \0 \2 )1 )0",
+        r"(0 (0 \1 (1 /0 /2 )1 \1 )0 )0",
+        r"(0 (0 /1 (2 )2 \1 /2 \1 )1 )0",
+        r"(0 (0 )2 (2 (4 )2 (3 )3 )1 )0",
+        r"(0 (1 (3 (3 (7 (7 )7 \4 (4 /3 /5 )4 \4 )3 )3 )3 (1 )3 )1 )0",
+        r"(0 (1 (1 \3 \2 \4 \3 )1 )1 )0",
+        r"(0 (0 \1 /0 \1 )0 )0",
+    ] {
+        let aligned = AbbreviatedDiagram::from_str(encoding).unwrap();
+        let precalculated = aligned
+            .clone()
+            .with_mode(PlacementMode::PrecalculatedHeights);
+
+        assert_eq!(tally(&precalculated), tally(&aligned), "{encoding}");
+    }
+}
+

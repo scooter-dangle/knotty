@@ -118,6 +118,7 @@ fn clear_storage() {
 }
 
 enum Msg {
+    Precalculated(bool),
     SetMode(Mode),
     ManualDiagram(Option<String>),
     ManualBorders(bool),
@@ -153,6 +154,9 @@ struct Model {
     mode: Mode,
     display_mode: DisplayMode,
     compact: bool,
+    /// Not persisted: the placement mode is a working choice, not part of a
+    /// saved diagram.
+    precalculated: bool,
     manual_borders: bool,
     raw_base_diagram: String,
     parsed_base_diagram: Result<knotty::AbbreviatedDiagram, String>,
@@ -392,7 +396,17 @@ impl Model {
             Ok(knot)
         });
 
-        self.ascii_modified_diagram = self.modified_diagram.clone().and_then(|knot| {
+        let placement = if self.precalculated {
+            knotty::PlacementMode::PrecalculatedHeights
+        } else {
+            knotty::PlacementMode::IndexAligned
+        };
+
+        self.ascii_modified_diagram = self
+            .modified_diagram
+            .clone()
+            .map(|knot| knot.with_mode(placement))
+            .and_then(|knot| {
             if self.compact {
                 knot.try_ascii_print_compact::<false>()
             } else {
@@ -556,6 +570,7 @@ impl Component for Model {
             mode,
             display_mode,
             compact,
+            precalculated: false,
             manual_borders,
             raw_base_diagram,
             parsed_base_diagram,
@@ -652,6 +667,15 @@ impl Component for Model {
                     false
                 } else {
                     self.display_mode = mode;
+                    true
+                }
+            }
+            Precalculated(precalculated) => {
+                if self.precalculated == precalculated {
+                    false
+                } else {
+                    self.precalculated = precalculated;
+                    self.update_modified();
                     true
                 }
             }
@@ -866,6 +890,10 @@ impl Component for Model {
                         { segmented_pair("drawing", [
                             ("full", !self.compact, link.callback(|_| Msg::Compact(false))),
                             ("compact", self.compact, link.callback(|_| Msg::Compact(true))),
+                        ]) }
+                        { segmented_pair("placement", [
+                            ("index-aligned", !self.precalculated, link.callback(|_| Msg::Precalculated(false))),
+                            ("precalculated", self.precalculated, link.callback(|_| Msg::Precalculated(true))),
                         ]) }
                     </div>
                     <div class="group group-actions">
