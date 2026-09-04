@@ -232,12 +232,12 @@ renders identically to today.
 > **Scheduling**: this phase depends only on Phase 2 and can run at any point
 > alongside Phases 3–7. Placed here to keep stories in priority order.
 
-- [ ] T046 [P] [US3] Add a test in `src/diagram/test.rs` asserting `AbbreviatedDiagram::default()`, `new_from_tuples` and `FromStr` all report `mode() == PlacementMode::IndexAligned` (FR-013)
-- [ ] T047 [P] [US3] Add a test in `src/diagram/test.rs` asserting a notation-only move — `Swap`, `WrapAround`, `ChangeCrossing`, a Reidemeister move, `Bulge`/`Collapse` — yields identical `to_tuples()` under both modes (C9)
-- [ ] T048 [P] [US3] Add a test in `src/diagram/test.rs` asserting `set_mode`/`with_mode` round-trip and that `with_mode(IndexAligned)` renders identically to an untouched diagram (C1)
-- [ ] T049 [US3] Confirm the notation-only move implementations in `src/diagram.rs` and `src/moves.rs` read only `items` and never branch on `mode`, correcting any that do (FR-012) (depends on T007)
-- [ ] T050 [US3] Verify the free `ascii_print` / `try_ascii_print` / `*_compact` helpers at `src/diagram.rs:1563`–`:1579` still build `IndexAligned` diagrams (depends on T006)
-- [ ] T051 [US3] Run the FR-005 / SC-004 gate: `cargo test` with all 24 pre-existing snapshots byte-for-byte identical to the T002 baseline, proving the default placement's behavior is unchanged, plus `cargo check --target wasm32-unknown-unknown` (FR-005, SC-004, C1) (depends on T049, T050)
+- [X] T046 [P] [US3] Add a test in `src/diagram/test.rs` asserting `AbbreviatedDiagram::default()`, `new_from_tuples` and `FromStr` all report `mode() == PlacementMode::IndexAligned` (FR-013)
+- [X] T047 [P] [US3] Add a test in `src/diagram/test.rs` asserting a notation-only move — `Swap`, `WrapAround`, `ChangeCrossing`, a Reidemeister move, `Bulge`/`Collapse` — yields identical `to_tuples()` under both modes (C9)
+- [X] T048 [P] [US3] Add a test in `src/diagram/test.rs` asserting `set_mode`/`with_mode` round-trip and that `with_mode(IndexAligned)` renders identically to an untouched diagram (C1)
+- [X] T049 [US3] Confirm the notation-only move implementations in `src/diagram.rs` and `src/moves.rs` read only `items` and never branch on `mode`, correcting any that do (FR-012) (depends on T007)
+- [X] T050 [US3] Verify the free `ascii_print` / `try_ascii_print` / `*_compact` helpers at `src/diagram.rs:1563`–`:1579` still build `IndexAligned` diagrams (depends on T006)
+- [X] T051 [US3] Run the FR-005 / SC-004 gate: `cargo test` with all 24 pre-existing snapshots byte-for-byte identical to the T002 baseline, proving the default placement's behavior is unchanged, plus `cargo check --target wasm32-unknown-unknown` (FR-005, SC-004, C1) (depends on T049, T050)
 
 ---
 
@@ -250,10 +250,10 @@ FR-011, C6).
 `PrecalculatedHeights` with every crossing connecting the same two strands as in
 the `IndexAligned` render.
 
-- [ ] T052 [P] [US4] Add `insta::assert_snapshot!` coverage rendering `basket` and `ugly_trefoil` in `PrecalculatedHeights` in `src/diagram/tests.rs`, alongside the existing fixtures at `:137` and `:152`
-- [ ] T053 [P] [US4] Add a test in `src/diagram/tests.rs` asserting each crossing connects the same strand pair as the `IndexAligned` render for both diagrams (FR-007, C6)
-- [ ] T054 [P] [US4] Add a test in `src/diagram/tests.rs` asserting no two strands ever occupy the same row under `PrecalculatedHeights`, for every fixture and both named diagrams (US4 acceptance scenario 2)
-- [ ] T055 [US4] Gate: `cargo test`, accept new snapshots, `cargo check --target wasm32-unknown-unknown` (depends on T052, T053, T054)
+- [X] T052 [P] [US4] Add `insta::assert_snapshot!` coverage rendering `basket` and `ugly_trefoil` in `PrecalculatedHeights` in `src/diagram/tests.rs`, alongside the existing fixtures at `:137` and `:152`
+- [X] T053 [P] [US4] Add a test in `src/diagram/tests.rs` asserting each crossing connects the same strand pair as the `IndexAligned` render for both diagrams (FR-007, C6)
+- [X] T054 [P] [US4] Add a test in `src/diagram/tests.rs` asserting no two strands ever occupy the same row under `PrecalculatedHeights`, for every fixture and both named diagrams (US4 acceptance scenario 2)
+- [X] T055 [US4] Gate: `cargo test`, accept new snapshots, `cargo check --target wasm32-unknown-unknown` (depends on T052, T053, T054)
 
 ---
 

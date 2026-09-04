@@ -172,6 +172,11 @@ impl Precalculated {
     }
 
     fn sync_live(&mut self) {
+        debug_assert!(
+            self.rows.windows(2).all(|pair| pair[0] < pair[1]),
+            "strand rows stay strictly ordered, so no two strands share a row",
+        );
+
         for row in 0..self.grid.height() {
             self.grid.live[row] = self.rows.contains(&row);
         }

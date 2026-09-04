@@ -594,3 +594,79 @@ fn a_full_rotation_cycle_does_not_grow_the_diagram() {
         assert_eq!(diagram.mode(), PlacementMode::PrecalculatedHeights);
     }
 }
+
+#[test]
+fn placement_defaults_to_index_aligned() {
+    assert_eq!(AbbreviatedDiagram::default().mode(), PlacementMode::IndexAligned);
+    assert_eq!(
+        AbbreviatedDiagram::new_from_tuples(vec![(b'(', 0), (b')', 0)])
+            .unwrap()
+            .mode(),
+        PlacementMode::IndexAligned,
+    );
+    assert_eq!(
+        AbbreviatedDiagram::from_str(r"(0 )0").unwrap().mode(),
+        PlacementMode::IndexAligned,
+    );
+}
+
+#[test]
+fn notation_only_moves_are_independent_of_placement_mode() {
+    let base =
+        AbbreviatedDiagram::from_str(r"(0 (2 (4 (6 )5 )3 )1 (1 (3 (5 )6 )4 )2 )0").unwrap();
+
+    let moves: Vec<_> = base
+        .available_moves()
+        .filter(|diagram_move| {
+            // Rotation is the one move that reads the rendered grid, so it is
+            // the one move whose result depends on the placement.
+            !matches!(diagram_move.r#move, Move::Rotate90CounterClockwise)
+        })
+        .collect();
+
+    assert!(!moves.is_empty(), "expected some notation-only moves");
+
+    for diagram_move in moves {
+        let mut aligned = base.clone();
+        let mut precalculated = base.clone().with_mode(PlacementMode::PrecalculatedHeights);
+
+        aligned.try_apply(diagram_move).unwrap();
+        precalculated.try_apply(diagram_move).unwrap();
+
+        assert_eq!(
+            aligned.to_tuples(),
+            precalculated.to_tuples(),
+            "{diagram_move}",
+        );
+    }
+}
+
+#[test]
+fn mode_round_trips_and_index_aligned_renders_as_before() {
+    let base = AbbreviatedDiagram::from_str(r"(0 (2 )1 )0").unwrap();
+
+    let mut switched = base.clone();
+    switched.set_mode(PlacementMode::PrecalculatedHeights);
+    assert_eq!(switched.mode(), PlacementMode::PrecalculatedHeights);
+    switched.set_mode(PlacementMode::IndexAligned);
+    assert_eq!(switched, base);
+
+    assert_eq!(
+        base.clone()
+            .with_mode(PlacementMode::IndexAligned)
+            .ascii_print::<false>(),
+        base.ascii_print::<false>(),
+    );
+}
+
+#[test]
+fn free_helpers_build_index_aligned_diagrams() {
+    let tuples = vec![(b'(', 0), (b'\\', 0), (b')', 0)];
+
+    assert_eq!(
+        crate::diagram::ascii_print::<false>(tuples.clone()),
+        AbbreviatedDiagram::new_from_tuples(tuples)
+            .unwrap()
+            .ascii_print::<false>(),
+    );
+}

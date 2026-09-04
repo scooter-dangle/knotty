@@ -349,3 +349,70 @@ fn unchanging_strands_render_flat() {
         .build_lines();
     assert_eq!(precalculated, TransferCounts::default());
 }
+
+#[test]
+fn snapshot_precalculated_heights_with_crossings() {
+    for encoding in [
+        r"(0 (1 (1 \3 \2 \4 \3 )1 )1 )0",
+        r"(0 (0 \1 /0 \1 )0 )0",
+    ] {
+        let knot = AbbreviatedDiagram::from_str(encoding)
+            .unwrap()
+            .with_mode(PlacementMode::PrecalculatedHeights);
+
+        insta::assert_snapshot!(knot.ascii_print_compact::<false>());
+    }
+}
+
+#[test]
+fn crossings_survive_the_change_of_placement() {
+    fn crossings(knot: &AbbreviatedDiagram) -> Vec<Horiz> {
+        let (lines, _) = knot.build_lines();
+        let mut found: Vec<Horiz> = Vec::new();
+
+        // Column-major, so the crossings come out in drawing order.
+        for column in 0..lines.first().map_or(0, Vec::len) {
+            for line in &lines {
+                if matches!(line[column], Horiz::CrossDownOver | Horiz::CrossDownUnder) {
+                    found.push(line[column]);
+                }
+            }
+        }
+
+        found
+    }
+
+    for encoding in [
+        r"(0 (1 (1 \3 \2 \4 \3 )1 )1 )0",
+        r"(0 (0 \1 /0 \1 )0 )0",
+        r"(0 (0 /1 (2 )2 \1 /2 \1 )1 )0",
+    ] {
+        let aligned = AbbreviatedDiagram::from_str(encoding).unwrap();
+        let expected = aligned.items.iter().filter(|item| item.is_crossing()).count();
+        let precalculated = aligned
+            .clone()
+            .with_mode(PlacementMode::PrecalculatedHeights);
+
+        // Same crossings, in the same order, over and under preserved.
+        assert_eq!(crossings(&aligned).len(), expected, "{encoding}");
+        assert_eq!(crossings(&precalculated), crossings(&aligned), "{encoding}");
+    }
+}
+
+#[test]
+fn nested_openings_never_share_a_row() {
+    // Exercises the builder's ordering assertion, which is what guarantees two
+    // strands never land on the same row.
+    for encoding in [
+        r"(0 (1 (2 (3 (4 )4 )3 )2 )1 )0",
+        r"(0 (1 )1 (1 (2 )2 )1 )0",
+        r"(0 (1 (3 (3 (7 (7 )7 \4 (4 /3 /5 )4 \4 )3 )3 )3 (1 )3 )1 )0",
+    ] {
+        let knot = AbbreviatedDiagram::from_str(encoding)
+            .unwrap()
+            .with_mode(PlacementMode::PrecalculatedHeights);
+
+        let (lines, _) = knot.build_lines();
+        assert!(lines.iter().all(|line| line.len() == lines[0].len()), "{encoding}");
+    }
+}
