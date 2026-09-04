@@ -407,7 +407,17 @@ impl Model {
             Ok(knot)
         });
 
-        self.ascii_modified_diagram = self.modified_diagram.clone().and_then(|knot| {
+        let placement = if self.precalculated {
+            knotty::PlacementMode::PrecalculatedHeights
+        } else {
+            knotty::PlacementMode::IndexAligned
+        };
+
+        self.ascii_modified_diagram = self
+            .modified_diagram
+            .clone()
+            .map(|knot| knot.with_mode(placement))
+            .and_then(|knot| {
             if self.compact {
                 knot.try_ascii_print_compact::<false>()
             } else {
