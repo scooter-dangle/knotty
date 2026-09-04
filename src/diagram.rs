@@ -111,14 +111,29 @@ impl fmt::Display for AbbreviatedItem {
     }
 }
 
+/// Which rule decides the row each strand occupies. Orthogonal to the
+/// opening-centered grid mapping, which governs how an already-placed diagram
+/// becomes characters.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum PlacementMode {
+    /// A feature's notation index and its rendered row are the same number.
+    #[default]
+    IndexAligned,
+    /// Each strand sits at its precalculated height for its whole flat run.
+    PrecalculatedHeights,
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>);
+pub struct AbbreviatedDiagram {
+    pub(crate) items: Vec<AbbreviatedItem>,
+    pub(crate) mode: PlacementMode,
+}
 
 impl VerboseDiagram {
     pub fn from_abbreviated(knot: &AbbreviatedDiagram) -> Result<Self, String> {
         let mut lines = OpeningCentered::new(knot.height(), knot.len());
 
-        for AbbreviatedItem { element, index } in knot.0.iter() {
+        for AbbreviatedItem { element, index } in knot.items.iter() {
             lines.append(*element, *index);
         }
 
@@ -733,13 +748,19 @@ impl FromStr for AbbreviatedDiagram {
             inner_delimiter: Some(" "),
             comment_start: "#",
         }
-        .parse(Self, string)
+        .parse(
+            |items| Self {
+                items,
+                mode: PlacementMode::default(),
+            },
+            string,
+        )
     }
 }
 
 impl fmt::Display for AbbreviatedDiagram {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
+        self.items
             .iter()
             .map(|item| writeln!(formatter, "{item}"))
             .collect()
@@ -790,7 +811,7 @@ impl AbbreviatedDiagram {
 
     fn vertical_height_at_index(&self, idx: usize) -> i32 {
         self
-            .0
+            .items
             .iter()
             .map(|item| match item.element {
                 b'(' => 2,
@@ -826,15 +847,15 @@ impl AbbreviatedDiagram {
             Lean::Forward => (vertical_index, vertical_index + 1),
         };
 
-        self.0.reserve_exact(2);
-        self.0.insert(
+        self.items.reserve_exact(2);
+        self.items.insert(
             idx,
             AbbreviatedItem {
                 element: b')',
                 index: closing_idx,
             },
         );
-        self.0.insert(
+        self.items.insert(
             idx,
             AbbreviatedItem {
                 element: b'(',
@@ -856,7 +877,7 @@ impl AbbreviatedDiagram {
         let range = idx..idx.checked_add(2).ok_or("cannot add to max integer")?;
 
         let mut items = self
-            .0
+            .items
             .get_mut(range.clone())
             .ok_or_else(|| format!("{range:?} is outside the range of the diagram"))?
             .iter_mut();
@@ -883,7 +904,7 @@ impl AbbreviatedDiagram {
 
     fn try_change_crossing(&mut self, idx: usize) -> Result<(), String> {
         let item = self
-            .0
+            .items
             .get_mut(idx)
             .ok_or_else(|| format!("index {idx} out of bounds"))?;
 
@@ -935,7 +956,7 @@ impl AbbreviatedDiagram {
     fn try_collapse_bulge(&mut self, idx: usize) -> Result<(), String> {
         let closing_idx = idx + 1;
 
-        let closing = self.0.get(closing_idx).ok_or_else(|| {
+        let closing = self.items.get(closing_idx).ok_or_else(|| {
             format!(
                 "index ({closing_idx}) out of bounds: {closing_idx} > {}",
                 self.len()
@@ -943,12 +964,12 @@ impl AbbreviatedDiagram {
         })?;
 
         // Can't fail if getting closing succeeded
-        let opening = self.0[idx];
+        let opening = self.items[idx];
 
         opening.error_on_collapse_bulge(*closing)?;
 
-        self.0.remove(idx);
-        self.0.remove(idx);
+        self.items.remove(idx);
+        self.items.remove(idx);
 
         Ok(())
     }
@@ -956,28 +977,28 @@ impl AbbreviatedDiagram {
     pub fn try_reid_1_a_reduce(&mut self, idx: usize) -> Result<(), String> {
         let second_idx = idx + 1;
 
-        let item1 = self.0.get(second_idx).ok_or_else(|| {
+        let item1 = self.items.get(second_idx).ok_or_else(|| {
             format!(
                 "index ({second_idx}) out of bounds: {idx} + 1 >= {}",
                 self.len()
             )
         })?;
         // Can't fail if getting item1 succeeded
-        let item0 = self.0[idx];
+        let item0 = self.items[idx];
 
         let idx_to_remove =
             AbbreviatedItem::reid_1_a_reduce_index(item0, *item1, idx).ok_or_else(|| {
                 format!("cannot apply Reidemeister 1A reduction to {item0} and {item1} at {idx}",)
             })?;
 
-        self.0.remove(idx_to_remove);
+        self.items.remove(idx_to_remove);
 
         Ok(())
     }
 
     pub fn try_reid_1_a(&mut self, over_under: OverUnder, idx: usize) -> Result<(), String> {
         let open_close = self
-            .0
+            .items
             .get(idx)
             .ok_or_else(|| format!("index ({idx}) out of bounds: {idx} >= {}", self.len()))?
             .clone();
@@ -997,7 +1018,7 @@ impl AbbreviatedDiagram {
             ),
         };
 
-        self.0.insert(
+        self.items.insert(
             insertion_idx,
             AbbreviatedItem {
                 element: match over_under {
@@ -1014,20 +1035,20 @@ impl AbbreviatedDiagram {
     pub fn try_reid_1_b_reduce(&mut self, idx: usize) -> Result<(), String> {
         let third_idx = idx + 2;
 
-        let item2 = self.0.get(third_idx).ok_or_else(|| {
+        let item2 = self.items.get(third_idx).ok_or_else(|| {
             format!(
                 "index ({third_idx}) out of bounds: {idx} + 2 >= {}",
                 self.len()
             )
         })?;
         // These two can't fail if getting item2 succeeded
-        let item1 = self.0[idx + 1];
-        let item0 = self.0[idx];
+        let item1 = self.items[idx + 1];
+        let item0 = self.items[idx];
 
         if AbbreviatedItem::is_reid_1_b_reduce_eligible(item0, item1, *item2) {
-            self.0.remove(idx);
-            self.0.remove(idx);
-            self.0.remove(idx);
+            self.items.remove(idx);
+            self.items.remove(idx);
+            self.items.remove(idx);
 
             Ok(())
         } else {
@@ -1064,16 +1085,16 @@ impl AbbreviatedDiagram {
             OverUnder::Under => (b'\\', b'/'),
         };
 
-        self.0.reserve_exact(2);
+        self.items.reserve_exact(2);
 
-        self.0.insert(
+        self.items.insert(
             idx,
             AbbreviatedItem {
                 element: element0,
                 index: vertical_index,
             },
         );
-        self.0.insert(
+        self.items.insert(
             idx + 1,
             AbbreviatedItem {
                 element: element1,
@@ -1087,18 +1108,18 @@ impl AbbreviatedDiagram {
     pub fn try_collapse_reid_2(&mut self, idx: usize) -> Result<(), String> {
         let second_idx = idx + 1;
 
-        let item1 = self.0.get(second_idx).ok_or_else(|| {
+        let item1 = self.items.get(second_idx).ok_or_else(|| {
             format!(
                 "index ({second_idx}) out of bounds: {idx} + 1 >= {}",
                 self.len()
             )
         })?;
         // Can't fail if getting item1 succeeded
-        let item0 = self.0[idx];
+        let item0 = self.items[idx];
 
         if AbbreviatedItem::is_collapse_reid_2_eligible(item0, *item1) {
-            self.0.remove(idx);
-            self.0.remove(idx);
+            self.items.remove(idx);
+            self.items.remove(idx);
 
             Ok(())
         } else {
@@ -1112,7 +1133,7 @@ impl AbbreviatedDiagram {
         let third_idx = idx + 2;
 
         let mut items = self
-            .0
+            .items
             .get_mut(idx..=third_idx)
             .ok_or_else(|| format!("{idx}..{third_idx} is outside the range of the diagram"))?
             .iter_mut();
@@ -1136,7 +1157,7 @@ impl AbbreviatedDiagram {
         // Lame. Can't use this with bulges
         operation: fn(AbbreviatedItem, AbbreviatedItem) -> bool,
     ) -> impl '_ + Iterator<Item = usize> {
-        self.0
+        self.items
             .windows(2)
             .enumerate()
             .filter_map(move |(idx, items)| operation(items[0], items[1]).then(|| idx))
@@ -1168,7 +1189,7 @@ impl AbbreviatedDiagram {
         let slice_len = 3.min(self.len().checked_sub(idx).unwrap_or(0));
         let slicer = match (idx < self.len())
             .then(|| ())
-            .and_then(|()| self.0.get(idx..idx + slice_len))
+            .and_then(|()| self.items.get(idx..idx + slice_len))
         {
             Some(&[]) | None => return (height, vec![]),
             Some(slicer) => slicer,
@@ -1356,7 +1377,7 @@ impl AbbreviatedDiagram {
     pub fn available_collapse_bulges(&self) -> impl '_ + Iterator<Item = usize> {
         // Maybe don't do this the wildly inefficient way, recalculating
         // the diagram height at each index.
-        self.0
+        self.items
             .windows(2)
             .enumerate()
             .filter_map(|(idx, items)| items[0].is_bulge_with(items[1]).then(|| idx))
@@ -1365,7 +1386,7 @@ impl AbbreviatedDiagram {
     pub fn available_bulges(&self) -> impl '_ + Iterator<Item = (usize, (Lean, usize))> {
         let mut height = 0isize;
 
-        self.0
+        self.items
             .iter()
             .map(move |item| {
                 height += match item.element {
@@ -1436,14 +1457,14 @@ impl AbbreviatedDiagram {
             }
         };
 
-        self.0.insert(
+        self.items.insert(
             idx,
             AbbreviatedItem {
                 element: b'(',
                 index: open_close_vertical_index,
             },
         );
-        self.0.insert(
+        self.items.insert(
             idx + 1,
             AbbreviatedItem {
                 element: match over_under {
@@ -1453,7 +1474,7 @@ impl AbbreviatedDiagram {
                 index: crossing_vertical_height,
             },
         );
-        self.0.insert(
+        self.items.insert(
             idx + 2,
             AbbreviatedItem {
                 element: b')',
@@ -1466,8 +1487,8 @@ impl AbbreviatedDiagram {
 
     pub fn new_from_tuples(tuples: Vec<(u8, usize)>) -> Result<Self, String> {
         Ok({
-            Self(
-                tuples
+            Self {
+                items: tuples
                     .into_iter()
                     .enumerate()
                     .map(|(position, (element, index))| {
@@ -1483,16 +1504,30 @@ impl AbbreviatedDiagram {
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?,
-            )
+                mode: PlacementMode::default(),
+            }
         })
     }
 
+    pub fn mode(&self) -> PlacementMode {
+        self.mode
+    }
+
+    pub fn set_mode(&mut self, mode: PlacementMode) {
+        self.mode = mode;
+    }
+
+    pub fn with_mode(mut self, mode: PlacementMode) -> Self {
+        self.mode = mode;
+        self
+    }
+
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.items.len()
     }
 
     pub(crate) fn height(&self) -> usize {
-        self.0
+        self.items
             .iter()
             .fold((0isize, 0usize), |(mut num_open, max_open), item| {
                 num_open += match item.element {
@@ -1520,7 +1555,7 @@ impl AbbreviatedDiagram {
     }
 
     pub fn try_ascii_print_compact<const GRID_BORDERS: bool>(&self) -> Result<String, String> {
-        if self.0.is_empty() {
+        if self.items.is_empty() {
             return Ok(String::new());
         }
 
@@ -1528,7 +1563,7 @@ impl AbbreviatedDiagram {
             .display::<GRID_BORDERS>()
             .collect::<Vec<_>>();
 
-        // We just verified that the self.0 isn't empty
+        // We just verified that the self.items isn't empty
         let string_len = inner.first().unwrap().len();
 
         let mut out = (0..inner.len())
@@ -1556,7 +1591,7 @@ impl AbbreviatedDiagram {
     }
 
     pub fn to_tuples(&self) -> Vec<(u8, usize)> {
-        self.0
+        self.items
             .iter()
             .map(|item| (item.element, item.index))
             .collect()

@@ -74,8 +74,8 @@ NON-NEGOTIABLE); no `Cargo.toml` entry may be added (Principle V).
 
 **Purpose**: Establish the pre-change baseline that SC-004 is measured against.
 
-- [ ] T001 Confirm toolchain and both targets build from repo root: `cargo build` and `cargo check --target wasm32-unknown-unknown`, matching the channel in `rust-toolchain.toml`
-- [ ] T002 Capture the green baseline: run `cargo test`, and record the pass count and the inventory of the **24** existing snapshot files under `src/snapshots/` and `src/diagram/snapshots/` in the PR description
+- [X] T001 Confirm toolchain and both targets build from repo root: `cargo build` and `cargo check --target wasm32-unknown-unknown`, matching the channel in `rust-toolchain.toml`
+- [X] T002 Capture the green baseline: run `cargo test`, and record the pass count and the inventory of the **24** existing snapshot files under `src/snapshots/` and `src/diagram/snapshots/` in the PR description
 
 ---
 
@@ -86,15 +86,15 @@ glyph emission from placement so both modes share one emitter.
 
 **⚠️ CRITICAL**: no component work begins until T011 passes.
 
-- [ ] T003 Define `pub enum PlacementMode { #[default] IndexAligned, PrecalculatedHeights }` with `#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]` in `src/diagram.rs`, per research R1 and data-model.md
-- [ ] T004 Convert `pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>)` at `src/diagram.rs:115` to the named struct `AbbreviatedDiagram { items: Vec<AbbreviatedItem>, mode: PlacementMode }`, performing the mechanical `self.0` → `self.items` rename across all 37 sites in `src/diagram.rs` (depends on T003)
-- [ ] T005 Update `knot.0.iter()` in `VerboseDiagram::from_abbreviated` at `src/diagram.rs:123` to `knot.items.iter()` (depends on T004)
-- [ ] T006 Ensure every existing constructor yields `IndexAligned`: `new_from_tuples` (`src/diagram.rs:1464`), the `FromStr` parser, and the `Self::new_from_tuples` call on the rotation output path (depends on T004)
-- [ ] T007 Add `mode(&self)`, `set_mode(&mut self, PlacementMode)` and `with_mode(self, PlacementMode) -> Self` to the `AbbreviatedDiagram` impl in `src/diagram.rs`, per contracts/public-api.md (depends on T004)
-- [ ] T008 Re-export `PlacementMode` from `src/lib.rs` alongside `AbbreviatedDiagram` and `AbbreviatedItem` (depends on T003)
-- [ ] T009 Audit `insta::assert_debug_snapshot!` call sites for any serializing an `AbbreviatedDiagram`, which would gain the new `mode` field; re-accept only those, in `src/diagram/snapshots/` (depends on T004)
-- [ ] T010 Extract the grid state (`lines`, `live`) and `column()` out of `OpeningCentered` (`src/raw_lines.rs:8`) into a shared inner struct, leaving `OpeningCentered` to drive it via `raise_once`/`lower_once`/`append`. Behavior-neutral refactor — no glyph output may change. This is what makes FR-014 true by construction and unblocks Component B (research R3)
-- [ ] T011 Gate the phase: `cargo test` with all 24 pre-existing snapshots byte-for-byte unchanged versus the T002 baseline, then `cargo check --target wasm32-unknown-unknown` (depends on T004, T005, T006, T007, T008, T009, T010)
+- [X] T003 Define `pub enum PlacementMode { #[default] IndexAligned, PrecalculatedHeights }` with `#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]` in `src/diagram.rs`, per research R1 and data-model.md
+- [X] T004 Convert `pub struct AbbreviatedDiagram(pub(crate) Vec<AbbreviatedItem>)` at `src/diagram.rs:115` to the named struct `AbbreviatedDiagram { items: Vec<AbbreviatedItem>, mode: PlacementMode }`, performing the mechanical `self.0` → `self.items` rename across all 37 sites in `src/diagram.rs` (depends on T003)
+- [X] T005 Update `knot.0.iter()` in `VerboseDiagram::from_abbreviated` at `src/diagram.rs:123` to `knot.items.iter()` (depends on T004)
+- [X] T006 Ensure every existing constructor yields `IndexAligned`: `new_from_tuples` (`src/diagram.rs:1464`), the `FromStr` parser, and the `Self::new_from_tuples` call on the rotation output path (depends on T004)
+- [X] T007 Add `mode(&self)`, `set_mode(&mut self, PlacementMode)` and `with_mode(self, PlacementMode) -> Self` to the `AbbreviatedDiagram` impl in `src/diagram.rs`, per contracts/public-api.md (depends on T004)
+- [X] T008 Re-export `PlacementMode` from `src/lib.rs` alongside `AbbreviatedDiagram` and `AbbreviatedItem` (depends on T003)
+- [X] T009 Audit `insta::assert_debug_snapshot!` call sites for any serializing an `AbbreviatedDiagram`, which would gain the new `mode` field; re-accept only those, in `src/diagram/snapshots/` (depends on T004)
+- [X] T010 Extract the grid state (`lines`, `live`) and `column()` out of `OpeningCentered` (`src/raw_lines.rs:8`) into a shared inner struct, leaving `OpeningCentered` to drive it via `raise_once`/`lower_once`/`append`. Behavior-neutral refactor — no glyph output may change. This is what makes FR-014 true by construction and unblocks Component B (research R3)
+- [X] T011 Gate the phase: `cargo test` with all 24 pre-existing snapshots byte-for-byte unchanged versus the T002 baseline, then `cargo check --target wasm32-unknown-unknown` (depends on T004, T005, T006, T007, T008, T009, T010)
 
 **Checkpoint**: `PlacementMode` exists and defaults to `IndexAligned`, no public
 signature changed, glyph emission is shared, behavior identical to pre-feature.

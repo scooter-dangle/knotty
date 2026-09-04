@@ -1,24 +1,26 @@
 use crate::render::Horiz;
 
-/// Builds the opening-centered grid, in which a feature at abbreviated index
-/// `idx` sits at row `idx` alone rather than straddling rows `idx` and
-/// `idx + 1`. That leaves the cell above a feature empty, so `Horiz::subsequent`
-/// can no longer say whether the next column carries a strand — the live levels
-/// are tracked instead.
-pub(crate) struct OpeningCentered {
+/// The grid under construction and which rows currently carry a strand. Every
+/// placement drives the same emitter, so the two placement modes cannot drift
+/// on how a placed diagram becomes cells.
+pub(crate) struct Grid {
     lines: Vec<Vec<Horiz>>,
     live: Vec<bool>,
 }
 
-impl OpeningCentered {
-    pub(crate) fn new(height: usize, columns: usize) -> Self {
+impl Grid {
+    fn new(height: usize, columns: usize) -> Self {
         Self {
             lines: vec![Vec::with_capacity(columns); height],
             live: vec![false; height],
         }
     }
 
-    pub(crate) fn into_lines(self) -> Vec<Vec<Horiz>> {
+    fn height(&self) -> usize {
+        self.live.len()
+    }
+
+    fn into_lines(self) -> Vec<Vec<Horiz>> {
         self.lines
     }
 
@@ -36,39 +38,60 @@ impl OpeningCentered {
             });
         }
     }
+}
+
+/// Builds the opening-centered grid under index-aligned placement, in which a
+/// feature at abbreviated index `idx` sits at row `idx` alone rather than
+/// straddling rows `idx` and `idx + 1`. That leaves the cell above a feature
+/// empty, so `Horiz::subsequent` can no longer say whether the next column
+/// carries a strand — the live levels are tracked instead.
+pub(crate) struct OpeningCentered {
+    grid: Grid,
+}
+
+impl OpeningCentered {
+    pub(crate) fn new(height: usize, columns: usize) -> Self {
+        Self {
+            grid: Grid::new(height, columns),
+        }
+    }
+
+    pub(crate) fn into_lines(self) -> Vec<Vec<Horiz>> {
+        self.grid.into_lines()
+    }
 
     fn raise_once(&mut self, from: usize) {
-        let glyphs: Vec<_> = (from..self.live.len())
-            .filter(|&row| self.live[row])
+        let glyphs: Vec<_> = (from..self.grid.height())
+            .filter(|&row| self.grid.live[row])
             .map(|row| (row, Horiz::TransferUp))
             .collect();
 
-        self.column(&glyphs);
+        self.grid.column(&glyphs);
 
-        for row in (from + 1..self.live.len()).rev() {
-            self.live[row] = self.live[row - 1];
+        for row in (from + 1..self.grid.height()).rev() {
+            self.grid.live[row] = self.grid.live[row - 1];
         }
-        self.live[from] = false;
+        self.grid.live[from] = false;
     }
 
     fn lower_once(&mut self, from: usize) {
-        let glyphs: Vec<_> = (from..self.live.len())
-            .filter(|&row| self.live[row])
+        let glyphs: Vec<_> = (from..self.grid.height())
+            .filter(|&row| self.grid.live[row])
             .map(|row| (row - 1, Horiz::TransferDown))
             .collect();
 
-        self.column(&glyphs);
+        self.grid.column(&glyphs);
 
-        for row in from - 1..self.live.len() - 1 {
-            self.live[row] = self.live[row + 1];
+        for row in from - 1..self.grid.height() - 1 {
+            self.grid.live[row] = self.grid.live[row + 1];
         }
-        *self.live.last_mut().unwrap() = false;
+        *self.grid.live.last_mut().unwrap() = false;
     }
 
     pub(crate) fn append(&mut self, element: u8, idx: usize) {
         match element {
             b'(' => {
-                if self.live[idx..].iter().any(|live| *live) {
+                if self.grid.live[idx..].iter().any(|live| *live) {
                     // One cell per level of climb, and the opening cannot
                     // share either column: its own shadow row is where the
                     // rising strand would land.
@@ -76,24 +99,24 @@ impl OpeningCentered {
                     self.raise_once(idx + 1);
                 }
 
-                self.column(&[(idx, Horiz::OpenedBelow)]);
-                self.live[idx] = true;
-                self.live[idx + 1] = true;
+                self.grid.column(&[(idx, Horiz::OpenedBelow)]);
+                self.grid.live[idx] = true;
+                self.grid.live[idx + 1] = true;
             }
             b')' => {
-                let above = self.live[idx + 2..].iter().any(|live| *live);
+                let above = self.grid.live[idx + 2..].iter().any(|live| *live);
 
-                self.column(&[(idx, Horiz::ClosedBelow)]);
-                self.live[idx] = false;
-                self.live[idx + 1] = false;
+                self.grid.column(&[(idx, Horiz::ClosedBelow)]);
+                self.grid.live[idx] = false;
+                self.grid.live[idx + 1] = false;
 
                 if above {
                     self.lower_once(idx + 2);
                     self.lower_once(idx + 1);
                 }
             }
-            b'\\' => self.column(&[(idx, Horiz::CrossDownOver)]),
-            b'/' => self.column(&[(idx, Horiz::CrossDownUnder)]),
+            b'\\' => self.grid.column(&[(idx, Horiz::CrossDownOver)]),
+            b'/' => self.grid.column(&[(idx, Horiz::CrossDownUnder)]),
             _ => unimplemented!(),
         }
     }
@@ -108,19 +131,19 @@ mod tests {
         let mut lines = OpeningCentered::new(4, 8);
 
         lines.append(b'(', 0);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
 
         lines.append(b'(', 1);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
 
         lines.append(b'\\', 1);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
 
         lines.append(b')', 1);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
 
         lines.append(b')', 0);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
     }
 
     /// The climb an opening has to make when something is already live above it,
@@ -133,10 +156,10 @@ mod tests {
 
         lines.append(b'(', 0);
         lines.append(b'(', 0);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
 
         lines.append(b')', 2);
-        insta::assert_debug_snapshot!(lines.lines);
+        insta::assert_debug_snapshot!(lines.grid.lines);
     }
 
 }
