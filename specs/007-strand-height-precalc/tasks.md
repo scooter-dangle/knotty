@@ -116,17 +116,17 @@ rendering and no Component B.
 
 > Write these FIRST; confirm they fail before T017.
 
-- [ ] T012 Land the five fixtures' per-strand maxima as golden fixtures in a `mod height_fixtures` inside the `#[cfg(test)] mod tests` of `src/raw_lines.rs`, transcribed verbatim from [fixtures/](./fixtures/) with no value derived from running code
-- [ ] T013 Add a fixture-driven test asserting computed heights equal the expected maxima for every fixture in T012, in `src/raw_lines.rs` (depends on T012)
-- [ ] T014 [P] Add the three discriminating regression cases from [quickstart.md](./quickstart.md) in `src/raw_lines.rs` — `(0 (1 )1 (1 )1 )0` → `(0,3),(1,2),(1,2)` (sequential siblings reuse rows); `(0 (1 (2 )2 (3 )3 )1 )0` → `(0,7),(1,4),(2,3),(5,6)` (sibling stacked above a divergent pair); `(0 (0 )0 (2 )2 )0` → `(2,3),(0,1),(4,5)` (transitive push). **The first is what distinguishes the correct rule from the plausible wrong one**
-- [ ] T015 [P] Add edge-case tests in `src/raw_lines.rs` for the empty diagram, a single opening/closing pair, and a deeply nested sequence — each yielding well-formed heights without error (FR-010)
-- [ ] T016 [P] Add a determinism test in `src/raw_lines.rs` asserting the same encoding twice yields identical heights (FR-008)
+- [X] T012 Land the five fixtures' per-strand maxima as golden fixtures in a `mod height_fixtures` inside the `#[cfg(test)] mod tests` of `src/raw_lines.rs`, transcribed verbatim from [fixtures/](./fixtures/) with no value derived from running code
+- [X] T013 Add a fixture-driven test asserting computed heights equal the expected maxima for every fixture in T012, in `src/raw_lines.rs` (depends on T012)
+- [X] T014 [P] Add the three discriminating regression cases from [quickstart.md](./quickstart.md) in `src/raw_lines.rs` — `(0 (1 )1 (1 )1 )0` → `(0,3),(1,2),(1,2)` (sequential siblings reuse rows); `(0 (1 (2 )2 (3 )3 )1 )0` → `(0,7),(1,4),(2,3),(5,6)` (sibling stacked above a divergent pair); `(0 (0 )0 (2 )2 )0` → `(2,3),(0,1),(4,5)` (transitive push). **The first is what distinguishes the correct rule from the plausible wrong one**
+- [X] T015 [P] Add edge-case tests in `src/raw_lines.rs` for the empty diagram, a single opening/closing pair, and a deeply nested sequence — each yielding well-formed heights without error (FR-010)
+- [X] T016 [P] Add a determinism test in `src/raw_lines.rs` asserting the same encoding twice yields identical heights (FR-008)
 
 ### Implementation for Component A
 
-- [ ] T017 Implement the stack simulation in `src/raw_lines.rs`: walk the sequence maintaining the ordered list of live strands — `(N` inserts a pair at logical index `N`, `)N` removes two, **crossings do not reorder levels** — recording the immediately-below relation among adjacent neighbours after each mutation (research R2) (depends on T010, T013)
-- [ ] T018 Implement the height assignment in `src/raw_lines.rs` as a memoized longest path over that relation: `height(s) = 0` when nothing is ever below `s`, else `1 + max(height(t))` over everything below it. Adjacent edges suffice — do not collect the full below-relation (depends on T017)
-- [ ] T019 Close the component: `cargo test` with every T012 fixture and T014 regression case passing, then `cargo check --target wasm32-unknown-unknown` (depends on T018)
+- [X] T017 Implement the stack simulation in `src/raw_lines.rs`: walk the sequence maintaining the ordered list of live strands — `(N` inserts a pair at logical index `N`, `)N` removes two, **crossings do not reorder levels** — recording the immediately-below relation among adjacent neighbours after each mutation (research R2) (depends on T010, T013)
+- [X] T018 Implement the height assignment in `src/raw_lines.rs` as a memoized longest path over that relation: `height(s) = 0` when nothing is ever below `s`, else `1 + max(height(t))` over everything below it. Adjacent edges suffice — do not collect the full below-relation (depends on T017)
+- [X] T019 Close the component: `cargo test` with every T012 fixture and T014 regression case passing, then `cargo check --target wasm32-unknown-unknown` (depends on T018)
 
 **Checkpoint**: Component A is correct against the fixtures *and* against the
 three cases the fixtures cannot distinguish.
