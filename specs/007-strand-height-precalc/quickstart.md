@@ -45,11 +45,18 @@ features. For each, the calculated maxima must equal the supplied maxima exactly
 
 Pass: all fixtures match exactly.
 
-> There is **no shortcut self-check** available here. The obvious one — that a
-> pair's gap equals the count of strands opened between it — holds for all 23
-> pairs in these five fixtures and is nonetheless wrong (research R2). Passing
-> the five fixtures is therefore necessary but *not sufficient*; the two
-> additional fixtures R2 asks for are what would make this scenario meaningful.
+Also assert the two cases no supplied fixture covers, whose expected values
+follow from the height rule (research R2):
+
+| Encoding | Expected heights | Covers |
+|---|---|---|
+| `(0 (1 )1 (1 )1 )0` | `(0,3), (1,2), (1,2)` | sequential siblings reusing rows |
+| `(0 (1 (2 )2 (3 )3 )1 )0` | `(0,7), (1,4), (2,3), (5,6)` | a sibling stacked above a divergent pair |
+
+> Passing the five fixtures alone is **not sufficient**. The natural but wrong
+> gap formula — a pair's gap equals the count of strands opened between it —
+> matches all 23 pairs in all five of them. The first row above is what
+> distinguishes it.
 
 ## Scenario 2 — Component B against fixtures (US1, US4 / FR-002, FR-011, FR-015, FR-016)
 

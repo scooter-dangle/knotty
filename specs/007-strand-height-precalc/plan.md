@@ -85,23 +85,26 @@ integration check asserts A's output equals the maxima B's fixtures supply.
 
 ### Component A — height calculation
 
-⚠️ **The algorithm is not yet determined** — research R2. FR-001 rules out a
-*fixpoint* by defining a maximum over the flat run only, but how a pair's gap is
-computed remains open:
+A strand's height is one more than the tallest thing ever beneath it
+(research R2):
 
-- It is **not** the count of strands opened between the pair. That matches all 23
-  pairs in the five fixtures and is still wrong — `(0 (1 )1 (1 )1 )0` breaks it,
-  because sequential siblings reuse rows.
-- It is **not** the maximum simultaneous span either. Ordering can forbid reuse
-  that timing permits; the encircled fixture's `H` must stay below `B` and so
-  cannot take rows that `C`/`D`/`E` vacated.
-- A nested pair contributes `2 + its own gap`, so the quantity is **recursive**
-  over the nesting structure. A flat forward pass cannot compute it, and whether
-  a closed form exists is unresolved.
+```text
+height(s) = 0                                     if no strand is ever below s
+height(s) = 1 + max{ height(t) : t ever below s }  otherwise
+```
 
-This blocks Component A only. Component B is unaffected: it consumes maxima and
-does not care how they were derived, and its rules are fully specified and
-fixture-backed.
+Simulate the ordered stack of live strands (crossings do not reorder levels),
+record the immediately-below relation among adjacent neighbours, and take the
+memoized longest path. Adjacent edges suffice — the full below-relation gives
+identical heights, so edge collection is O(depth) per feature, not O(depth²).
+
+Heights are **absolute**; a pair's gap is a consequence (`upper − lower − 1`),
+never an input. Two earlier attempts to compute the gap directly were wrong, one
+of them agreeing with all 23 pairs in all five fixtures — R2 keeps them on record
+so they are not rederived.
+
+Verified: reproduces all five fixtures exactly, and returns the correct gap for
+`(0 (1 )1 (1 )1 )0`, the case that falsified the earlier formula.
 
 ### Component B — render from heights
 
@@ -192,7 +195,7 @@ untouched.
 
 | Risk | Assessment |
 |---|---|
-| **Component A's gap algorithm** | **HIGH — now the top risk, and blocking.** No verified formulation; see research R2. Needs the owner's intended rule or a design spike, plus two fixtures (sequential siblings, and a divergent pair with a sibling stacked above it) that no current fixture covers. Beware: the natural formula fits all five existing fixtures and is wrong. |
+| Component A's height algorithm | **Resolved.** The owner's longest-path rule reproduces all five fixtures and the counterexample (research R2). Residual: add regression tests for sequential siblings and for a sibling stacked above a divergent pair — neither is covered by a supplied fixture, and the first is what distinguishes the correct rule from the plausible wrong one. |
 | Crossing-alignment construction | **Retired.** Was the highest-uncertainty area; [non-adjacent-crossing](./fixtures/non-adjacent-crossing.md) now specifies it by example. |
 | `scan_row` under the new geometry | **Low.** Its regexes match local glyph shapes and its indices come from counters along a scan line, neither row-dependent — deliberately so, per the feature owner. New-geometry regression tests are still worth having: #28 and #31 were defects in realizing that general design, each found by a specific diagram. |
 | Height growth surprising callers | **Medium.** Callers assuming `height()` bounds rendered rows are correct only under `IndexAligned`. Documented in C-consequences; the example app should be checked. |

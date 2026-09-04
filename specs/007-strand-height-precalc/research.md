@@ -41,12 +41,59 @@ plus `knot.0.iter()` at `:123`. Compiler-checked, low risk.
 
 ## R2. How are per-strand maxima calculated?
 
-**Decision**: ⚠️ **OPEN — no verified formulation yet.** This is now the
-feature's highest-uncertainty area. What follows records what is established and
-what is not, so implementation does not start from a formula that looks right on
-the current fixtures and is wrong in general.
+**Decision** (owner's rule, 2026-09-03 — **verified**): a strand's height is one
+more than the tallest thing ever beneath it.
 
-### Retracted: gap as a nesting count
+```text
+height(s) = 0                                     if no strand is ever below s
+height(s) = 1 + max{ height(t) : t ever below s }  otherwise
+```
+
+"Ever below" means: at some moment when both are live, `t` sits at a lower level
+than `s`. This is a longest-path computation over the "ever below" DAG, and the
+owner's description of it is the natural evaluation order — assign 0 to the
+strands with nothing beneath them, then repeatedly assign any strand all of whose
+subordinates are already assigned.
+
+### Algorithm
+
+1. Walk the sequence maintaining the ordered stack of live strands. `(N` inserts
+   a pair at logical index `N`; `)N` removes two; **crossings do not reorder
+   levels**.
+2. After each mutation, record the *immediately-below* relation for adjacent
+   stack neighbours.
+3. Compute `height` by memoized longest path over that relation.
+
+**Only adjacent edges are needed.** Recording every below-pair gives identical
+heights (verified on 11 cases) because at any instant the live strands are
+totally ordered, so any "ever below" relation is realized by a chain of
+adjacencies at that same instant. That reduces edge collection from O(depth²) to
+O(depth) per feature.
+
+**Acyclic** because co-live strands never change relative order: openings and
+closings shift blocks without reordering, and crossings do not touch the stack.
+
+**Grid height** is `max(all heights) + 1`.
+
+### Verification
+
+Reproduces all five fixtures **exactly** — 23 pairs, 63 features — and returns
+the correct gap of 2 for `(0 (1 )1 (1 )1 )0`, the counterexample that falsified
+the previous formulation. It also handles the stacked case: for
+`(0 (1 (2 )2 (3 )3 )1 )0` it yields `A=(0,7)`, `B=(1,4)`, `C=(2,3)`, `D=(5,6)` —
+`B` holds its gap for `C`, and `D` stacks above `B` rather than reusing `C`'s
+vacated rows.
+
+Two fixtures are still worth having as regression tests, since no supplied
+fixture covers them: **sequential siblings** and **a divergent pair with a
+sibling stacked above it**.
+
+### History: two formulations that failed
+
+Recorded because the first was convincing and wrong, and rederiving it would be
+easy.
+
+#### Retracted: gap as a nesting count
 
 An earlier revision of this section claimed
 
@@ -80,44 +127,33 @@ temporal argument says it may reuse their rows — but it may not, because it mu
 stay below `B`. Rows 1–2 are reserved for `H` alone and stand empty for most of
 the diagram.
 
-### What is actually established
+#### Why both failed, and why the accepted rule does not
 
-- **Reuse requires two conditions, not one**: two pairs may share rows only if
-  they are disjoint in time *and* occupy the same position in the vertical order
-  relative to everything else live. Temporal disjointness alone is not enough
-  (the `H` case); order compatibility alone is not enough (they would collide).
-- **A nested pair contributes its span, not its strand count.** A divergent pair
-  holds its own gap open for its whole life, even in columns where nothing
-  occupies it (see [little-dumb-link](./fixtures/little-dumb-link.md), where the
-  gap stands empty at column 6). So a pair's contribution to its parent is
-  `2 + its own gap`, which makes the quantity **recursive** over the nesting
-  structure.
-- **Therefore a flat forward count cannot compute it.** Some bottom-up traversal
-  of the nesting structure is required. Whether a closed form exists that avoids
-  recursion is an open question, and the feature owner's current view is that one
-  may not.
+Both attempts tried to compute a pair's gap *directly*, from a quantity measured
+between its two strands. That framing is the mistake:
 
-### What this changes downstream
+- **Reuse requires two conditions.** Two pairs may share rows only if they are
+  disjoint in time *and* occupy the same position in the vertical order. The
+  count formula ignored the first; the span formula ignored the second.
+- **A nested pair contributes its span, not its strand count**, because it holds
+  its own gap open for its whole life even where nothing occupies it — see
+  [little-dumb-link](./fixtures/little-dumb-link.md), gap empty at column 6.
 
-The 2026-09-03 clarification remains correct on its own terms: defining a
-maximum over the strand's **flat run only** removes the *fixpoint* — a strand's
-maximum does not depend on a cap/cup row derived from that same maximum. That is
-a separate question from how the gap is computed, and it still holds. What was
-optimistic was the surrounding claim that the calculation is a flat pass.
+The accepted rule sidesteps both by never computing a gap at all. It assigns each
+strand an absolute height from what lies beneath it, and the gap simply falls out
+as `upper − lower − 1`. Both conditions are then automatic: two strands get the
+same height exactly when neither is ever below the other, which is precisely
+"disjoint in time or unordered", and a tall nested pair raises everything above it
+by its full extent without that extent being counted anywhere.
 
-**Needed before implementing Component A**:
-
-1. A fixture exercising **sequential sibling nesting** (`(0 (1 )1 (1 )1 )0` or
-   similar), which no current fixture covers and which is exactly the case that
-   falsified the counting formula.
-2. A fixture exercising **a divergent pair with a later sibling stacked above
-   it**, where the held-open gap and the sibling must coexist.
-3. Either the owner's intended rule, or a design spike that derives one and
-   validates it against all fixtures including the two above.
+**Note on FR-001**: the 2026-09-03 clarification remains correct and untouched.
+Defining a maximum over the strand's **flat run only** removes the *fixpoint* —
+a strand's maximum does not depend on a cap/cup row derived from that same
+maximum. That is a different question from how heights are assigned, and the
+longest-path computation introduces no fixpoint either.
 
 **Alternatives**: cost-aware placement weighing crossing-alignment against
-displacement — out of scope per the 2026-06-18 clarification, and unrelated to
-this question.
+displacement — out of scope per the 2026-06-18 clarification, and unrelated.
 
 ## R3. Where does the new placement path live?
 

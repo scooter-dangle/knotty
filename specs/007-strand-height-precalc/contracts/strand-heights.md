@@ -45,18 +45,25 @@ cross-checked against the fixture heights.
   it meets its cap and cup. Without that exclusion a strand's maximum would
   depend on a cap/cup row computed from that same maximum. An implementation
   that finds itself iterating to convergence has misread the definition.
-- **Not a flat forward pass.** How a pair's gap is determined is **an open
-  question** — see research R2. It is not the count of strands opened between
-  the pair (sequential siblings reuse rows), and it is not the maximum
-  simultaneous span either (ordering can forbid reuse that timing would allow).
-  A nested pair contributes `2 + its own gap`, which makes the quantity
-  recursive over the nesting structure.
+- **Longest path, not a flat count.** A strand's height is one more than the
+  tallest thing ever beneath it (research R2):
 
-> ⚠️ **Do not implement Component A against a formula inferred from the current
-> fixtures.** The obvious one — gap equals the nested-strand count — matches all
-> 23 pairs in all five fixtures and is still wrong; `(0 (1 )1 (1 )1 )0` breaks
-> it. Research R2 lists the two fixtures needed before this component can be
-> specified.
+  ```text
+  height(s) = 0                                     if no strand is ever below s
+  height(s) = 1 + max{ height(t) : t ever below s }  otherwise
+  ```
+
+  Simulate the ordered stack of live strands — `(N` inserts a pair at logical
+  index `N`, `)N` removes two, **crossings do not reorder levels** — record the
+  immediately-below relation among adjacent neighbours after each mutation, and
+  take the memoized longest path. Adjacent edges suffice; the full below-relation
+  gives identical heights.
+
+> ⚠️ **Do not replace this with a gap formula inferred from the fixtures.** The
+> natural one — a pair's gap equals the count of strands opened between it —
+> matches all 23 pairs in all five fixtures and is wrong; `(0 (1 )1 (1 )1 )0`
+> breaks it. Heights are assigned absolutely, from what lies beneath; the gap is
+> a consequence, never an input.
 
 **Derived grid height** — Component B sizes the grid from A's output:
 
