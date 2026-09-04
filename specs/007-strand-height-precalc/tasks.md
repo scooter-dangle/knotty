@@ -156,7 +156,7 @@ fixture's **supplied** heights reproduces the expected grid exactly.
 - [ ] T021 Add a fixture-driven test asserting the render of each fixture's encoding against its supplied heights equals the expected grid exactly (depends on T020)
 - [ ] T022 [P] Add an invariant test in `src/raw_lines.rs` asserting no crossing glyph is ever emitted between non-adjacent rows, over every fixture (FR-011, C6)
 - [ ] T023 [P] Add a transfer-counting helper in `src/raw_lines.rs` that counts **per glyph** and classifies each transfer as open/close displacement, boundary, or crossing-alignment, so SC-002's three categories are measurable
-- [ ] T024 [P] Add a test in `src/raw_lines.rs` asserting the rendered grid height equals `max(all heights) + 1` for every fixture — **not** `AbbreviatedDiagram::height()`, which under-counts whenever a pair diverges (research R7)
+- [ ] T024 [P] Add a test in `src/raw_lines.rs` asserting the rendered grid height equals `max(all heights) + 1` for every fixture — **not** `AbbreviatedDiagram::height()`, which under-counts whenever a pair diverges (FR-017, research R7)
 
 ### Implementation for Component B
 
@@ -262,8 +262,8 @@ the `IndexAligned` render.
 - [ ] T056 [P] Add edge-case coverage in `src/diagram/tests.rs` for the empty diagram, a strand whose height equals its cap row, and closings at the bottom row — each rendering without error and equivalent to `IndexAligned` where no divergence exists (FR-010, C8)
 - [ ] T057 [P] Add an end-to-end determinism test in `src/diagram/tests.rs` rendering the same diagram twice in `PrecalculatedHeights` (FR-008, C7, SC-005)
 - [ ] T058 [P] Add a knot-equivalence check across both modes for every fixture in `src/diagram/tests.rs` (FR-006, C5, SC-003)
-- [ ] T059 Record the SC-002 measurement in `specs/007-strand-height-precalc/quickstart.md`: per-example displacement, boundary and crossing-alignment counts for `terrace`, `basket`, `ugly_trefoil` and the five fixtures, making the tradeoff explicit
-- [ ] T060 Audit callers that assume `AbbreviatedDiagram::height()` bounds the rendered row count — correct only under `IndexAligned` (research R7) — checking `examples/ascii_print.rs` and `examples/knot-so-good/src/main.rs`
+- [ ] T059 Record the SC-002 and SC-007 measurements in `specs/007-strand-height-precalc/quickstart.md`: per-example displacement, boundary and crossing-alignment transfer counts **and rendered height against the default's**, for `terrace`, `basket`, `ugly_trefoil` and the five fixtures, making both tradeoffs explicit (SC-002, SC-007)
+- [ ] T060 Audit callers that assume `AbbreviatedDiagram::height()` bounds the rendered row count — correct only under `IndexAligned` (FR-017, research R7) — checking `examples/ascii_print.rs` and `examples/knot-so-good/src/main.rs`
 - [ ] T061 [P] Optionally expose a mode flag in `examples/ascii_print.rs`, keeping the library the sole owner of the behavior (Principle I)
 - [ ] T062 [P] Optionally expose a mode toggle in `examples/knot-so-good/src/main.rs`, with any GUI-only dependency confined to `examples/knot-so-good/Cargo.toml` (Principle V)
 - [ ] T063 Walk the seven scenarios in `specs/007-strand-height-precalc/quickstart.md` end to end and confirm each pass condition holds
