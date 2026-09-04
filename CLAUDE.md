@@ -29,5 +29,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/007-strand-height-precalc/plan.md
+at specs/008-ascii-print-tool-upgrade/plan.md
 <!-- SPECKIT END -->
