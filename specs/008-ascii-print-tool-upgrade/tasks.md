@@ -79,7 +79,7 @@ through. No story-specific rendering behavior is wired yet.
 
 **⚠️ CRITICAL**: no user story work begins until T006 passes.
 
-- [ ] T004 Define the clap-derived `Cli` struct in
+- [X] T004 Define the clap-derived `Cli` struct in
       `examples/ascii_print.rs` per `data-model.md`: positional `diagram:
       Option<PathBuf>` and `moves: Option<PathBuf>`; `--input-format
       <encoded|succinct>` (default `encoded`); `--style
@@ -90,12 +90,12 @@ through. No story-specific rendering behavior is wired yet.
       (its variants already match bash/zsh/fish/powershell/elvish). Every
       option long-form only — no `.short()` call anywhere in the struct
       (FR-010, FR-011)
-- [ ] T005 Replace `examples/ascii_print.rs`'s `main` to call `Cli::parse()`
+- [X] T005 Replace `examples/ascii_print.rs`'s `main` to call `Cli::parse()`
       and read `diagram`/`moves` the same way `read_input` does today
       (`-`/absent → stdin), leaving the actual dispatch on
       `--input-format`/`--style`/`--placement`/`--completions` as `todo!()`
       stubs for the stories below to fill in
-- [ ] T006 Gate: `cargo build --example ascii_print`, `ascii_print --help`
+- [X] T006 Gate: `cargo build --example ascii_print`, `ascii_print --help`
       shows every option long-form with its default, `cargo check --target
       wasm32-unknown-unknown` (library only) still passes (depends on T004,
       T005)
@@ -116,26 +116,26 @@ fixture with no flags and confirm succinct + precalculated-heights output.
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Wire the `--input-format encoded` path (the default) in
+- [X] T007 [US1] Wire the `--input-format encoded` path (the default) in
       `examples/ascii_print.rs`: parse `diagram` via
       `AbbreviatedDiagram::from_str`, apply `moves` via `try_apply_all` when
       given (unchanged from today — research R3), then call `.set_mode(...)`
       using `--placement` (default `precalculated-heights`) (FR-001, FR-002,
       FR-003)
-- [ ] T008 [US1] Wire the `--style succinct` path (the default): call
+- [X] T008 [US1] Wire the `--style succinct` path (the default): call
       `AbbreviatedDiagram::ascii_print_compact::<GRID_BORDERS>()` with
       `GRID_BORDERS` selected by `--grid-borders`, then print the notation
       afterward when `--echo-diagram` is set — replacing
       `KNOTTY_GRID`/`KNOTTY_PRINT_ABBREV` with identical effect (FR-003,
       FR-014, contract C9)
-- [ ] T009 [US1] Remove the old `std::env::var("KNOTTY_*")` reads from
+- [X] T009 [US1] Remove the old `std::env::var("KNOTTY_*")` reads from
       `examples/ascii_print.rs` entirely (contract C10 — this is an
       intentional breaking change, see plan.md Risks)
-- [ ] T010 [US1] Run quickstart.md Scenario 1 by hand: confirm
+- [X] T010 [US1] Run quickstart.md Scenario 1 by hand: confirm
       `ascii_print /tmp/trefoil.txt` with no flags matches today's
       `KNOTTY_COMPACT=true KNOTTY_PRECALC=true ascii_print /tmp/trefoil.txt`
       output exactly
-- [ ] T011 [US1] Gate: `cargo build --example ascii_print`, `cargo check
+- [X] T011 [US1] Gate: `cargo build --example ascii_print`, `cargo check
       --target wasm32-unknown-unknown` (depends on T007, T008, T009)
 
 **Checkpoint**: User Story 1 is fully functional and independently
@@ -154,16 +154,16 @@ default remains succinct.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Wire the `--style full-spaced` path in
+- [X] T012 [US2] Wire the `--style full-spaced` path in
       `examples/ascii_print.rs`: call
       `AbbreviatedDiagram::ascii_print::<GRID_BORDERS>()` instead of the
       compact variant, sharing US1's `--input-format encoded` parsing and
       `--grid-borders`/`--echo-diagram` handling unchanged (FR-005, FR-006)
-- [ ] T013 [US2] Run quickstart.md Scenario 2 by hand: confirm
+- [X] T013 [US2] Run quickstart.md Scenario 2 by hand: confirm
       `--style full-spaced` output differs from Scenario 1's, and that
       re-running without `--style` still reproduces Scenario 1 exactly (no
       regression to US1's default)
-- [ ] T014 [US2] Gate: `cargo build --example ascii_print`, `cargo check
+- [X] T014 [US2] Gate: `cargo build --example ascii_print`, `cargo check
       --target wasm32-unknown-unknown` (depends on T012)
 
 **Checkpoint**: User Stories 1 and 2 both work independently; the succinct
@@ -186,19 +186,19 @@ Scenario 2's direct output; they must be identical.
 
 ### Implementation for User Story 3
 
-- [ ] T015 [US3] Implement the succinct-output trailer in
+- [X] T015 [US3] Implement the succinct-output trailer in
       `examples/ascii_print.rs`: whenever `--style succinct` is used, after
       printing `ascii_print_compact::<GRID_BORDERS>()`, build
       `VerboseDiagram::from_abbreviated(&knot)?` and print each line of its
       `.to_text()`, each prefixed with the literal marker
       `# ascii_print-grid: ` (research R10, data-model.md)
-- [ ] T016 [US3] Implement the succinct-input trailer parser in
+- [X] T016 [US3] Implement the succinct-input trailer parser in
       `examples/ascii_print.rs`: collect every `# ascii_print-grid:
       `-prefixed line from the input (in order), strip the marker, rejoin
       with `\n`, and parse the result with `str::parse::<VerboseDiagram>()`;
       return a clear error if no such line is found (data-model.md
       Validation Rules, contract C6)
-- [ ] T017 [US3] Wire the `--input-format succinct` path in
+- [X] T017 [US3] Wire the `--input-format succinct` path in
       `examples/ascii_print.rs`: on `--style full-spaced`, render the
       recovered `VerboseDiagram` directly via `.display::<GRID_BORDERS>()`;
       on `--style succinct`, replicate `ascii_print_compact`'s existing
@@ -206,13 +206,13 @@ Scenario 2's direct output; they must be identical.
       local helper over the recovered grid's rendered lines, since no
       `AbbreviatedDiagram` is available on this path (FR-007, FR-008,
       contract C4)
-- [ ] T018 [US3] Add the three validation rules for `--input-format
+- [X] T018 [US3] Add the three validation rules for `--input-format
       succinct`: reject a `moves` positional, reject an explicit
       `--placement`, and reject `--echo-diagram`, each with a clear error
       naming the conflict (research R11, contracts C5/C5a)
-- [ ] T019 [US3] Run quickstart.md Scenario 3 by hand: confirm the `diff`
+- [X] T019 [US3] Run quickstart.md Scenario 3 by hand: confirm the `diff`
       against Scenario 2's direct full-spaced output is empty
-- [ ] T020 [US3] Gate: `cargo build --example ascii_print`, `cargo check
+- [X] T020 [US3] Gate: `cargo build --example ascii_print`, `cargo check
       --target wasm32-unknown-unknown` (depends on T015, T016, T017, T018)
 
 **Checkpoint**: succinct text produced by this tool can be expanded back to
@@ -230,17 +230,17 @@ generated completion script.
 
 ### Implementation for User Story 4
 
-- [ ] T021 [US4] Wire `--completions <shell>` in `examples/ascii_print.rs`:
+- [X] T021 [US4] Wire `--completions <shell>` in `examples/ascii_print.rs`:
       when present, use `clap_complete::generate` to print the completion
       script for the named shell to stdout and exit, before any
       diagram/input processing occurs (FR-012)
-- [ ] T022 [US4] Make `--completions` mutually exclusive with every other
+- [X] T022 [US4] Make `--completions` mutually exclusive with every other
       option (clap `conflicts_with_all` or an `ArgGroup`), erroring clearly
       if combined with anything else (contract C7)
-- [ ] T023 [P] [US4] Run quickstart.md Scenario 4 by hand: `--help` lists
+- [X] T023 [P] [US4] Run quickstart.md Scenario 4 by hand: `--help` lists
       every option long-form only (already satisfied by Phase 2, re-verify
       here); `ascii_print --completions zsh` output passes `zsh -n`
-- [ ] T024 [US4] Gate: `cargo build --example ascii_print`, `cargo check
+- [X] T024 [US4] Gate: `cargo build --example ascii_print`, `cargo check
       --target wasm32-unknown-unknown` (depends on T021, T022)
 
 **Checkpoint**: all four user stories are independently functional.
@@ -249,17 +249,17 @@ generated completion script.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T025 [P] Grep the repo for any remaining mention of
+- [X] T025 [P] Grep the repo for any remaining mention of
       `KNOTTY_PRECALC`/`KNOTTY_GRID`/`KNOTTY_COMPACT`/`KNOTTY_PRINT_ABBREV`
       (docs, comments) and update or remove them, since contract C10 retires
       all four
-- [ ] T026 Walk all four `quickstart.md` scenarios end-to-end in one sitting
+- [X] T026 Walk all four `quickstart.md` scenarios end-to-end in one sitting
       and confirm every pass condition holds together, not just per-story
-- [ ] T027 Confirm the 15 snapshot files and pass count recorded in T002's
+- [X] T027 Confirm the 15 snapshot files and pass count recorded in T002's
       baseline are still exactly 110 passed / byte-for-byte unchanged —
       the corrected US3 design (R10/R12) predicts zero snapshot impact, and
       this is what proves that prediction true rather than assumed
-- [ ] T028 Final gate: `cargo build`, `cargo test`, `cargo check --target
+- [X] T028 Final gate: `cargo build`, `cargo test`, `cargo check --target
       wasm32-unknown-unknown`, and confirm `Cargo.toml` gained no dependency
       beyond `clap`/`clap_complete` under `[dev-dependencies]` (constitution
       II and V)
