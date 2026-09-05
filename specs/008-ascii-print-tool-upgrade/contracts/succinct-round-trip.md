@@ -1,65 +1,81 @@
-# Contract: Succinct Text Round-Trip (library-internal seam)
+# Contract: Succinct Text Round-Trip
 
-This documents the guarantee between `AbbreviatedDiagram::ascii_print_compact`
-(producer) and the new `AbbreviatedDiagram::try_from_succinct_text`
-(consumer), independent of the CLI. See `research.md` R5–R7 for the
-reasoning behind each guarantee.
+**Revised during implementation.** The original version of this contract
+(reconstructing notation via a `try_from_succinct_text` library addition
+reusing `scan_row`) was falsified by direct experiment — see `research.md`
+R5 for what happened and R10/R11 for what replaced it. This is the corrected
+contract; it involves **no library change**.
 
 ```text
-   AbbreviatedDiagram ──ascii_print_compact──▶ succinct text ──try_from_succinct_text──▶ AbbreviatedDiagram
-        (notation)                                (ASCII)                                    (notation)
+   AbbreviatedDiagram ──from_abbreviated──▶ VerboseDiagram ──to_text()──▶ trailer text
+                                                   │                           │
+                                          display::<B>()             (embedded in
+                                                   │                   succinct output,
+                                                   ▼                   CLI-only, R10)
+                                          visible succinct/                    │
+                                          full-spaced art                      │
+                                                                                ▼
+                                                                     str::parse::<VerboseDiagram>()
+                                                                                │
+                                                                                ▼
+                                                                     display::<B>() (full-spaced)
 ```
+
+All arrows in this diagram are **existing, already-`pub`, already-tested**
+library functions (`AbbreviatedDiagram::from_abbreviated`,
+`VerboseDiagram::to_text`, `impl FromStr for VerboseDiagram`,
+`VerboseDiagram::display`). The only new work is the CLI-side trailer
+embedding/extraction described in `data-model.md`.
 
 ## Guarantees
 
-- **G1 (topology)**: For any `AbbreviatedDiagram` `d`, parsing
-  `d.ascii_print_compact::<false>()` with `try_from_succinct_text` returns an
-  `AbbreviatedDiagram` whose sequence of `(element, index)` pairs is
-  identical to `d`'s. This holds regardless of which `PlacementMode` `d` was
-  in when printed — `scan_row` recovers notation, never rendered row
-  position (R5).
-- **G2 (placement, indirect)**: Re-rendering the notation `G1` returns, under
-  the *same* `PlacementMode` `d` was in, reproduces `d`'s exact rendered
-  output byte-for-byte. Placement fidelity is achieved by re-deriving it from
-  recovered notation + mode, not by reading it off the ASCII art (R5/R6).
-- **G3 (collapse safety)**: Collapsing a maximal all-blank column run to
-  exactly two placeholder columns (rather than deleting it, today's
-  behavior) never changes any row's character within that run — each row's
-  character is constant across the whole run by construction (`Grid::column`
-  only changes a row's output in response to an event at that column; R7).
-  This guarantee is what makes G1 hold for the *succinct* (not just
-  fully-spaced) form specifically.
-- **G4 (`GRID_BORDERS`)**: G1–G3 hold for both `ascii_print_compact::<true>`
-  and `::<false>`. `try_from_succinct_text` does not need to know which was
-  used — `scan_row` matches glyph shapes, not border decoration — but the
-  CLI always parses without borders drawn in mind (border cells are outside
-  `scan_row`'s matched shapes already, per existing rotation behavior which
-  only ever scans `display::<false>()`).
-- **G5 (malformed input)**: If a row cannot be interpreted (unrecognized
-  glyph sequence, row/column count inconsistent with any valid diagram),
-  `try_from_succinct_text` returns `Err(String)` describing the failure. It
-  never returns `Ok` with a partially-correct or guessed notation.
+- **G1 (lossless grid recovery)**: For any `AbbreviatedDiagram` `d` and its
+  `VerboseDiagram` `g = VerboseDiagram::from_abbreviated(&d)`, extracting the
+  `# ascii_print-grid: ` trailer built from `g.to_text()` and parsing it back
+  with `VerboseDiagram`'s `FromStr` yields a `VerboseDiagram` equal to `g`.
+  This is not a new guarantee this feature must prove — it already holds,
+  covered by `src/render.rs`'s existing round-trip tests
+  (`text_settles_in_one_pass` and friends). This feature's only obligation is
+  to embed and extract the trailer without corrupting it (no line-splitting
+  bugs, no truncation).
+- **G2 (placement fidelity, exact)**: Because G1 recovers the exact grid —
+  not notation re-rendered under a guessed mode — the fully-spaced output
+  from succinct input is **exactly** `g.display::<GRID_BORDERS>()`, for the
+  same `g` the succinct output was built from. This is strictly stronger
+  than "the same placement mode reproduces the same picture" (the original,
+  now-superseded G2): there is no re-derivation step at all.
+- **G3 (visible art unaffected)**: `--style succinct`'s visible diagram art
+  is byte-for-byte `AbbreviatedDiagram::ascii_print_compact::<GRID_BORDERS>()`,
+  unchanged from today. The trailer is additive only.
+- **G4 (`GRID_BORDERS`)**: `--grid-borders` affects only how a grid (fresh or
+  recovered) is displayed (`display::<GRID_BORDERS>()`); it has no effect on
+  the trailer's content, which always encodes the border-independent
+  `to_text()` format.
+- **G5 (malformed input)**: succinct input with no `# ascii_print-grid: `
+  lines, or whose extracted trailer fails `VerboseDiagram`'s `FromStr`,
+  returns an `Err` (surfaced by the CLI as a non-zero exit with a descriptive
+  message) rather than a partially-correct render.
 
 ## Non-Guarantees (explicitly out of scope)
 
-- Exact original column width is **not** recoverable from succinct text —
-  only topology and (given matching placement mode) rendered placement. See
-  `spec.md` Assumptions.
-- `try_from_succinct_text` does not validate that its input was actually
-  produced by this tool; syntactically-matching hand-written ASCII art is
-  accepted the same way rotation already accepts any validly-shaped
-  fully-spaced text today.
+- Notation is never recovered from succinct input. `--placement` and
+  `--echo-diagram` are both rejected with `--input-format succinct` (R11) —
+  neither has meaning without notation.
+- The visible diagram art in a succinct file is not validated against its
+  trailer on input; the trailer is authoritative and the visible art is
+  decorative once the file is being *read* (it exists for a human to look
+  at, not for the tool to re-derive anything from).
 
 ## Test Obligations (carried into `tasks.md`)
 
-- Round-trip test: for every fixture already used by the existing
-  `ascii_print`/`ascii_print_compact`/`precalculated_heights*` snapshot tests
-  (`src/diagram/tests.rs`), assert
-  `try_from_succinct_text(d.ascii_print_compact::<false>())`'s tuples equal
-  `d.to_tuples()` (G1).
-- Regenerate the 15 snapshots named in `research.md` R9 via `cargo insta
-  review` after R7's collapse-to-two change, and confirm each diff is
-  exactly "wider blank run", nothing else.
-- Add at least one new `scan_row` unit test in `src/rotate.rs` fed
-  collapsed-to-two-column input directly (not derived from a full-width
-  fixture), per R7's residual-risk note.
+- Since this feature adds no library code, there is no new `#[test]`
+  obligation in `src/` under constitution Principle III — the guarantees
+  above are already covered by `src/render.rs`'s existing tests. What
+  remains is the CLI-only obligation to embed/extract the trailer correctly,
+  validated manually via `quickstart.md`'s Scenario 3 (a `diff` against
+  direct full-spaced output must be empty).
+- Confirm, at the end of implementation, that the 15 snapshot files
+  `research.md` originally worried about (R9, since withdrawn) are
+  byte-for-byte unchanged from the `tasks.md` T002 baseline — this is a
+  cheap, high-value regression check that "succinct/full-spaced output for
+  encoded input really is untouched."

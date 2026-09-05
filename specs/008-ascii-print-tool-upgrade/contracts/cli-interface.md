@@ -40,13 +40,18 @@ help/version handling.)
 - **C3**: `ascii_print diagram.txt moves.txt` applies `moves.txt` to the
   parsed diagram before C1/C2 apply. (FR-001)
 - **C4**: `ascii_print succinct.txt --input-format succinct --style
-  full-spaced` reconstructs notation from `succinct.txt` (previously produced
-  succinct output) and prints it fully spaced, representing the same
-  topology and, absent an explicit `--placement` override, the same rendered
-  placement as the input. (Story 3, SC-003)
+  full-spaced` recovers the exact grid embedded in `succinct.txt` (previously
+  produced succinct output) and prints it fully spaced — byte-for-byte the
+  same as rendering the original diagram directly with `--style full-spaced`
+  would have. (Story 3, SC-003; see contracts/succinct-round-trip.md G2)
 - **C5**: `ascii_print succinct.txt --input-format succinct moves.txt` exits
   non-zero with an error naming the conflict, printing nothing. (R4
   validation rule)
+- **C5a**: `ascii_print succinct.txt --input-format succinct --placement
+  index-aligned` and `ascii_print succinct.txt --input-format succinct
+  --echo-diagram` both exit non-zero with an error naming the conflict,
+  printing nothing — succinct input carries no notation, only a recovered
+  grid (R11).
 - **C6**: Malformed input in any format (unparseable diagram, unparseable
   moves, unparseable/unrecognized succinct text) exits non-zero with a
   descriptive error on stderr; stdout is empty. (FR-009, SC-006)

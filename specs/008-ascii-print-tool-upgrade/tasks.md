@@ -4,43 +4,48 @@
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/cli-interface.md](./contracts/cli-interface.md), [contracts/succinct-round-trip.md](./contracts/succinct-round-trip.md), [quickstart.md](./quickstart.md)
 
-**Tests**: Test tasks ARE included. Constitution Principle III (Test-First) is
-binding for the one library change and one library addition this feature
-makes (`try_ascii_print_compact`, `try_from_succinct_text`, both in
-`src/diagram.rs`): write the test first, confirm it fails (or fails to
-compile, for the not-yet-existing function), then implement.
+**Revised during implementation** (2026-09-05): User Story 3's tasks were
+rewritten after the original succinct-round-trip design (reusing `scan_row`
+to reconstruct notation) was directly tested and found to compute a
+*rotated* diagram, not the original one — see `research.md` R5/R10/R11. The
+corrected design needs **no library change**, so the tasks that used to add
+`try_from_succinct_text` and rework `ascii_print_compact` are gone; what
+replaced them (T015–T018 below) is CLI-only, built on `VerboseDiagram`'s
+existing, already-tested `to_text()`/`FromStr` round-trip.
+
+**Tests**: No new `#[test]`/`insta` tasks are needed. This feature makes no
+`src/` changes (constitution Principle III's Test-First applies to new
+behavior in `src/`; there is none), and `examples/ascii_print.rs` follows
+this codebase's existing convention of validating example binaries manually
+via `quickstart.md` rather than with `#[test]`.
 
 ## Organization
 
-Tasks are grouped by user story (spec.md priorities P1–P4), per the
-project's standard task organization. Unlike 007-strand-height-precalc, this
-feature's stories genuinely are independent implementation increments — User
-Story 1 alone is a complete, shippable MVP; each later story adds a
-self-contained capability without changing an already-shipped story's
-behavior *except* User Story 3, which changes `ascii_print_compact`'s output
-width (research R7) — a deliberate, spec-anticipated change to the shared
-succinct renderer, not a break of Story 1's contract (Story 1 promises
-*succinct style by default*, not a specific column width).
+Tasks are grouped by user story (spec.md priorities P1–P4). Each story is a
+genuinely independent implementation increment — User Story 1 alone is a
+complete, shippable MVP — and, unlike the original plan, no story changes
+another's output: every story composes existing, unmodified library
+functions.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: Can run in parallel (different files or independent test
-  functions, no dependency on an incomplete task)
+- **[P]**: Can run in parallel (different files or independent, unrelated
+  edits, no dependency on an incomplete task)
 - **[Story]**: Which user story this task serves (US1–US4); Setup and
   Foundational tasks carry none
 - Include exact file paths in descriptions
 
 ## Path Conventions
 
-Single Rust library crate. CLI in `examples/ascii_print.rs`; library changes
-in `src/diagram.rs` (`try_ascii_print_compact`, new `try_from_succinct_text`)
-and `src/rotate.rs` (new `scan_row` test cases); `insta` snapshots in
-`src/diagram/snapshots/`.
+Single Rust library crate. This feature touches exactly one file besides
+`Cargo.toml`: `examples/ascii_print.rs`. No file under `src/` is changed.
 
-**Constitution gate on every implementation task touching `src/`**: `cargo
-check --target wasm32-unknown-unknown` must still pass (Principle II,
-NON-NEGOTIABLE). No `Cargo.toml` entry beyond the two this feature explicitly
-adds, and only as `[dev-dependencies]` (Principle V).
+**Constitution gate on every task**: `cargo check --target
+wasm32-unknown-unknown` must still pass (Principle II, NON-NEGOTIABLE) — true
+by construction here, since `src/` is untouched, but still checked at every
+gate per the constitution's own instruction. No `Cargo.toml` entry beyond the
+two this feature explicitly adds, and only as `[dev-dependencies]`
+(Principle V).
 
 ---
 
@@ -48,17 +53,22 @@ adds, and only as `[dev-dependencies]` (Principle V).
 
 **Purpose**: Bring in the new tooling without changing any behavior yet.
 
-- [ ] T001 Add `clap` (version `4.6.6`, `features = ["derive"]`) and
+- [X] T001 Add `clap` (version `4.6.6`, `features = ["derive"]`) and
       `clap_complete` (version `4.6.9`) to `[dev-dependencies]` in
       `Cargo.toml` (research R2); confirm `cargo build --example ascii_print`
       still succeeds with the file otherwise untouched
-- [ ] T002 Capture the pre-change baseline: run `cargo test` and record the
+- [X] T002 Capture the pre-change baseline: run `cargo test` and record the
       pass count plus the list of the 15 `ascii_print_compact`-driven
-      snapshot files under `src/diagram/snapshots/` that research.md R9
-      identifies as about to change, in the PR description
-- [ ] T003 [P] Confirm `cargo check --target wasm32-unknown-unknown` passes
-      against current `main` before any `src/` change, as the pre-change
-      baseline for constitution II
+      snapshot files under `src/diagram/snapshots/`, in the PR description.
+      **Note**: research R9 originally expected these to change; R10/R12
+      correct that — this feature is expected to leave them byte-for-byte
+      identical, and this baseline is what T027 confirms that against
+      — **baseline: 110 tests passed, 0 failed**; snapshot list: 8
+      `snapshot_ascii_print*`, 5 `snapshot_precalculated_heights*`, 2
+      `snapshot_precalculated_heights_with_crossings*`
+- [X] T003 [P] Confirm `cargo check --target wasm32-unknown-unknown` passes
+      against current `main` before any change, as the pre-change baseline
+      for constitution II
 
 ---
 
@@ -76,9 +86,10 @@ through. No story-specific rendering behavior is wired yet.
       <succinct|full-spaced>` (default `succinct`); `--placement
       <precalculated-heights|index-aligned>` (default
       `precalculated-heights`); `--grid-borders` and `--echo-diagram` flags;
-      `--completions <bash|zsh|fish|powershell|elvish>`. Every option
-      long-form only — no `.short()` call anywhere in the struct (FR-010,
-      FR-011)
+      `--completions <SHELL>` using `clap_complete::Shell` as the value type
+      (its variants already match bash/zsh/fish/powershell/elvish). Every
+      option long-form only — no `.short()` call anywhere in the struct
+      (FR-010, FR-011)
 - [ ] T005 Replace `examples/ascii_print.rs`'s `main` to call `Cli::parse()`
       and read `diagram`/`moves` the same way `read_input` does today
       (`-`/absent → stdin), leaving the actual dispatch on
@@ -162,75 +173,50 @@ default is unaffected by the new style option existing.
 
 ## Phase 5: User Story 3 - Expanding a succinct diagram into the fully-spaced style (Priority: P3)
 
-**Goal**: `--input-format succinct --style full-spaced` reconstructs
-notation from previously-printed succinct text and renders it fully spaced,
-preserving topology and (by default) placement (FR-007, FR-008, FR-009).
+**Goal**: `--input-format succinct --style full-spaced` recovers the exact
+grid embedded in previously-printed succinct text and renders it fully
+spaced (FR-007, FR-008, FR-009). Corrected design — see the note at the top
+of this file and `research.md` R10/R11: no library change, no notation
+reconstruction, just a hidden trailer built from `VerboseDiagram`'s existing
+`to_text()`/`FromStr`.
 
 **Independent Test**: quickstart.md Scenario 3 — pipe Scenario 1's output
 back in with `--input-format succinct --style full-spaced` and diff against
 Scenario 2's direct output; they must be identical.
 
-### Tests for User Story 3
-
-> Write these FIRST; confirm they fail (or fail to compile, for T017 against
-> a not-yet-existing function) before the implementation tasks below.
-
-- [ ] T015 [P] [US3] Add round-trip unit tests in `src/diagram/tests.rs`
-      asserting, for every fixture in `sample_knots()`, that
-      `AbbreviatedDiagram::try_from_succinct_text(&d.ascii_print_compact::<false>())`
-      returns tuples equal to `d.to_tuples()` (contracts/succinct-round-trip.md
-      G1). Will not compile until T019 lands — that is expected under
-      Test-First here, since the signature is fully specified by
-      data-model.md
-- [ ] T016 [P] [US3] Add unit tests in `src/diagram/tests.rs` for the
-      `unknot` and `trefoil` fixtures capturing the new collapse-to-two-column
-      behavior: derive the expected compact string by hand from each
-      fixture's existing (unchanged) `ascii_print::<false>()` output, per
-      research R7 — never from running the modified
-      `ascii_print_compact`
-- [ ] T017 [P] [US3] Add new `scan_row` unit tests in `src/rotate.rs`,
-      alongside `mod test_scan_row`, fed hand-written collapsed-to-two-column
-      input directly (not derived from a full-width fixture), per research
-      R7's residual-risk note
-
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Implement the collapse-to-two-column behavior in
-      `AbbreviatedDiagram::try_ascii_print_compact`
-      (`src/diagram.rs:1597-1627`): replace full deletion of each maximal
-      all-blank column run with exactly two placeholder columns, preserving
-      each row's own constant character across the run (research R7)
-      (depends on T016)
-- [ ] T019 [US3] Regenerate the 15 affected `insta` snapshots via `cargo
-      insta review`, confirming every diff is exactly "wider blank run" and
-      nothing else, per research R9 (depends on T018)
-- [ ] T020 [US3] Implement `AbbreviatedDiagram::try_from_succinct_text` in
-      `src/diagram.rs`, mirroring `try_rotate_90_ccw`'s scan loop
-      (bottom-to-top row order, `scan_row(cur, prev)`,
-      `Self::new_from_tuples(out)`) but without rotation's left-right
-      character reversal (research R5) (depends on T018, T015)
-- [ ] T021 [US3] Implement the trailing `# placement: <mode>` metadata line
-      (research R6, data-model.md): appended after the diagram art whenever
-      `--style succinct` is used in `examples/ascii_print.rs`; read back and
-      stripped before calling `try_from_succinct_text` when
-      `--input-format succinct`, supplying the default for `--placement`
-      when the flag wasn't explicitly passed
-- [ ] T022 [US3] Wire the `--input-format succinct` path in
-      `examples/ascii_print.rs`: read `diagram`, apply T021's metadata
-      handling, call `try_from_succinct_text`, then continue through the
-      same `--style`/`--placement`/`--grid-borders`/`--echo-diagram`
-      rendering path US1/US2 already wired (FR-007, FR-008)
-- [ ] T023 [US3] Add the validation rule rejecting `--input-format succinct`
-      combined with a `moves` positional argument, with a clear error naming
-      the conflict (research R4, contract C5)
-- [ ] T024 [US3] Run quickstart.md Scenario 3 by hand: confirm the `diff`
+- [ ] T015 [US3] Implement the succinct-output trailer in
+      `examples/ascii_print.rs`: whenever `--style succinct` is used, after
+      printing `ascii_print_compact::<GRID_BORDERS>()`, build
+      `VerboseDiagram::from_abbreviated(&knot)?` and print each line of its
+      `.to_text()`, each prefixed with the literal marker
+      `# ascii_print-grid: ` (research R10, data-model.md)
+- [ ] T016 [US3] Implement the succinct-input trailer parser in
+      `examples/ascii_print.rs`: collect every `# ascii_print-grid:
+      `-prefixed line from the input (in order), strip the marker, rejoin
+      with `\n`, and parse the result with `str::parse::<VerboseDiagram>()`;
+      return a clear error if no such line is found (data-model.md
+      Validation Rules, contract C6)
+- [ ] T017 [US3] Wire the `--input-format succinct` path in
+      `examples/ascii_print.rs`: on `--style full-spaced`, render the
+      recovered `VerboseDiagram` directly via `.display::<GRID_BORDERS>()`;
+      on `--style succinct`, replicate `ascii_print_compact`'s existing
+      blank-column-stripping loop (`src/diagram.rs:1597-1627`) as a small
+      local helper over the recovered grid's rendered lines, since no
+      `AbbreviatedDiagram` is available on this path (FR-007, FR-008,
+      contract C4)
+- [ ] T018 [US3] Add the three validation rules for `--input-format
+      succinct`: reject a `moves` positional, reject an explicit
+      `--placement`, and reject `--echo-diagram`, each with a clear error
+      naming the conflict (research R11, contracts C5/C5a)
+- [ ] T019 [US3] Run quickstart.md Scenario 3 by hand: confirm the `diff`
       against Scenario 2's direct full-spaced output is empty
-- [ ] T025 [US3] Gate: `cargo test` (new round-trip tests, regenerated
-      snapshots, new `scan_row` cases all passing), `cargo check --target
-      wasm32-unknown-unknown` (depends on T019, T020, T022, T023)
+- [ ] T020 [US3] Gate: `cargo build --example ascii_print`, `cargo check
+      --target wasm32-unknown-unknown` (depends on T015, T016, T017, T018)
 
 **Checkpoint**: succinct text produced by this tool can be expanded back to
-the fully-spaced style with a single command, faithfully.
+the fully-spaced style with a single command, exactly.
 
 ---
 
@@ -244,18 +230,18 @@ generated completion script.
 
 ### Implementation for User Story 4
 
-- [ ] T026 [US4] Wire `--completions <shell>` in `examples/ascii_print.rs`:
+- [ ] T021 [US4] Wire `--completions <shell>` in `examples/ascii_print.rs`:
       when present, use `clap_complete::generate` to print the completion
       script for the named shell to stdout and exit, before any
       diagram/input processing occurs (FR-012)
-- [ ] T027 [US4] Make `--completions` mutually exclusive with every other
+- [ ] T022 [US4] Make `--completions` mutually exclusive with every other
       option (clap `conflicts_with_all` or an `ArgGroup`), erroring clearly
       if combined with anything else (contract C7)
-- [ ] T028 [P] [US4] Run quickstart.md Scenario 4 by hand: `--help` lists
+- [ ] T023 [P] [US4] Run quickstart.md Scenario 4 by hand: `--help` lists
       every option long-form only (already satisfied by Phase 2, re-verify
       here); `ascii_print --completions zsh` output passes `zsh -n`
-- [ ] T029 [US4] Gate: `cargo build --example ascii_print`, `cargo check
-      --target wasm32-unknown-unknown` (depends on T026, T027)
+- [ ] T024 [US4] Gate: `cargo build --example ascii_print`, `cargo check
+      --target wasm32-unknown-unknown` (depends on T021, T022)
 
 **Checkpoint**: all four user stories are independently functional.
 
@@ -263,13 +249,17 @@ generated completion script.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T030 [P] Grep the repo for any remaining mention of
+- [ ] T025 [P] Grep the repo for any remaining mention of
       `KNOTTY_PRECALC`/`KNOTTY_GRID`/`KNOTTY_COMPACT`/`KNOTTY_PRINT_ABBREV`
       (docs, comments) and update or remove them, since contract C10 retires
       all four
-- [ ] T031 Walk all four `quickstart.md` scenarios end-to-end in one sitting
+- [ ] T026 Walk all four `quickstart.md` scenarios end-to-end in one sitting
       and confirm every pass condition holds together, not just per-story
-- [ ] T032 Final gate: `cargo build`, `cargo test`, `cargo check --target
+- [ ] T027 Confirm the 15 snapshot files and pass count recorded in T002's
+      baseline are still exactly 110 passed / byte-for-byte unchanged —
+      the corrected US3 design (R10/R12) predicts zero snapshot impact, and
+      this is what proves that prediction true rather than assumed
+- [ ] T028 Final gate: `cargo build`, `cargo test`, `cargo check --target
       wasm32-unknown-unknown`, and confirm `Cargo.toml` gained no dependency
       beyond `clap`/`clap_complete` under `[dev-dependencies]` (constitution
       II and V)
@@ -286,9 +276,8 @@ generated completion script.
 - **US1 (3)**: depends on Foundational only
 - **US2 (4)**: depends on Foundational; independent of US1's tasks but
   naturally follows it (shares the rendering dispatch shape)
-- **US3 (5)**: depends on Foundational; independent of US1/US2 code-wise, but
-  its snapshot regeneration (T019) touches output US1/US2 also produce, so
-  sequencing after US1/US2 avoids rebasing test expectations mid-story
+- **US3 (5)**: depends on Foundational only — fully independent of US1/US2
+  and, unlike the original plan, changes nothing either of them produces
 - **US4 (6)**: depends on Foundational only — fully independent of US1/US2/US3
 - **Polish (7)**: depends on all four stories
 
@@ -298,34 +287,19 @@ generated completion script.
 - **User Story 2 (P2)**: no dependency on US1's tasks, but shares its
   parsing/mode-setting code path (T007) — implement after US1 to avoid
   duplicating that wiring
-- **User Story 3 (P3)**: no dependency on US1/US2's tasks; changes the
-  shared `ascii_print_compact` that US1's output also goes through (research
-  R7) — this is a deliberate width change to a shared renderer, not a
-  functional break of US1's contract
+- **User Story 3 (P3)**: no dependency on US1/US2's tasks or output — the
+  corrected design touches no shared library function, so it can genuinely
+  run in parallel with them
 - **User Story 4 (P4)**: fully independent — touches only `--completions`,
   untouched by US1–US3
 
 ### Parallel Opportunities
 
 - T001 and T003 (Setup) can run in parallel
-- All of Phase 2 must complete before any story starts, but T004 and the
-  `--help`/wasm checks in T006 have no story-specific dependencies to race
-- T015, T016, T017 (US3 tests) can all be written in parallel — independent
-  test functions in different files (`src/diagram/tests.rs`,
-  `src/rotate.rs`)
-- US4 (Phase 6) can run in parallel with US1–US3 once Phase 2 is done — it
-  touches only the `--completions` branch
-
----
-
-## Parallel Example: User Story 3's test-first tasks
-
-```bash
-# All three can be written at once, before any US3 implementation:
-Task: "T015 Round-trip unit tests in src/diagram/tests.rs"
-Task: "T016 Collapse-to-two-column unit tests in src/diagram/tests.rs"
-Task: "T017 New scan_row unit tests in src/rotate.rs"
-```
+- All of Phase 2 must complete before any story starts
+- Once Phase 2 is done, **US1, US3, and US4 can all run in parallel** —
+  none of them shares mutable state with another (US2 is the one exception,
+  sharing US1's parsing/mode code, so sequence it after US1)
 
 ---
 
@@ -344,7 +318,7 @@ Task: "T017 New scan_row unit tests in src/rotate.rs"
 1. Setup + Foundational → CLI skeleton ready, parses and shows help
 2. Add User Story 1 → validate → ship (MVP)
 3. Add User Story 2 → validate → ship
-4. Add User Story 3 → validate (including full snapshot regeneration) → ship
+4. Add User Story 3 → validate → ship
 5. Add User Story 4 → validate → ship
 6. Polish
 
@@ -353,39 +327,37 @@ Task: "T017 New scan_row unit tests in src/rotate.rs"
 1. Phases 1–2 → dependencies, CLI skeleton
 2. Phase 3 (US1) → the MVP, and the smallest path to "better defaults"
 3. Phase 4 (US2) → nearly free once US1's dispatch exists
-4. Phase 6 (US4) → also nearly free, fully independent — good filler between
-   US2 and the heavier US3
-5. Phase 5 (US3) → the substantial one: library change + new function +
-   snapshot regeneration
+4. Phase 6 (US4) → also nearly free, fully independent
+5. Phase 5 (US3) → the trailer embed/extract logic — the most novel CLI code
+   in this feature, though it touches no library function
 6. Phase 7 → polish
 
 ### Risk Notes
 
-**User Story 3 is where the real risk lives.** Everything else is
-straightforward CLI wiring. Research R7's collapse-to-two-column change and
-R5's reuse of `scan_row` are both backed by a proven invariant
-(`Grid::column`'s no-event-no-change behavior) and existing, tested code
-(`try_rotate_90_ccw`), but T017's new direct `scan_row` tests are the one
-piece of that reasoning not yet exercised by any existing test — do not skip
-them.
+**User Story 3 was where the real risk lived, and the risk has already been
+retired.** The original design (reusing `scan_row`) was tested directly and
+found wrong before any task here was written against it — see
+`research.md` R5. The corrected design (T015–T018) builds on
+`VerboseDiagram`'s `to_text()`/`FromStr`, which already has passing
+round-trip tests in `src/render.rs`, unmodified by this feature. What
+remains is ordinary CLI plumbing: embed a trailer, parse it back, handle the
+three input-format validation rules.
 
-**Snapshot regeneration (T019) is mechanical, not optional.** Every diff
-should be explainable as "a blank run got wider by exactly one or two
-columns" — anything else is a real defect in T018, not noise to wave through
-`cargo insta review`.
+**Zero snapshot impact is a claim to verify, not assume (T027).** Because a
+previous version of this plan predicted snapshot changes that turned out
+not to be needed, T027 exists specifically to confirm the corrected
+prediction against the T002 baseline rather than take it on faith.
 
 ---
 
 ## Notes
 
-- [P] = different files or independent test functions, no dependency on an
+- [P] = different files or independent, unrelated edits, no dependency on an
   incomplete task
 - [Story] labels mark story-specific tasks; Setup, Foundational, and Polish
   tasks carry none
-- Verify tests fail (or fail to compile, where noted) before implementing
 - Commit per task or logical group, conventional-commit prefixes (`feat:`,
   `fix:`, `refactor:`, `test:`, `doc:`)
-- Never wave through an unexplained snapshot diff — R9's collapse-to-two
-  change has one specific expected shape
-- Run `cargo check --target wasm32-unknown-unknown` before marking any
-  `src/`-touching task done (Principle II, NON-NEGOTIABLE)
+- Run `cargo check --target wasm32-unknown-unknown` at every gate
+  (Principle II, NON-NEGOTIABLE), even though this feature does not expect
+  it to ever fail

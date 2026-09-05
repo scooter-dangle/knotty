@@ -48,9 +48,10 @@ cargo run --example ascii_print -- /tmp/trefoil.succinct.txt \
 ```
 
 **Expected**: output is identical to Scenario 2's — the succinct file
-carries a trailing `# placement: precalculated-heights` line (see
-`data-model.md`) that the tool reads back automatically, so no `--placement`
-flag is needed here. Diff the two outputs to confirm:
+carries a hidden `# ascii_print-grid: ` trailer (see `data-model.md`) with
+the exact rendered grid, which the tool reads back automatically; no
+`--placement` flag is meaningful or accepted here (research R11). Diff the
+two outputs to confirm:
 
 ```sh
 cargo run --example ascii_print -- /tmp/trefoil.txt --style full-spaced \

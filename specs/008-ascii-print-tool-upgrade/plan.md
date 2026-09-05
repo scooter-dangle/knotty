@@ -4,6 +4,19 @@
 
 **Input**: Feature specification from `specs/008-ascii-print-tool-upgrade/spec.md`
 
+**Revised during implementation** (2026-09-05): the original succinct
+round-trip design (R5: reuse the rotation feature's `scan_row` to reconstruct
+notation from rendered text) was directly tested against the simplest
+possible case and produced the wrong diagram — `scan_row`, called the way R5
+proposed, computes the notation of a *rotated* diagram, not the original one;
+that reversal isn't incidental preprocessing, it *is* the rotation. See
+`research.md` R5 for the experiment and R10/R11 for what replaced it: reusing
+`VerboseDiagram`'s existing, already-`pub`, already-tested `to_text()` /
+`FromStr` lossless grid round-trip instead, embedded as a hidden trailer
+behind the (otherwise completely unchanged) visible succinct art. This
+version of the plan reflects that correction; the summary, technical
+context, project structure and risks below are all rewritten accordingly.
+
 ## Summary
 
 Rebuild `examples/ascii_print.rs`'s command line on `clap` (derive style,
@@ -11,13 +24,13 @@ long options only, shell completions), and flip its defaults so a bare
 `ascii_print <diagram>` invocation now prints the succinct (compact) style
 placed with the precalculated-heights mode — both previously required
 setting environment variables. Add a `--style full-spaced` option for the
-uncompacted rendering, and a new `--input-format succinct` path that
-reconstructs notation from previously-printed succinct text (reusing the
-diagram-rotation feature's proven glyph scanner, `scan_row`) so it can be
-re-rendered fully spaced. One small, low-risk library change is required to
-make succinct text safely re-parseable: `ascii_print_compact` collapses each
-blank column run to two placeholder columns instead of deleting it (see
-research.md R7).
+uncompacted rendering, and a new `--input-format succinct` path that expands
+previously-printed succinct text back to the fully-spaced style. **No
+library changes are required at all**: succinct output is today's unchanged
+`ascii_print_compact` art plus a hidden trailer (`VerboseDiagram::to_text()`,
+already `pub`, already lossless), and succinct input parses that trailer
+straight back with `VerboseDiagram`'s existing `FromStr` — see research.md
+R10.
 
 ## Technical Context
 
@@ -29,33 +42,29 @@ research.md R7).
 
 **Storage**: N/A (stateless CLI, in-memory diagram structures)
 
-**Testing**: `cargo test` (existing `insta` snapshots + `pretty_assertions`);
-new unit tests for `try_from_succinct_text` and for `scan_row` against
-collapsed-to-two-column input (`src/rotate.rs`); manual CLI validation per
-`quickstart.md`
+**Testing**: `cargo test` (existing `insta` snapshots + `pretty_assertions`,
+all expected to remain byte-for-byte unchanged — see Risks); manual CLI
+validation per `quickstart.md`. No new `#[test]` obligations in `src/`, since
+no `src/` code changes (constitution III's Test-First applies to new
+behavior in `src/`; there is none here).
 
 **Target Platform**: native, for the example binary. The library (`src/`)
-remains wasm32-compatible; the CLI's new dependencies never reach `src/` or
-the wasm build (constitution II is about `src/`, not example binaries)
+is completely untouched by this feature; wasm32-compatibility is therefore
+not at risk, but is still reconfirmed (constitution II, NON-NEGOTIABLE).
 
 **Project Type**: Single Rust library crate (`knotty`) with example binaries;
-this feature touches one example binary and one small library addition
+this feature touches exactly one example binary and zero library files.
 
 **Performance Goals**: No interactive/latency requirement — a one-shot CLI
-tool. `try_from_succinct_text` is linear in input size, matching
-`try_rotate_90_ccw`'s existing scan cost.
+tool.
 
 **Constraints**: `--style succinct`/`full-spaced` output for encoded-diagram
-input, other than the collapse-to-two width change (R7), must remain
-byte-for-byte what today's `ascii_print`/`ascii_print_compact` produce — this
-feature changes CLI defaults and adds capabilities, it does not change how a
-diagram is rendered. All `src/` changes must keep compiling for
-`wasm32-unknown-unknown`.
+input must remain byte-for-byte what today's `ascii_print`/`ascii_print_compact`
+produce (now trivially true — this feature calls them unmodified). All
+`src/` compiles for `wasm32-unknown-unknown` (unaffected — no `src/` change).
 
-**Scale/Scope**: One CLI rewrite (`examples/ascii_print.rs`), one library
-function addition (`AbbreviatedDiagram::try_from_succinct_text`), one library
-behavior change (`ascii_print_compact`'s collapse width), two new
-dev-dependencies, ~15 snapshot regenerations.
+**Scale/Scope**: One CLI rewrite (`examples/ascii_print.rs`), two new
+dev-dependencies, zero library changes, zero snapshot changes.
 
 ## Constitution Check
 
@@ -63,18 +72,18 @@ dev-dependencies, ~15 snapshot regenerations.
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Library-First | ✅ PASS | The one behavior with reuse value beyond this CLI — `try_from_succinct_text` — lands in `src/diagram.rs`, independently useful to any consumer (e.g. `knot-so-good`) the same way `try_rotate_90_ccw` already is. Everything CLI-specific (flags, defaults, completions) stays in `examples/ascii_print.rs`, which hosts, never redefines, library behavior. |
-| II. WASM-Compatible (NON-NEGOTIABLE) | ✅ PASS | `clap`/`clap_complete` are dev-dependencies reachable only from `examples/ascii_print.rs`; `cargo check --target wasm32-unknown-unknown` (library only) is unaffected. The one `src/` change (R7's collapse-to-two) is pure, dependency-free logic already in a wasm-compiled module. |
-| III. Test-First | ✅ PASS | `contracts/succinct-round-trip.md` lists concrete test obligations (round-trip assertions, new `scan_row` cases, snapshot regeneration) to land alongside the implementation, not after. Regression tests required for the `ascii_print_compact` change per constitution (touches `diagram.rs`). |
-| IV. Notation Fidelity | ✅ PASS | No new notation is introduced (research.md R3); the abbreviated notation stays the sole source of truth. `quickstart.md` includes a concrete example abbreviated-notation input (`(0 (2 \1 /0 \1 )2 )0`, the existing trefoil fixture) with its expected succinct/full-spaced outputs, satisfying the constitution's "specs must include example abbreviated-notation inputs and expected outputs" for this feature's artifacts. |
-| V. Minimal Dependencies | ✅ PASS | Two new entries in `Cargo.toml` (`clap`, `clap_complete`), both explicitly required by the feature request (FR-010–FR-013) and scoped as dev-dependencies to one example binary — not GUI deps misplaced in the root, and not addable to `examples/knot-so-good/Cargo.toml` since that GUI has no CLI surface to serve. |
+| I. Library-First | ✅ PASS | This feature adds no new library behavior at all — it composes existing, already-`pub` library API (`AbbreviatedDiagram::from_abbreviated`, `ascii_print`/`ascii_print_compact`, `VerboseDiagram::to_text`/`FromStr`/`display`) entirely from the CLI. Nothing CLI-specific leaks into `src/`. |
+| II. WASM-Compatible (NON-NEGOTIABLE) | ✅ PASS | `clap`/`clap_complete` are dev-dependencies reachable only from `examples/ascii_print.rs`; `src/` is untouched, so `cargo check --target wasm32-unknown-unknown` is unaffected by construction, not just by careful scoping. |
+| III. Test-First | ✅ PASS (vacuously) | No new behavior lands in `src/`, so there is no new `#[test]`/`insta` obligation under Principle III. The guarantees this feature relies on (`VerboseDiagram`'s grid round-trip) are already covered by existing tests in `src/render.rs`. Manual `quickstart.md` validation covers the CLI-only logic (trailer embed/extract). |
+| IV. Notation Fidelity | ✅ PASS | No new notation is introduced (research.md R3); the abbreviated notation stays the sole source of truth for encoded-diagram input. Succinct input never claims to be a notation source — it recovers a rendered grid, not notation (R11). `quickstart.md` includes a concrete example abbreviated-notation input (`(0 (2 \1 /0 \1 )2 )0`, the existing trefoil fixture) with its expected succinct/full-spaced outputs. |
+| V. Minimal Dependencies | ✅ PASS | Two new entries in `Cargo.toml` (`clap`, `clap_complete`), both explicitly required by the feature request (FR-010–FR-013) and scoped as dev-dependencies to one example binary. |
 
 **Result**: no violations; Complexity Tracking not required.
 
-**Post-design re-check**: still PASS. Phase 1 added one public function
-(`try_from_succinct_text`) alongside an existing sibling
-(`try_rotate_90_ccw`) with the same shape, and one behavior change to an
-existing function's output width — no new abstractions, traits, or generics.
+**Post-design re-check**: still PASS, and more clearly so than the original
+design — the corrected approach (R10/R11) removes the one `src/` change
+(the R7 collapse-to-two rework) the original design would have made,
+leaving the library entirely untouched.
 
 ## Project Structure
 
@@ -82,55 +91,44 @@ existing function's output width — no new abstractions, traits, or generics.
 
 ```text
 specs/008-ascii-print-tool-upgrade/
-├── plan.md                    # This file
+├── plan.md                    # This file (revised — see note at top)
 ├── spec.md                    # Requirements
-├── research.md                # Phase 0 — R1–R9
-├── data-model.md              # Phase 1 — CLI args, succinct format shape, library addition
+├── research.md                # Phase 0 — R1–R4, R8 valid as-is; R5–R7, R9
+│                               #   superseded in place by R10–R12
+├── data-model.md              # Phase 1 — CLI args, succinct trailer format (revised)
 ├── quickstart.md              # Phase 1 — validation scenarios
 ├── contracts/
 │   ├── cli-interface.md       # External contract: the ascii_print command line
-│   └── succinct-round-trip.md # Internal seam: ascii_print_compact ⇄ try_from_succinct_text
+│   └── succinct-round-trip.md # Revised: trailer embed/extract, no library seam
 ├── checklists/requirements.md # Spec quality checklist
-└── tasks.md                   # Phase 2 output (/speckit-tasks)
+└── tasks.md                   # Phase 2 output (/speckit-tasks — revised)
 ```
 
 ### Source Code (repository root)
 
 ```text
-src/
-├── diagram.rs       # CHANGE: try_ascii_print_compact collapses blank runs to
-│                    #         2 columns instead of 0 (R7); ADD
-│                    #         try_from_succinct_text (R5), mirroring
-│                    #         try_rotate_90_ccw's scan loop
-├── rotate.rs         # CHANGE (tests only): add scan_row cases fed
-│                    #         collapsed-to-two-column input directly (R7)
-├── raw_lines.rs      # unchanged — Grid::column's existing behavior is what
-│                    #         R7's safety argument relies on, not a target of change
-├── render.rs         # unchanged
-├── moves.rs          # unchanged
-└── diagram/snapshots/, snapshots/   # 15 ascii_print_compact-derived snapshots
-                       #         regenerated via `cargo insta review` (R9)
+src/                  # UNCHANGED — no file in src/ is touched by this feature
 
 examples/
 ├── ascii_print.rs           # REWRITE: clap derive CLI; new defaults
 │                            # (--input-format, --style, --placement,
-│                            # --grid-borders, --echo-diagram, --completions)
-└── knot-so-good/            # unchanged (R8 — cosmetic-only effect, no code change)
+│                            # --grid-borders, --echo-diagram, --completions);
+│                            # builds/parses the succinct trailer using only
+│                            # already-pub library API (research R10)
+└── knot-so-good/            # unchanged — nothing in src/ changed for it to see
 
 Cargo.toml           # CHANGE: add clap (derive), clap_complete to [dev-dependencies]
 ```
 
 **Structure Decision**: single-crate library, unchanged shape. The CLI stays
-an example binary (constitution I: CLI is a consumer of the library, never a
-host for new logic) — the only logic that moves into `src/` is the one
-function with reuse value beyond this CLI.
+an example binary (constitution I). Unlike the original plan, there is no
+library-side change at all — every capability this feature needs already
+existed as public API before this feature started.
 
 ## Risks
 
 | Risk | Assessment |
 |---|---|
-| `scan_row` correctness against collapsed-to-two-column input (R7) | **Low, verifiable.** The per-row-constant-within-a-run invariant is proven from `Grid::column`'s existing code, not assumed; residual risk is confined to writing the new direct unit tests research.md calls for, not to the underlying logic. |
-| Placement-mode provenance for succinct input (R6) | **Resolved by design**, via the trailing `# placement: ...` metadata line, reusing the codebase's existing `#`-comment convention. Residual: hand-edited succinct input missing the line falls back to the tool's default, which is a documented, acceptable behavior, not a defect. |
+| The corrected succinct round-trip design (R10) turns out to have its own flaw, symmetric to R5's | **Mitigated.** Unlike R5, R10 does not depend on a new, unverified transform — it reuses `VerboseDiagram`'s `to_text()`/`FromStr`, which already has passing round-trip tests in `src/render.rs` today, unmodified by this feature. The only new logic is trailer embed/extract, validated end-to-end by `quickstart.md` Scenario 3 before being considered done. |
 | Breaking change: environment variables no longer read (C10) | **Accepted, intentional.** `examples/ascii_print.rs` is a dev tool, not a published/versioned API; the feature request explicitly asks to move off ad hoc environment-variable configuration. |
-| Snapshot churn (R9) | **Mechanical.** ~15 snapshots regenerate with a single-line diff shape ("wider blank run"); reviewed via `cargo insta review` as part of implementation, per constitution III. |
-| `knot-so-good` GUI's compact view changes cosmetically (R8) | **Accepted, out of scope.** No functional test in that crate depends on exact compact width. |
+| Snapshot/consumer impact | **None expected**, and worth confirming rather than assuming: `ascii_print`/`ascii_print_compact` are called unmodified, so all 15 snapshots research.md originally flagged (R9, withdrawn) and `knot-so-good`'s compact view (R8, withdrawn) should be provably untouched — checked explicitly in `tasks.md`'s final gate rather than left as an assumption, given the surprise already found once in this feature. |
