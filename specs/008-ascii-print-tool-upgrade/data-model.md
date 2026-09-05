@@ -19,7 +19,7 @@ A single `clap::Parser`-derived struct, replacing today's positional
 | `--style` | enum: `succinct` \| `full-spaced` | `succinct` | Selects the output rendering (FR-003/FR-004/FR-005/FR-006). |
 | `--placement` | enum: `precalculated-heights` \| `index-aligned` | `precalculated-heights`, unless `--input-format succinct` and the input carries a placement metadata line (R6), in which case that value is the default | Overrides the placement mode used to render (FR-002/FR-003). |
 | `--grid-borders` | flag (bool) | `false` | Replaces `KNOTTY_GRID` (FR-014). |
-| `--echo-diagram` | flag (bool) | `false` | Replaces `KNOTTY_PRINT_ABBREV`; prints the resulting notation after rendering. Rejected together with `--input-format succinct`, since there is no notation to echo distinct from what was just reconstructed — see Validation Rules. |
+| `--echo-diagram` | flag (bool) | `false` | Replaces `KNOTTY_PRINT_ABBREV`; prints the resulting notation after rendering. Works uniformly for both input formats — for `--input-format succinct` it prints the notation `try_from_succinct_text` recovered, which doubles as a way to convert a succinct file back into an encoded-diagram file. |
 | `--completions` | enum: `bash` \| `zsh` \| `fish` \| `powershell` \| `elvish` | — | When present, emits a completion script for the named shell to stdout and exits; no diagram processing occurs (FR-012). |
 
 All options are long-form only; no `short` is declared on any `clap::Arg`
