@@ -16,7 +16,7 @@
 
 ## Rust toolchain
 
-- Channel pinned in `rust-toolchain.toml` (currently `1.94.0`)
+- Channel pinned in `rust-toolchain.toml` (currently `1.100.0`)
 - `targets = ["wasm32-unknown-unknown"]` declared in `rust-toolchain.toml`
 
 ## Style
